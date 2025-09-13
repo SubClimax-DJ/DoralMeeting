@@ -123,61 +123,67 @@
     </header>
 
     <main class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-        <!-- Video and Controls -->
-        <div class="md:col-span-2 container-card">
-            <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feed</h2>
-            <div class="video-container mb-4">
-                <video id="remoteVideo" class="video-element" autoplay playsinline></video>
-                <video id="localVideo" class="video-element" autoplay playsinline muted></video>
-            </div>
-            <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 items-center justify-center">
-                <button id="toggleAudioBtn" class="btn-toggle"><i class="fas fa-microphone"></i> Mute Audio</button>
-                <button id="toggleVideoBtn" class="btn-toggle"><i class="fas fa-video"></i> Mute Video</button>
-                <button id="hangupBtn" class="btn-danger flex-1" disabled>Hang Up</button>
-            </div>
-            <div class="flex mt-4 space-x-4 justify-center">
-                <button id="startRecordingBtn" class="btn-primary" disabled>Start Recording</button>
-                <button id="stopRecordingBtn" class="btn-danger" disabled>Stop Recording</button>
-            </div>
-            <a id="downloadRecording" style="display: none;"></a>
+        <!-- Initial Username Prompt -->
+        <div id="usernamePrompt" class="md:col-span-3 flex flex-col items-center justify-center p-8 bg-[#32302f] rounded-lg shadow-xl">
+            <h2 class="text-2xl font-bold font-['Crimson_Pro'] mb-4">Enter Your Username</h2>
+            <p class="text-sm text-gray-400 mb-6 text-center">Your username will be visible to other participants in the chat.</p>
+            <input type="text" id="usernameInput" placeholder="e.g., JaneDoe" class="input-field max-w-sm mb-4" />
+            <button id="submitUsernameBtn" class="btn-primary max-w-xs w-full">Start</button>
         </div>
 
-        <!-- Room Management & Chat -->
-        <div class="md:col-span-1 space-y-8">
-            <div class="container-card">
-                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Room Management</h2>
-                <div class="flex flex-col space-y-4">
-                    <div class="flex space-x-2">
-                        <input type="text" id="roomIdInput" placeholder="Enter Room ID" class="input-field flex-1" />
-                        <button id="joinRoomBtn" class="btn-primary">Join</button>
+        <!-- Main App Content (hidden initially) -->
+        <div id="mainApp" class="md:col-span-3 hidden grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Video and Controls -->
+            <div class="md:col-span-2 container-card">
+                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feed</h2>
+                <div class="video-container mb-4">
+                    <video id="remoteVideo" class="video-element" autoplay playsinline></video>
+                    <video id="localVideo" class="video-element" autoplay playsinline muted></video>
+                </div>
+                <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 items-center justify-center">
+                    <button id="toggleAudioBtn" class="btn-toggle"><i class="fas fa-microphone"></i> Mute Audio</button>
+                    <button id="toggleVideoBtn" class="btn-toggle"><i class="fas fa-video"></i> Mute Video</button>
+                    <button id="hangupBtn" class="btn-danger flex-1" disabled>Hang Up</button>
+                </div>
+                <div class="flex mt-4 space-x-4 justify-center">
+                    <button id="startRecordingBtn" class="btn-primary" disabled>Start Recording</button>
+                    <button id="stopRecordingBtn" class="btn-danger" disabled>Stop Recording</button>
+                </div>
+                <a id="downloadRecording" style="display: none;"></a>
+            </div>
+
+            <!-- Room Management & Chat -->
+            <div class="md:col-span-1 space-y-8">
+                <div class="container-card">
+                    <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Room Management</h2>
+                    <div class="flex flex-col space-y-4">
+                        <div class="flex space-x-2">
+                            <input type="text" id="roomIdInput" placeholder="Enter Room ID" class="input-field flex-1" />
+                            <button id="joinRoomBtn" class="btn-primary">Join</button>
+                        </div>
+                        <button id="createRoomBtn" class="btn-primary">Create New Room</button>
                     </div>
-                    <button id="createRoomBtn" class="btn-primary">Create New Room</button>
                 </div>
-            </div>
-
-            <div class="container-card">
-                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Active Rooms</h2>
-                <div id="activeRoomsList" class="space-y-2">
-                    <p class="text-gray-500 text-sm">Loading rooms...</p>
+    
+                <div class="container-card">
+                    <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Active Rooms</h2>
+                    <div id="activeRoomsList" class="space-y-2">
+                        <p class="text-gray-500 text-sm">Loading rooms...</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="container-card" id="roomCreatorControls" style="display: none;">
-                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Layout Controls</h2>
-                <div class="flex flex-col space-y-4">
-                    <button class="btn-toggle layout-btn" data-layout="full">Full Screen</button>
-                    <button class="btn-toggle layout-btn" data-layout="pip-bottom-right">Picture-in-Picture (Bottom Right)</button>
-                    <button class="btn-toggle layout-btn" data-layout="side-by-side">Side-by-Side</button>
-                    <button class="btn-toggle layout-btn" data-layout="local-on-top">Local-on-Top</button>
+                <div class="container-card" id="participantsList" style="display: none;">
+                    <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2>
+                    <p class="text-gray-400 text-sm">No other participants.</p>
                 </div>
-            </div>
-
-            <div class="container-card">
-                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
-                <div class="chat-container mb-4" id="chatContainer"></div>
-                <div class="flex space-x-2">
-                    <input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" />
-                    <button id="sendChatBtn" class="btn-primary">Send</button>
+    
+                <div class="container-card">
+                    <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
+                    <div class="chat-container mb-4" id="chatContainer"></div>
+                    <div class="flex space-x-2">
+                        <input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" />
+                        <button id="sendChatBtn" class="btn-primary">Send</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -209,6 +215,11 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // UI Elements
+        const usernamePrompt = document.getElementById('usernamePrompt');
+        const mainApp = document.getElementById('mainApp');
+        const usernameInput = document.getElementById('usernameInput');
+        const submitUsernameBtn = document.getElementById('submitUsernameBtn');
+
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
         const roomIdInput = document.getElementById('roomIdInput');
@@ -225,11 +236,16 @@
         const statusMessage = document.getElementById('status-message');
         const authStatus = document.getElementById('auth-status');
         const activeRoomsList = document.getElementById('activeRoomsList');
-        const roomCreatorControls = document.getElementById('roomCreatorControls');
+        const participantsList = document.getElementById('participantsList');
 
         // Firestore and Auth instances
         let app, db, auth;
         let userId;
+
+        // User-specific variables
+        let username;
+        let isCreator = false;
+        let remotePeerId = null;
 
         // WebRTC variables
         let peerConnection = null;
@@ -239,10 +255,8 @@
         let candidatesListener = null;
         let chatListener = null;
         let roomsListener = null;
-        let controlListener = null;
-        let isMuted = false;
-        let isVideoOff = false;
-        let isCreator = false;
+        let participantsListener = null;
+        let remoteLayoutListener = null;
 
         // Recording variables
         let mediaRecorder;
@@ -353,11 +367,15 @@
                     activeRoomsList.innerHTML = '<p class="text-gray-500 text-sm">No active rooms.</p>';
                 } else {
                     snapshot.forEach(doc => {
+                        const roomData = doc.data();
                         const roomName = doc.id;
                         const roomDiv = document.createElement('div');
-                        roomDiv.className = 'flex items-center justify-between p-2 bg-gray-100 rounded-sm hover:bg-gray-200 transition duration-150';
+                        roomDiv.className = 'flex items-center justify-between p-2 bg-[#3c3836] rounded-sm hover:bg-[#504945] transition duration-150 cursor-pointer';
                         roomDiv.innerHTML = `
-                            <span class="text-sm font-semibold">${roomName}</span>
+                            <div class="flex flex-col">
+                                <span class="font-semibold">${roomName}</span>
+                                <span class="text-xs text-gray-400">Created by: ${roomData.createdByUsername}</span>
+                            </div>
                             <button data-room-id="${roomName}" class="join-room-btn px-3 py-1 text-sm rounded-sm bg-blue-600 text-white hover:bg-blue-700">Join</button>
                         `;
                         activeRoomsList.appendChild(roomDiv);
@@ -379,7 +397,7 @@
             }
 
             isCreator = true;
-            roomCreatorControls.style.display = 'block';
+            participantsList.style.display = 'block';
             
             const roomName = `room-${Math.random().toString(36).substring(2, 9)}`;
             roomIdInput.value = roomName;
@@ -398,17 +416,20 @@
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
 
-            await setDoc(roomRef, { offer: { sdp: offer.sdp, type: offer.type }, createdBy: userId });
-            
-            const controlsRef = doc(roomRef, 'video-controls', 'styles');
-            const defaultStyles = {
-                remote: { width: 100, height: 100, top: 0, left: 0 },
-                local: { width: 150, height: 112.5, bottom: 1, right: 1, units: 'px' }
-            };
-            await setDoc(controlsRef, defaultStyles);
+            await setDoc(roomRef, { 
+                offer: { sdp: offer.sdp, type: offer.type }, 
+                createdBy: userId, 
+                createdByUsername: username,
+                participants: { [userId]: username }
+            });
 
             roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
                 const data = snapshot.data();
+                if (!snapshot.exists()) {
+                    hangup();
+                    showMessage("Room closed by host.", false);
+                    return;
+                }
                 if (data && data.answer && !peerConnection.currentRemoteDescription) {
                     const answer = new RTCSessionDescription(data.answer);
                     await peerConnection.setRemoteDescription(answer);
@@ -424,9 +445,8 @@
                 });
             });
 
+            listenForParticipants();
             listenForChat(roomRef);
-
-            setupLayoutButtons();
 
             showMessage(`Room created! Share this ID with your client: ${roomName}`);
             createRoomBtn.disabled = true;
@@ -454,6 +474,9 @@
                 showMessage("Room does not exist.", true);
                 return;
             }
+            
+            const roomData = roomSnapshot.data();
+            remotePeerId = roomData.createdBy;
 
             showMessage(`Joining room: ${roomId}`);
 
@@ -470,6 +493,7 @@
             await peerConnection.setLocalDescription(answer);
 
             await updateDoc(roomRef, { answer: { sdp: answer.sdp, type: answer.type } });
+            await updateDoc(roomRef, { [`participants.${userId}`]: username });
 
             candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
                 snapshot.docChanges().forEach(async (change) => {
@@ -481,23 +505,7 @@
             });
             
             listenForChat(roomRef);
-
-            const controlsRef = doc(roomRef, 'video-controls', 'styles');
-            controlListener = onSnapshot(controlsRef, (snapshot) => {
-                const styles = snapshot.data();
-                if (styles) {
-                    // Update remote video based on Firestore data
-                    remoteVideo.style.width = `${styles.remote.width}%`;
-                    remoteVideo.style.height = `${styles.remote.height}%`;
-                    remoteVideo.style.top = `${styles.remote.top}%`;
-                    remoteVideo.style.left = `${styles.remote.left}%`;
-                    // Update local video based on Firestore data
-                    localVideo.style.width = `${styles.local.width}${styles.local.units}`;
-                    localVideo.style.height = `${styles.local.height}${styles.local.units}`;
-                    localVideo.style.bottom = `${styles.local.bottom}${styles.local.units}`;
-                    localVideo.style.right = `${styles.local.right}${styles.local.units}`;
-                }
-            });
+            listenForParticipants();
 
             showMessage(`Successfully joined room ${roomId}!`);
             createRoomBtn.disabled = true;
@@ -506,45 +514,42 @@
             sendChatBtn.disabled = false;
         };
 
-        const setupLayoutButtons = () => {
-            if (!isCreator) return;
+        const listenForParticipants = () => {
+            if (participantsListener) participantsListener();
+            participantsList.style.display = 'block';
 
-            document.querySelectorAll('.layout-btn').forEach(btn => {
+            const roomDocRef = roomRef;
+            participantsListener = onSnapshot(roomDocRef, (snapshot) => {
+                const roomData = snapshot.data();
+                if (!roomData || !roomData.participants) return;
+
+                const participants = roomData.participants;
+                participantsList.innerHTML = `<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2>`;
+
+                if (isCreator) {
+                    // Host UI
+                    for (const id in participants) {
+                        const participantDiv = document.createElement('div');
+                        participantDiv.className = 'flex items-center justify-between p-2 bg-[#3c3836] rounded-sm mb-2';
+                        participantDiv.innerHTML = `
+                            <span>${participants[id]} ${id === userId ? '(You)' : ''}</span>
+                            <button data-participant-id="${id}" class="control-btn px-3 py-1 text-sm rounded-sm bg-blue-600 text-white hover:bg-blue-700">Full Screen</button>
+                        `;
+                        participantsList.appendChild(participantDiv);
+                    }
+                    setupParticipantControls();
+                }
+            });
+        };
+
+        const setupParticipantControls = () => {
+            document.querySelectorAll('.control-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
-                    const layout = btn.dataset.layout;
-                    let remoteStyles = {};
-                    let localStyles = { width: 150, height: 112.5, bottom: 1, right: 1, units: 'px' };
-
-                    switch (layout) {
-                        case 'full':
-                            remoteStyles = { width: 100, height: 100, top: 0, left: 0 };
-                            break;
-                        case 'pip-bottom-right':
-                            remoteStyles = { width: 40, height: 40, top: 55, left: 55 };
-                            break;
-                        case 'side-by-side':
-                            remoteStyles = { width: 50, height: 100, top: 0, left: 50 };
-                            break;
-                        case 'local-on-top':
-                            remoteStyles = { width: 100, height: 100, top: 0, left: 0 };
-                            localStyles = { width: 100, height: 100, top: 0, left: 0, units: '%' };
-                            break;
-                    }
-
-                    if (roomRef) {
-                        const controlsRef = doc(roomRef, 'video-controls', 'styles');
-                        const newStyles = { remote: remoteStyles, local: localStyles };
-                        await updateDoc(controlsRef, newStyles);
-                        // Apply styles directly to the creator's UI for instant feedback
-                        remoteVideo.style.width = `${newStyles.remote.width}%`;
-                        remoteVideo.style.height = `${newStyles.remote.height}%`;
-                        remoteVideo.style.top = `${newStyles.remote.top}%`;
-                        remoteVideo.style.left = `${newStyles.remote.left}%`;
-                        localVideo.style.width = `${newStyles.local.width}${newStyles.local.units}`;
-                        localVideo.style.height = `${newStyles.local.height}${newStyles.local.units}`;
-                        localVideo.style.bottom = `${newStyles.local.bottom}${newStyles.local.units}`;
-                        localVideo.style.right = `${newStyles.local.right}${newStyles.local.units}`;
-                    }
+                    const participantId = btn.dataset.participantId;
+                    const stylesRef = doc(roomRef, 'video-controls', participantId);
+                    await setDoc(stylesRef, { 
+                        remote: { width: 100, height: 100, top: 0, left: 0 } 
+                    });
                 });
             });
         };
@@ -560,28 +565,30 @@
             remoteVideo.srcObject = null;
             peerConnection = null;
             localStream = null;
-            isCreator = false;
-            roomCreatorControls.style.display = 'none';
+            remotePeerId = null;
 
             if (roomSnapshotListener) roomSnapshotListener();
             if (candidatesListener) candidatesListener();
             if (chatListener) chatListener();
-            if (controlListener) controlListener();
+            if (participantsListener) participantsListener();
+            if (remoteLayoutListener) remoteLayoutListener();
             roomSnapshotListener = null;
             candidatesListener = null;
             chatListener = null;
-            controlListener = null;
+            participantsListener = null;
+            remoteLayoutListener = null;
 
             if (roomRef) {
-                try {
-                    const messagesCollectionRef = collection(roomRef, 'chat-messages');
-                    const messagesSnapshot = await getDocs(messagesCollectionRef);
-                    messagesSnapshot.forEach(async (msgDoc) => await deleteDoc(doc(messagesCollectionRef, msgDoc.id)));
-                    await deleteDoc(roomRef);
-                } catch (error) {
-                    console.error("Error deleting room data:", error);
+                if (isCreator) {
+                    try {
+                        await deleteDoc(roomRef);
+                    } catch (error) {
+                        console.error("Error deleting room data:", error);
+                    }
                 }
             }
+            isCreator = false;
+            participantsList.style.display = 'none';
 
             roomIdInput.value = '';
             hideMessage();
@@ -661,6 +668,7 @@
             const chatMessagesRef = collection(roomRef, 'chat-messages');
             await addDoc(chatMessagesRef, {
                 senderId: userId,
+                senderUsername: username,
                 text: message,
                 timestamp: serverTimestamp()
             });
@@ -685,15 +693,31 @@
         const displayMessage = (messageData) => {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${messageData.senderId === userId ? 'my-message' : 'other-message'}`;
-            messageDiv.textContent = messageData.text;
+            messageDiv.innerHTML = `<span class="font-bold">${messageData.senderUsername}:</span> ${messageData.text}`;
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+        };
+
+        const setUsername = () => {
+            const user = usernameInput.value.trim();
+            if (user) {
+                username = user;
+                usernamePrompt.style.display = 'none';
+                mainApp.style.display = 'grid';
+            } else {
+                showMessage("Please enter a username.", true);
+            }
         };
 
         // Event Listeners
         window.onload = () => {
             initFirebase();
         };
+
+        submitUsernameBtn.addEventListener('click', setUsername);
+        usernameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') setUsername();
+        });
 
         createRoomBtn.addEventListener('click', createRoom);
         joinRoomBtn.addEventListener('click', joinRoom);
@@ -706,7 +730,6 @@
         chatInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') sendMessage();
         });
-
     </script>
 </body>
 </html>
