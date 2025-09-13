@@ -261,7 +261,6 @@ No participants in this room.
 Loading users...
 </div>
 </div>
-
 </div>
 </main>
 
@@ -1169,17 +1168,6 @@ showMessage('Failed to delete rooms.', true);
 window.onload = () => {
 initFirebase();
 };
-
-window.addEventListener('beforeunload', async () => {
-  if (userId) {
-    try {
-      await deleteDoc(doc(db, `artifacts/${appId}/public/data/active-users`, userId));
-    } catch (e) {
-      console.error("Failed to remove user from active list on unload:", e);
-    }
-  }
-});
-
 submitUsernameBtn.addEventListener('click', setUsername);
 usernameInput.addEventListener('keydown', (e) => {
 if (e.key === 'Enter') setUsername();
