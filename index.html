@@ -62,6 +62,7 @@ left: 0;
 width: 100%;
 height: 100%;
 object-fit: cover;
+transition: all 0.3s ease-in-out;
 }
 #localVideo {
 width: 150px;
@@ -174,6 +175,10 @@ Doral Video Conference
 <input type="text" id="roomIdInput" placeholder="Enter Room ID" class="input-field flex-1" />
 <button id="joinRoomBtn" class="btn-primary" disabled>Join</button>
 </div>
+<div class="flex items-center space-x-2">
+<input type="checkbox" id="joinMutedCheckbox" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+<label for="joinMutedCheckbox" class="text-sm">Join with camera/mic off</label>
+</div>
 <button id="createRoomBtn" class="btn-primary" disabled>Create New Room</button>
 <button id="deleteAllRoomsBtn" class="btn-danger" disabled>Delete All Rooms</button>
 </div>
@@ -183,6 +188,13 @@ Doral Video Conference
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Active Rooms</h2>
 <div id="activeRoomsList" class="space-y-2">
 <p class="text-gray-500 text-sm">Loading rooms...</p>
+</div>
+</div>
+
+<div class="container-card">
+<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2>
+<div id="participantsList" class="space-y-2 text-gray-400 text-sm">
+No participants in this room.
 </div>
 </div>
 
@@ -228,10 +240,25 @@ Doral Video Conference
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, setLogLevel, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, setLogLevel, serverTimestamp, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+// Hardcoded Firebase configuration
+const hardcodedFirebaseConfig = {
+  apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
+  authDomain: "video-meeting-e73eb.firebaseapp.com",
+  projectId: "video-meeting-e73eb",
+  storageBucket: "video-meeting-e73eb.firebasestorage.app",
+  messagingSenderId: "80496795033",
+  appId: "1:80496795033:web:3ac35c631d76301f77c708",
+  measurementId: "G-SFPQ0PJRPG"
+};
+
+// Use the environment's config if available, otherwise use the hardcoded one
+const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config !== '{}'
+    ? JSON.parse(__firebase_config)
+    : hardcodedFirebaseConfig;
 
 // Global variables provided by the environment
-const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
 const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.appId;
 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
@@ -257,6 +284,9 @@ const chatContainer = document.getElementById('chatContainer');
 const statusMessage = document.getElementById('status-message');
 const authStatus = document.getElementById('auth-status');
 const activeRoomsList = document.getElementById('activeRoomsList');
+const joinMutedCheckbox = document.getElementById('joinMutedCheckbox');
+const participantsList = document.getElementById('participantsList');
+
 
 // Password Modal Elements
 const passwordModal = document.getElementById('passwordModal');
@@ -280,6 +310,7 @@ let roomSnapshotListener = null;
 let candidatesListener = null;
 let chatListener = null;
 let roomsListener = null;
+let participantsListener = null;
 
 // Recording variables
 let mediaRecorder;
@@ -342,11 +373,23 @@ showMessage(`Firebase initialization failed: ${error.message}`, true);
 };
 
 // Get the user's local video and audio stream
-const getLocalStream = async () => {
+const getLocalStream = async (startMuted) => {
 try {
-localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+localStream = await navigator.mediaDevices.getUserMedia({ video: !startMuted, audio: !startMuted });
 localVideo.srcObject = localStream;
 localVideo.muted = true;
+
+if (startMuted) {
+localStream.getAudioTracks()[0].enabled = false;
+localStream.getVideoTracks()[0].enabled = false;
+toggleAudioBtn.textContent = "Unmute Audio";
+toggleVideoBtn.textContent = "Turn On Video";
+} else {
+toggleAudioBtn.textContent = "Mute Audio";
+toggleVideoBtn.textContent = "Mute Video";
+}
+toggleAudioBtn.classList.toggle('btn-toggle-active', !startMuted);
+toggleVideoBtn.classList.toggle('btn-toggle-active', !startMuted);
 toggleAudioBtn.disabled = false;
 toggleVideoBtn.disabled = false;
 return localStream;
@@ -442,7 +485,8 @@ roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomName);
 
 showMessage("Creating room...");
 
-const stream = await getLocalStream();
+const startMuted = joinMutedCheckbox.checked;
+const stream = await getLocalStream(startMuted);
 if (!stream) {
 return;
 }
@@ -453,11 +497,13 @@ stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
 const offer = await peerConnection.createOffer();
 await peerConnection.setLocalDescription(offer);
 
+const participants = { [userId]: username };
+
 await setDoc(roomRef, {
 offer: { sdp: offer.sdp, type: offer.type },
 createdBy: userId,
 createdByUsername: username,
-participants: { [userId]: username }
+participants: participants
 });
 
 roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
@@ -483,6 +529,7 @@ await peerConnection.addIceCandidate(candidate);
 });
 
 listenForChat(roomRef);
+listenForParticipants();
 
 showMessage(`Room created! Share this ID with your client: ${roomName}`);
 createRoomBtn.disabled = true;
@@ -513,7 +560,8 @@ return;
 
 showMessage(`Joining room: ${roomId}`);
 
-const stream = await getLocalStream();
+const startMuted = joinMutedCheckbox.checked;
+const stream = await getLocalStream(startMuted);
 if (!stream) return;
 
 setupPeerConnection();
@@ -538,6 +586,7 @@ await peerConnection.addIceCandidate(candidate);
 });
 
 listenForChat(roomRef);
+listenForParticipants();
 
 showMessage(`Successfully joined room ${roomId}!`);
 createRoomBtn.disabled = true;
@@ -559,31 +608,35 @@ remoteVideo.srcObject = null;
 peerConnection = null;
 localStream = null;
 isCreator = false;
-isMuted = false;
-isVideoOff = false;
+
+if (roomRef) {
+const roomSnapshot = await getDoc(roomRef);
+const participants = roomSnapshot.data()?.participants || {};
+if (participants[userId]) {
+const newParticipants = { ...participants };
+delete newParticipants[userId];
+await updateDoc(roomRef, { participants: newParticipants });
+if (Object.keys(newParticipants).length === 0) {
+await deleteDoc(roomRef);
+showMessage('Room has been automatically closed.', false);
+} else {
+showMessage(`${username} has left the room.`, false);
+}
+}
+}
 
 // Stop all listeners
 if (roomSnapshotListener) roomSnapshotListener();
 if (candidatesListener) candidatesListener();
 if (chatListener) chatListener();
 if (roomsListener) roomsListener();
+if (participantsListener) participantsListener();
 roomSnapshotListener = null;
 candidatesListener = null;
 chatListener = null;
 roomsListener = null;
+participantsListener = null;
 
-if (roomRef) {
-try {
-const messagesCollectionRef = collection(roomRef, 'chat-messages');
-const messagesSnapshot = await getDocs(messagesCollectionRef);
-messagesSnapshot.forEach(async (msgDoc) => await deleteDoc(doc(messagesCollectionRef, msgDoc.id)));
-if (isCreator) {
-await deleteDoc(roomRef);
-}
-} catch (error) {
-console.error("Error deleting room data:", error);
-}
-}
 roomIdInput.value = '';
 hideMessage();
 createRoomBtn.disabled = false;
@@ -595,6 +648,7 @@ startRecordingBtn.disabled = true;
 stopRecordingBtn.disabled = true;
 sendChatBtn.disabled = true;
 chatContainer.innerHTML = '';
+participantsList.innerHTML = 'No participants in this room.';
 };
 
 // Toggle audio mute
@@ -697,6 +751,32 @@ messageDiv.className = `message ${messageData.senderId === userId ? 'my-message'
 messageDiv.innerHTML = `<span class="font-bold">${messageData.senderUsername}:</span> ${messageData.text}`;
 chatContainer.appendChild(messageDiv);
 chatContainer.scrollTop = chatContainer.scrollHeight;
+};
+
+// Listen for and display participants in the current room
+const listenForParticipants = () => {
+if (participantsListener) participantsListener();
+participantsList.innerHTML = '';
+participantsListener = onSnapshot(roomRef, (snapshot) => {
+const roomData = snapshot.data();
+const participants = roomData?.participants || {};
+const participantIds = Object.keys(participants);
+if (participantIds.length > 0) {
+participantsList.innerHTML = ''; // Clear previous list
+participantIds.forEach(id => {
+const participantDiv = document.createElement('div');
+participantDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded-sm';
+const participantName = participants[id] === username ? `${username} (You)` : participants[id];
+participantDiv.innerHTML = `
+<i class="fas fa-user-circle text-lg"></i>
+<span class="text-sm">${participantName}</span>
+`;
+participantsList.appendChild(participantDiv);
+});
+} else {
+participantsList.innerHTML = 'No participants in this room.';
+}
+});
 };
 
 // Set the user's username and show the main app
