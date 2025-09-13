@@ -627,17 +627,26 @@
         
         const focusOnParticipant = async (participantId) => {
             if (roomRef) {
-                const layout = { remote: { width: 100, height: 100, top: 0, left: 0 } };
-                const controlsRef = doc(roomRef, 'video-controls', participantId);
-                await setDoc(controlsRef, layout);
-                showMessage("Focusing on participant.");
+                // Get the remote video element
+                const remoteVideo = document.getElementById('remoteVideo');
+                const localVideo = document.getElementById('localVideo');
+
+                // Toggle visibility and size
+                localVideo.style.display = 'none';
+                remoteVideo.style.width = '100%';
+                remoteVideo.style.height = '100%';
+
+                showMessage(`Focusing on participant.`);
             }
         };
 
         const resetView = async () => {
             if (roomRef) {
-                const controlsRef = doc(roomRef, 'video-controls', remotePeerId);
-                await deleteDoc(controlsRef);
+                const remoteVideo = document.getElementById('remoteVideo');
+                const localVideo = document.getElementById('localVideo');
+                
+                localVideo.style.display = 'block';
+                
                 showMessage("Returning to default view.");
             }
         };
