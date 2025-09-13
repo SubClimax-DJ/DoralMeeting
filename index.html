@@ -197,6 +197,7 @@ Doral Video Conference
 <button id="toggleAudioBtn" class="btn-toggle" disabled><i class="fas fa-microphone"></i> Mute Audio</button>
 <button id="toggleVideoBtn" class="btn-toggle" disabled><i class="fas fa-video"></i> Mute Video</button>
 <button id="fullScreenBtn" class="btn-toggle" disabled><i class="fas fa-expand"></i> Fullscreen</button>
+<button id="sideBySideBtn" class="btn-toggle" disabled><i class="fas fa-columns"></i> Side-by-Side</button>
 <button id="hangupBtn" class="btn-danger flex-1" disabled>Leave Room</button>
 </div>
 <div class="flex mt-4 space-x-4 items-center justify-center">
@@ -321,6 +322,7 @@ const hangupBtn = document.getElementById('hangupBtn');
 const toggleAudioBtn = document.getElementById('toggleAudioBtn');
 const toggleVideoBtn = document.getElementById('toggleVideoBtn');
 const fullScreenBtn = document.getElementById('fullScreenBtn');
+const sideBySideBtn = document.getElementById('sideBySideBtn');
 const videoQualitySelect = document.getElementById('videoQualitySelect');
 const volumeControl = document.getElementById('volumeControl');
 const startRecordingBtn = document.getElementById('startRecordingBtn');
@@ -456,6 +458,7 @@ toggleVideoBtn.classList.toggle('btn-toggle-active', !startMuted);
 toggleAudioBtn.disabled = false;
 toggleVideoBtn.disabled = false;
 fullScreenBtn.disabled = false;
+sideBySideBtn.disabled = false;
 videoQualitySelect.disabled = false;
 
 return localStream;
@@ -712,6 +715,7 @@ hangupBtn.disabled = true;
 toggleAudioBtn.disabled = true;
 toggleVideoBtn.disabled = true;
 fullScreenBtn.disabled = true;
+sideBySideBtn.disabled = true;
 videoQualitySelect.disabled = true;
 startRecordingBtn.disabled = true;
 stopRecordingBtn.disabled = true;
@@ -838,8 +842,18 @@ participantDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded
 const participantName = participants[id] === username ? `${username} (You)` : participants[id];
 participantDiv.innerHTML = `
 <i class="fas fa-user-circle text-lg"></i>
-<span class="text-sm">${participantName}</span>
+<span class="text-sm flex-1">${participantName}</span>
 `;
+// Add spotlight button for other participants
+if (id !== userId) {
+const spotlightBtn = document.createElement('button');
+spotlightBtn.className = 'btn-toggle ml-2 text-sm';
+spotlightBtn.innerHTML = '<i class="fas fa-expand"></i> Spotlight';
+spotlightBtn.addEventListener('click', () => {
+spotlightParticipant(id);
+});
+participantDiv.appendChild(spotlightBtn);
+}
 participantsList.appendChild(participantDiv);
 });
 } else {
@@ -847,6 +861,55 @@ participantsList.innerHTML = 'No participants in this room.';
 }
 });
 };
+
+// Spotlight a specific participant's video
+const spotlightParticipant = (participantId) => {
+  // This function is for local display only, as the app is 1-to-1
+  // We simply make the remote video full screen
+  remoteVideo.style.width = '100%';
+  remoteVideo.style.height = '100%';
+  remoteVideo.style.position = 'absolute';
+  remoteVideo.style.top = '0';
+  remoteVideo.style.left = '0';
+  localVideo.style.width = '150px';
+  localVideo.style.height = '112.5px';
+  localVideo.style.position = 'absolute';
+  localVideo.style.bottom = '1rem';
+  localVideo.style.right = '1rem';
+  localVideo.style.display = 'block';
+};
+
+// Toggle side-by-side view
+const toggleSideBySide = () => {
+  if (localVideo.style.width === '50%') {
+    // Revert to default layout
+    localVideo.style.width = '150px';
+    localVideo.style.height = '112.5px';
+    localVideo.style.position = 'absolute';
+    localVideo.style.bottom = '1rem';
+    localVideo.style.right = '1rem';
+    remoteVideo.style.width = '100%';
+    remoteVideo.style.height = '100%';
+    remoteVideo.style.position = 'absolute';
+    remoteVideo.style.top = '0';
+    remoteVideo.style.left = '0';
+  } else {
+    // Set to side-by-side layout
+    localVideo.style.position = 'absolute';
+    localVideo.style.width = '50%';
+    localVideo.style.height = '100%';
+    localVideo.style.top = '0';
+    localVideo.style.left = '0';
+    localVideo.style.bottom = 'auto';
+    localVideo.style.right = 'auto';
+    remoteVideo.style.position = 'absolute';
+    remoteVideo.style.width = '50%';
+    remoteVideo.style.height = '100%';
+    remoteVideo.style.top = '0';
+    remoteVideo.style.left = '50%';
+  }
+};
+
 
 // Set the user's username and show the main app
 const setUsername = () => {
@@ -925,6 +988,7 @@ if (remoteVideo.requestFullscreen) {
 remoteVideo.requestFullscreen();
 }
 });
+sideBySideBtn.addEventListener('click', toggleSideBySide);
 videoQualitySelect.addEventListener('change', async () => {
   if (localStream) {
     const newQuality = videoQualitySelect.value;
