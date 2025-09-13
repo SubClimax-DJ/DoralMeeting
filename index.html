@@ -975,23 +975,6 @@ participantDiv.innerHTML = `
 <span class="text-sm flex-1">${participantName}</span>
 <span class="text-xs text-gray-400 space-x-2">${audioIcon} ${videoIcon}</span>
 `;
-// Add spotlight and expel buttons for other participants if host
-if (isCreator && id !== userId) {
-const expelBtn = document.createElement('button');
-expelBtn.className = 'btn-danger ml-2 px-3 py-1 text-sm rounded-sm';
-expelBtn.innerHTML = '<i class="fas fa-ban"></i> Expel';
-expelBtn.addEventListener('click', () => {
-expelParticipant(id);
-});
-participantDiv.appendChild(expelBtn);
-const spotlightBtn = document.createElement('button');
-spotlightBtn.className = 'btn-toggle ml-2 text-sm';
-spotlightBtn.innerHTML = '<i class="fas fa-expand"></i> Spotlight';
-spotlightBtn.addEventListener('click', () => {
-spotlightParticipant(id);
-});
-participantDiv.appendChild(spotlightBtn);
-}
 participantsList.appendChild(participantDiv);
 });
 } else {
@@ -1023,37 +1006,6 @@ const listenForActiveUsers = () => {
       activeUsersList.innerHTML = '<p class="text-gray-500 text-sm">No active users.</p>';
     }
   });
-};
-
-// Expel a participant from the room
-const expelParticipant = async (participantId) => {
-  if (!isCreator || !roomRef) return;
-  const roomSnapshot = await getDoc(roomRef);
-  const participants = roomSnapshot.data()?.participants || {};
-  if (participants[participantId]) {
-    const newParticipants = { ...participants };
-    delete newParticipants[participantId];
-    await updateDoc(roomRef, { participants: newParticipants });
-    showMessage(`${participants[participantId].username} has been expelled.`, false);
-  }
-};
-
-
-// Spotlight a specific participant's video
-const spotlightParticipant = (participantId) => {
-  // This function is for local display only, as the app is 1-to-1
-  // We simply make the remote video full screen
-  remoteVideo.style.width = '100%';
-  remoteVideo.style.height = '100%';
-  remoteVideo.style.position = 'absolute';
-  remoteVideo.style.top = '0';
-  remoteVideo.style.left = '0';
-  localVideo.style.width = '150px';
-  localVideo.style.height = '112.5px';
-  localVideo.style.position = 'absolute';
-  localVideo.style.bottom = '1rem';
-  localVideo.style.right = '1rem';
-  localVideo.style.display = 'block';
 };
 
 // Toggle side-by-side view
