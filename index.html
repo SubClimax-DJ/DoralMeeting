@@ -82,6 +82,13 @@
             height: 100%;
             object-fit: cover;
             transition: all 0.3s ease-in-out;
+            cursor: grab;
+        }
+        #remoteVideo.resizable {
+            border: 2px dashed #b8bb26;
+        }
+        #remoteVideo:hover {
+            cursor: grab;
         }
         .chat-container {
             background-color: #3c3836;
@@ -135,6 +142,11 @@
                 <button id="toggleVideoBtn" class="btn-toggle"><i class="fas fa-video"></i> Mute Video</button>
                 <button id="hangupBtn" class="btn-danger flex-1" disabled>Hang Up</button>
             </div>
+            <div class="flex mt-4 space-x-4 justify-center">
+                <button id="startRecordingBtn" class="btn-primary" disabled>Start Recording</button>
+                <button id="stopRecordingBtn" class="btn-danger" disabled>Stop Recording</button>
+            </div>
+            <a id="downloadRecording" style="display: none;"></a>
         </div>
 
         <!-- Room Management & Chat -->
@@ -157,28 +169,6 @@
                 </div>
             </div>
 
-            <div class="container-card" id="roomCreatorControls" style="display: none;">
-                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Remote Video Controls</h2>
-                <div class="space-y-4">
-                    <div>
-                        <label for="video-width" class="block text-sm font-medium mb-1">Width</label>
-                        <input type="range" id="video-width" min="10" max="100" value="100" class="w-full h-2 rounded-lg appearance-none cursor-pointer">
-                    </div>
-                    <div>
-                        <label for="video-height" class="block text-sm font-medium mb-1">Height</label>
-                        <input type="range" id="video-height" min="10" max="100" value="100" class="w-full h-2 rounded-lg appearance-none cursor-pointer">
-                    </div>
-                    <div>
-                        <label for="video-top" class="block text-sm font-medium mb-1">Top Offset</label>
-                        <input type="range" id="video-top" min="0" max="100" value="0" class="w-full h-2 rounded-lg appearance-none cursor-pointer">
-                    </div>
-                    <div>
-                        <label for="video-left" class="block text-sm font-medium mb-1">Left Offset</label>
-                        <input type="range" id="video-left" min="0" max="100" value="0" class="w-full h-2 rounded-lg appearance-none cursor-pointer">
-                    </div>
-                </div>
-            </div>
-
             <div class="container-card">
                 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
                 <div class="chat-container mb-4" id="chatContainer"></div>
@@ -190,6 +180,9 @@
         </div>
     </main>
     <div id="status-message" class="fixed bottom-4 left-1/2 -translate-x-1/2 p-4 rounded-lg text-sm text-center text-gray-700 bg-gray-100 hidden"></div>
+    <div id="creator-message" class="fixed top-24 left-1/2 -translate-x-1/2 p-2 rounded-lg text-sm text-center text-ebdbb2 bg-gray-700 hidden">
+        You can now click and drag the remote video to move and resize it.
+    </div>
 
     <!-- Font Awesome Icons -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
@@ -224,19 +217,15 @@
         const hangupBtn = document.getElementById('hangupBtn');
         const toggleAudioBtn = document.getElementById('toggleAudioBtn');
         const toggleVideoBtn = document.getElementById('toggleVideoBtn');
+        const startRecordingBtn = document.getElementById('startRecordingBtn');
+        const stopRecordingBtn = document.getElementById('stopRecordingBtn');
         const chatInput = document.getElementById('chatInput');
         const sendChatBtn = document.getElementById('sendChatBtn');
         const chatContainer = document.getElementById('chatContainer');
         const statusMessage = document.getElementById('status-message');
         const authStatus = document.getElementById('auth-status');
         const activeRoomsList = document.getElementById('activeRoomsList');
-        const roomCreatorControls = document.getElementById('roomCreatorControls');
-
-        // Video control elements
-        const videoWidthInput = document.getElementById('video-width');
-        const videoHeightInput = document.getElementById('video-height');
-        const videoTopInput = document.getElementById('video-top');
-        const videoLeftInput = document.getElementById('video-left');
+        const creatorMessage = document.getElementById('creator-message');
 
         // Firestore and Auth instances
         let app, db, auth;
@@ -254,6 +243,16 @@
         let isMuted = false;
         let isVideoOff = false;
         let isCreator = false;
+
+        // Recording variables
+        let mediaRecorder;
+        let recordedChunks = [];
+
+        // Drag and drop variables
+        let isDragging = false;
+        let isResizing = false;
+        let startX, startY, startWidth, startHeight;
+        const resizeHandleSize = 15;
 
         // WebRTC STUN servers
         const configuration = {
@@ -325,7 +324,6 @@
                 }
                 return null;
             } finally {
-                // Ensure the "Creating room..." message is hidden in case of a failure
                 if (!localStream) {
                     hideMessage();
                 }
@@ -337,7 +335,6 @@
 
             peerConnection.onicecandidate = (event) => {
                 if (event.candidate) {
-                    console.log('Sending ICE candidate:', event.candidate);
                     const candidatesCollection = collection(roomRef, 'candidates');
                     addDoc(candidatesCollection, { candidate: JSON.stringify(event.candidate.toJSON()), sender: userId });
                 }
@@ -345,8 +342,8 @@
 
             peerConnection.ontrack = (event) => {
                 if (event.streams && event.streams[0]) {
-                    console.log('Received remote stream');
                     remoteVideo.srcObject = event.streams[0];
+                    startRecordingBtn.disabled = false;
                 }
             };
         };
@@ -388,7 +385,7 @@
             }
 
             isCreator = true;
-            roomCreatorControls.style.display = 'block';
+            creatorMessage.style.display = 'block';
             
             const roomName = `room-${Math.random().toString(36).substring(2, 9)}`;
             roomIdInput.value = roomName;
@@ -409,45 +406,36 @@
 
             await setDoc(roomRef, { offer: { sdp: offer.sdp, type: offer.type }, createdBy: userId });
             
-            // Set initial video controls
-            const controlsRef = doc(roomRef, 'controls', 'styles');
+            const controlsRef = doc(roomRef, 'video-controls', 'styles');
             const defaultStyles = {
                 width: 100,
                 height: 100,
                 top: 0,
-                left: 0
+                left: 0,
+                units: '%'
             };
             await setDoc(controlsRef, defaultStyles);
 
-            // Listen for answer
             roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
                 const data = snapshot.data();
                 if (data && data.answer && !peerConnection.currentRemoteDescription) {
-                    console.log('Received answer:', data.answer);
                     const answer = new RTCSessionDescription(data.answer);
                     await peerConnection.setRemoteDescription(answer);
                 }
             });
 
-            // Listen for candidates
             candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
                 snapshot.docChanges().forEach(async (change) => {
                     if (change.type === "added") {
                         const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
-                        console.log('Adding ICE candidate:', candidate);
                         await peerConnection.addIceCandidate(candidate);
                     }
                 });
             });
 
-            // Listen for chat messages
             listenForChat(roomRef);
 
-            // Set up controls for the creator
-            videoWidthInput.addEventListener('input', updateRemoteVideoStyle);
-            videoHeightInput.addEventListener('input', updateRemoteVideoStyle);
-            videoTopInput.addEventListener('input', updateRemoteVideoStyle);
-            videoLeftInput.addEventListener('input', updateRemoteVideoStyle);
+            setupDragAndDrop();
 
             showMessage(`Room created! Share this ID with your client: ${roomName}`);
             createRoomBtn.disabled = true;
@@ -492,29 +480,29 @@
 
             await updateDoc(roomRef, { answer: { sdp: answer.sdp, type: answer.type } });
 
-            // Listen for candidates
             candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
                 snapshot.docChanges().forEach(async (change) => {
                     if (change.type === "added") {
                         const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
-                        console.log('Adding ICE candidate:', candidate);
                         await peerConnection.addIceCandidate(candidate);
                     }
                 });
             });
             
-            // Listen for chat messages
             listenForChat(roomRef);
 
-            // Listen for video control changes from the creator
-            const controlsRef = doc(roomRef, 'controls', 'styles');
+            const controlsRef = doc(roomRef, 'video-controls', 'styles');
             controlListener = onSnapshot(controlsRef, (snapshot) => {
                 const styles = snapshot.data();
                 if (styles) {
+                    const videoContainer = remoteVideo.parentElement;
+                    const containerWidth = videoContainer.offsetWidth;
+                    const containerHeight = videoContainer.offsetHeight;
+
                     remoteVideo.style.width = `${styles.width}%`;
                     remoteVideo.style.height = `${styles.height}%`;
-                    remoteVideo.style.top = `${styles.top}%`;
-                    remoteVideo.style.left = `${styles.left}%`;
+                    remoteVideo.style.top = `${(styles.top / 100) * containerHeight}px`;
+                    remoteVideo.style.left = `${(styles.left / 100) * containerWidth}px`;
                 }
             });
 
@@ -525,14 +513,74 @@
             sendChatBtn.disabled = false;
         };
 
-        const updateRemoteVideoStyle = async () => {
+        const updateRemoteVideoStyle = async (newStyles) => {
             if (!isCreator || !roomRef) return;
-            const controlsRef = doc(roomRef, 'controls', 'styles');
-            await updateDoc(controlsRef, {
-                width: videoWidthInput.value,
-                height: videoHeightInput.value,
-                top: videoTopInput.value,
-                left: videoLeftInput.value,
+            const controlsRef = doc(roomRef, 'video-controls', 'styles');
+            await updateDoc(controlsRef, newStyles);
+        };
+
+        const setupDragAndDrop = () => {
+            if (!isCreator) return;
+            
+            remoteVideo.classList.add('resizable');
+
+            remoteVideo.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const rect = remoteVideo.getBoundingClientRect();
+                const containerRect = remoteVideo.parentElement.getBoundingClientRect();
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+
+                const onRight = mouseX > (rect.right - resizeHandleSize);
+                const onBottom = mouseY > (rect.bottom - resizeHandleSize);
+
+                if (onRight || onBottom) {
+                    isResizing = true;
+                    startX = mouseX;
+                    startY = mouseY;
+                    startWidth = rect.width;
+                    startHeight = rect.height;
+                } else {
+                    isDragging = true;
+                    startX = mouseX - rect.left;
+                    startY = mouseY - rect.top;
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging && !isResizing) return;
+                
+                const videoContainer = remoteVideo.parentElement;
+                const containerRect = videoContainer.getBoundingClientRect();
+                
+                if (isDragging) {
+                    let newLeft = e.clientX - startX - containerRect.left;
+                    let newTop = e.clientY - startY - containerRect.top;
+
+                    newLeft = Math.max(0, Math.min(newLeft, containerRect.width - remoteVideo.offsetWidth));
+                    newTop = Math.max(0, Math.min(newTop, containerRect.height - remoteVideo.offsetHeight));
+                    
+                    const newLeftPercent = (newLeft / containerRect.width) * 100;
+                    const newTopPercent = (newTop / containerRect.height) * 100;
+
+                    updateRemoteVideoStyle({ left: newLeftPercent, top: newTopPercent });
+
+                } else if (isResizing) {
+                    const newWidth = startWidth + (e.clientX - startX);
+                    const newHeight = startHeight + (e.clientY - startY);
+
+                    const newWidthPercent = (newWidth / containerRect.width) * 100;
+                    const newHeightPercent = (newHeight / containerRect.height) * 100;
+                    
+                    updateRemoteVideoStyle({ width: newWidthPercent, height: newHeightPercent });
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                isResizing = false;
             });
         };
 
@@ -548,9 +596,8 @@
             peerConnection = null;
             localStream = null;
             isCreator = false;
-            roomCreatorControls.style.display = 'none';
+            creatorMessage.style.display = 'none';
 
-            // Remove listeners
             if (roomSnapshotListener) roomSnapshotListener();
             if (candidatesListener) candidatesListener();
             if (chatListener) chatListener();
@@ -566,7 +613,6 @@
                     const messagesSnapshot = await getDocs(messagesCollectionRef);
                     messagesSnapshot.forEach(async (msgDoc) => await deleteDoc(doc(messagesCollectionRef, msgDoc.id)));
                     await deleteDoc(roomRef);
-                    console.log("Room and chat data deleted.");
                 } catch (error) {
                     console.error("Error deleting room data:", error);
                 }
@@ -579,6 +625,8 @@
             hangupBtn.disabled = true;
             toggleAudioBtn.disabled = true;
             toggleVideoBtn.disabled = true;
+            startRecordingBtn.disabled = true;
+            stopRecordingBtn.disabled = true;
             sendChatBtn.disabled = true;
             chatContainer.innerHTML = '';
         };
@@ -598,6 +646,46 @@
                 localStream.getVideoTracks()[0].enabled = !isVideoOff;
                 toggleVideoBtn.textContent = isVideoOff ? "Turn On Video" : "Turn Off Video";
                 toggleVideoBtn.classList.toggle('btn-toggle-active', !isVideoOff);
+            }
+        };
+
+        const startRecording = () => {
+            if (!remoteVideo.srcObject) {
+                showMessage("No remote stream to record.", true);
+                return;
+            }
+            recordedChunks = [];
+            const stream = remoteVideo.srcObject;
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+            
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    recordedChunks.push(e.data);
+                }
+            };
+            
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.getElementById('downloadRecording');
+                a.style.display = 'block';
+                a.href = url;
+                a.download = `conference-recording-${Date.now()}.webm`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showMessage("Recording downloaded successfully!");
+            };
+            
+            mediaRecorder.start();
+            showMessage("Recording started...");
+            startRecordingBtn.disabled = true;
+            stopRecordingBtn.disabled = false;
+        };
+        
+        const stopRecording = () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                showMessage("Recording stopped. Your download should start shortly.");
             }
         };
 
@@ -647,6 +735,8 @@
         hangupBtn.addEventListener('click', hangup);
         toggleAudioBtn.addEventListener('click', toggleAudio);
         toggleVideoBtn.addEventListener('click', toggleVideo);
+        startRecordingBtn.addEventListener('click', startRecording);
+        stopRecordingBtn.addEventListener('click', stopRecording);
         sendChatBtn.addEventListener('click', sendMessage);
         chatInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') sendMessage();
