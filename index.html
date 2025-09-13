@@ -376,6 +376,7 @@ let chatListener = null;
 let roomsListener = null;
 let participantsListener = null;
 let activeUsersListener = null;
+let isScreenSharing = false;
 
 // Recording variables
 let mediaRecorder;
@@ -733,6 +734,9 @@ remoteVideo.srcObject = null;
 peerConnection = null;
 localStream = null;
 isCreator = false;
+isScreenSharing = false;
+screenShareBtn.textContent = 'Screen Share';
+toggleVideoBtn.disabled = false;
 
 // Remove user from active users list
 if (userId) {
@@ -794,38 +798,72 @@ const startScreenShare = async () => {
         showMessage("Please join a room before sharing your screen.", true);
         return;
     }
+    if (isScreenSharing) {
+        // Stop screen share and revert to camera
+        isScreenSharing = false;
+        screenShareBtn.textContent = 'Screen Share';
+        toggleVideoBtn.disabled = false;
+        
+        const selectedQuality = videoQualitySelect.value;
+        const constraints = {
+            audio: true,
+            video: videoQualities[selectedQuality]
+        };
 
-    const displayStream = await getDisplayStream();
-    if (!displayStream) {
-        return;
-    }
+        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const newVideoTrack = newStream.getVideoTracks()[0];
+        const newAudioTrack = newStream.getAudioTracks()[0];
 
-    // Stop current local tracks
-    if (localStream) {
+        // Replace old tracks with new camera tracks
+        const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
+        if (videoSender) {
+            videoSender.replaceTrack(newVideoTrack);
+        }
+        const audioSender = peerConnection.getSenders().find(sender => sender.track.kind === 'audio');
+        if (audioSender) {
+            audioSender.replaceTrack(newAudioTrack);
+        }
+
+        // Stop the old screen share tracks
         localStream.getTracks().forEach(track => track.stop());
-    }
-    localStream = displayStream;
+        localVideo.srcObject = newStream;
+        localStream = newStream;
+    } else {
+        // Start screen share
+        isScreenSharing = true;
+        screenShareBtn.textContent = 'Stop Sharing';
+        toggleVideoBtn.disabled = true;
 
-    // Get the RTCRtpSenders for the video and audio tracks
-    const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
-    const audioSender = peerConnection.getSenders().find(sender => sender.track.kind === 'audio');
+        const displayStream = await getDisplayStream();
+        if (!displayStream) {
+            isScreenSharing = false;
+            screenShareBtn.textContent = 'Screen Share';
+            toggleVideoBtn.disabled = false;
+            return;
+        }
+        
+        // Stop current local tracks
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        localStream = displayStream;
 
-    // Replace the old tracks with the new screen share tracks
-    if (videoSender) {
-        videoSender.replaceTrack(localStream.getVideoTracks()[0]);
+        // Get the RTCRtpSenders for the video and audio tracks
+        const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
+        const audioSender = peerConnection.getSenders().find(sender => sender.track.kind === 'audio');
+
+        // Replace the old tracks with the new screen share tracks
+        if (videoSender) {
+            videoSender.replaceTrack(localStream.getVideoTracks()[0]);
+        }
+        if (audioSender && localStream.getAudioTracks().length > 0) {
+            audioSender.replaceTrack(localStream.getAudioTracks()[0]);
+        } else if (audioSender) {
+            // If the screen share has no audio, send a null track to stop the audio stream
+            audioSender.replaceTrack(null);
+        }
+        localVideo.srcObject = localStream;
     }
-    if (audioSender && localStream.getAudioTracks().length > 0) {
-        audioSender.replaceTrack(localStream.getAudioTracks()[0]);
-    } else if (audioSender) {
-        // If the screen share has no audio, send a null track to stop the audio stream
-        audioSender.replaceTrack(null);
-    }
-    
-    // Update UI for screen share
-    toggleVideoBtn.textContent = "Stop Sharing";
-    toggleAudioBtn.textContent = "Mute Audio";
-    toggleVideoBtn.classList.remove('btn-toggle-active');
-    toggleAudioBtn.classList.remove('btn-toggle-active');
 };
 
 
