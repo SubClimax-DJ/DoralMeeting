@@ -521,37 +521,97 @@
             const roomDocRef = roomRef;
             participantsListener = onSnapshot(roomDocRef, (snapshot) => {
                 const roomData = snapshot.data();
-                if (!roomData || !roomData.participants) return;
-
+                if (!roomData || !roomData.participants) {
+                    participantsList.innerHTML = `<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2><p class="text-gray-400 text-sm">No other participants.</p>`;
+                    // Check if current user is in the participants list. If not, they were kicked.
+                    if (roomData && !roomData.participants[userId]) {
+                        hangup();
+                        showMessage("You have been disconnected by the host.", true);
+                    }
+                    return;
+                }
                 const participants = roomData.participants;
                 participantsList.innerHTML = `<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2>`;
 
                 if (isCreator) {
-                    // Host UI
                     for (const id in participants) {
                         const participantDiv = document.createElement('div');
-                        participantDiv.className = 'flex items-center justify-between p-2 bg-[#3c3836] rounded-sm mb-2';
-                        participantDiv.innerHTML = `
-                            <span>${participants[id]} ${id === userId ? '(You)' : ''}</span>
-                            <button data-participant-id="${id}" class="control-btn px-3 py-1 text-sm rounded-sm bg-blue-600 text-white hover:bg-blue-700">Full Screen</button>
-                        `;
+                        participantDiv.className = 'flex flex-col items-start p-2 bg-[#3c3836] rounded-sm mb-2';
+                        
+                        const nameSpan = document.createElement('span');
+                        nameSpan.className = 'font-semibold';
+                        nameSpan.textContent = `${participants[id]} ${id === userId ? '(You)' : ''}`;
+
+                        const buttonContainer = document.createElement('div');
+                        buttonContainer.className = 'flex mt-2 space-x-2';
+
+                        if (id !== userId) {
+                            const kickBtn = document.createElement('button');
+                            kickBtn.textContent = 'Kick';
+                            kickBtn.className = 'px-3 py-1 text-sm rounded-sm bg-red-600 text-white hover:bg-red-700';
+                            kickBtn.addEventListener('click', () => kickParticipant(id));
+                            buttonContainer.appendChild(kickBtn);
+
+                            const focusBtn = document.createElement('button');
+                            focusBtn.textContent = 'Focus';
+                            focusBtn.className = 'px-3 py-1 text-sm rounded-sm bg-blue-600 text-white hover:bg-blue-700';
+                            focusBtn.addEventListener('click', () => focusOnParticipant(id));
+                            buttonContainer.appendChild(focusBtn);
+                        } else {
+                            const resetViewBtn = document.createElement('button');
+                            resetViewBtn.textContent = 'Reset View';
+                            resetViewBtn.className = 'px-3 py-1 text-sm rounded-sm bg-gray-500 text-white hover:bg-gray-600';
+                            resetViewBtn.addEventListener('click', () => resetView());
+                            buttonContainer.appendChild(resetViewBtn);
+                        }
+                        
+                        participantDiv.appendChild(nameSpan);
+                        participantDiv.appendChild(buttonContainer);
                         participantsList.appendChild(participantDiv);
                     }
-                    setupParticipantControls();
+                } else {
+                    participantsList.innerHTML = `<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2>`;
+                    for (const id in participants) {
+                        const participantDiv = document.createElement('div');
+                        participantDiv.className = 'p-2 bg-[#3c3836] rounded-sm mb-2';
+                        participantDiv.textContent = `${participants[id]} ${id === userId ? '(You)' : ''}`;
+                        participantsList.appendChild(participantDiv);
+                    }
+                }
+                
+                // Check if current user is still in the list (for non-hosts)
+                if (!isCreator && !participants[userId]) {
+                    hangup();
+                    showMessage("You have been disconnected by the host.", true);
                 }
             });
         };
 
-        const setupParticipantControls = () => {
-            document.querySelectorAll('.control-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const participantId = btn.dataset.participantId;
-                    const stylesRef = doc(roomRef, 'video-controls', participantId);
-                    await setDoc(stylesRef, { 
-                        remote: { width: 100, height: 100, top: 0, left: 0 } 
-                    });
-                });
-            });
+        const kickParticipant = async (participantId) => {
+            if (roomRef) {
+                const roomDoc = await getDoc(roomRef);
+                const participants = roomDoc.data().participants;
+                delete participants[participantId];
+                await updateDoc(roomRef, { participants });
+                showMessage(`${participants[participantId]} has been kicked.`);
+            }
+        };
+        
+        const focusOnParticipant = async (participantId) => {
+            if (roomRef) {
+                const layout = { remote: { width: 100, height: 100, top: 0, left: 0 } };
+                const controlsRef = doc(roomRef, 'video-controls', participantId);
+                await setDoc(controlsRef, layout);
+                showMessage("Focusing on participant.");
+            }
+        };
+
+        const resetView = async () => {
+            if (roomRef) {
+                const controlsRef = doc(roomRef, 'video-controls', remotePeerId);
+                await deleteDoc(controlsRef);
+                showMessage("Returning to default view.");
+            }
         };
 
         const hangup = async () => {
@@ -567,23 +627,32 @@
             localStream = null;
             remotePeerId = null;
 
+            // Stop all listeners
             if (roomSnapshotListener) roomSnapshotListener();
             if (candidatesListener) candidatesListener();
             if (chatListener) chatListener();
             if (participantsListener) participantsListener();
-            if (remoteLayoutListener) remoteLayoutListener();
             roomSnapshotListener = null;
             candidatesListener = null;
             chatListener = null;
             participantsListener = null;
-            remoteLayoutListener = null;
 
+            // Remove user from the room participants list in Firestore
             if (roomRef) {
-                if (isCreator) {
+                const userPath = `participants.${userId}`;
+                await updateDoc(roomRef, { [userPath]: null });
+
+                // Check if the room is now empty and delete if so
+                const roomDoc = await getDoc(roomRef);
+                const participants = roomDoc.data().participants;
+                const remainingParticipants = Object.keys(participants).filter(key => participants[key] !== null);
+                
+                if (remainingParticipants.length === 0) {
                     try {
                         await deleteDoc(roomRef);
+                        showMessage("Room is empty and has been closed.");
                     } catch (error) {
-                        console.error("Error deleting room data:", error);
+                        console.error("Error deleting empty room data:", error);
                     }
                 }
             }
