@@ -196,8 +196,10 @@ Doral Video Conference
 <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 items-center justify-center">
 <button id="toggleAudioBtn" class="btn-toggle" disabled><i class="fas fa-microphone"></i> Mute Audio</button>
 <button id="toggleVideoBtn" class="btn-toggle" disabled><i class="fas fa-video"></i> Mute Video</button>
+<button id="screenShareBtn" class="btn-toggle" disabled><i class="fas fa-desktop"></i> Screen Share</button>
 <button id="fullScreenBtn" class="btn-toggle" disabled><i class="fas fa-expand"></i> Fullscreen</button>
 <button id="sideBySideBtn" class="btn-toggle" disabled><i class="fas fa-columns"></i> Side-by-Side</button>
+<button id="muteAllBtn" class="btn-toggle" disabled><i class="fas fa-volume-off"></i> Mute All</button>
 <button id="hangupBtn" class="btn-danger flex-1" disabled>Leave Room</button>
 </div>
 <div class="flex mt-4 space-x-4 items-center justify-center">
@@ -235,6 +237,7 @@ Doral Video Conference
 </div>
 <button id="createRoomBtn" class="btn-primary" disabled>Create New Room</button>
 <button id="deleteAllRoomsBtn" class="btn-danger" disabled>Delete All Rooms</button>
+<button id="lockRoomBtn" class="btn-toggle" disabled>Lock Room</button>
 </div>
 </div>
 
@@ -251,6 +254,14 @@ Doral Video Conference
 No participants in this room.
 </div>
 </div>
+
+<div class="container-card">
+<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Active Users</h2>
+<div id="activeUsersList" class="space-y-2 text-gray-400 text-sm">
+Loading users...
+</div>
+</div>
+
 </div>
 </main>
 
@@ -258,7 +269,7 @@ No participants in this room.
 <div id="usernamePrompt" class="md:col-span-3 flex flex-col items-center justify-center p-8 bg-[#32302f] rounded-lg shadow-xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 md:w-1/2">
 <h2 class="text-2xl font-bold font-['Crimson_Pro'] mb-4">Enter Your Username</h2>
 <p class="text-sm text-gray-400 mb-6 text-center">Your username will be visible to other participants in the chat.</p>
-<input type="text" id="usernameInput" placeholder="e.g., JaneDoe" class="input-field max-w-sm mb-4" />
+<input type="text" id="usernameInput" placeholder="Your Name" class="input-field max-w-sm mb-4" />
 <button id="submitUsernameBtn" class="btn-primary max-w-xs w-full">Start</button>
 </div>
 
@@ -318,11 +329,14 @@ const roomIdInput = document.getElementById('roomIdInput');
 const createRoomBtn = document.getElementById('createRoomBtn');
 const joinRoomBtn = document.getElementById('joinRoomBtn');
 const deleteAllRoomsBtn = document.getElementById('deleteAllRoomsBtn');
+const lockRoomBtn = document.getElementById('lockRoomBtn');
 const hangupBtn = document.getElementById('hangupBtn');
 const toggleAudioBtn = document.getElementById('toggleAudioBtn');
 const toggleVideoBtn = document.getElementById('toggleVideoBtn');
+const screenShareBtn = document.getElementById('screenShareBtn');
 const fullScreenBtn = document.getElementById('fullScreenBtn');
 const sideBySideBtn = document.getElementById('sideBySideBtn');
+const muteAllBtn = document.getElementById('muteAllBtn');
 const videoQualitySelect = document.getElementById('videoQualitySelect');
 const volumeControl = document.getElementById('volumeControl');
 const startRecordingBtn = document.getElementById('startRecordingBtn');
@@ -335,6 +349,7 @@ const authStatus = document.getElementById('auth-status');
 const activeRoomsList = document.getElementById('activeRoomsList');
 const joinMutedCheckbox = document.getElementById('joinMutedCheckbox');
 const participantsList = document.getElementById('participantsList');
+const activeUsersList = document.getElementById('activeUsersList');
 const sakuraEffect = document.getElementById('sakuraEffect');
 
 
@@ -363,6 +378,7 @@ let candidatesListener = null;
 let chatListener = null;
 let roomsListener = null;
 let participantsListener = null;
+let activeUsersListener = null;
 
 // Recording variables
 let mediaRecorder;
@@ -411,6 +427,7 @@ createRoomBtn.disabled = false;
 joinRoomBtn.disabled = false;
 deleteAllRoomsBtn.disabled = false;
 listenForRooms();
+listenForActiveUsers();
 } else {
 authStatus.textContent = 'Authenticating...';
 try {
@@ -459,7 +476,9 @@ toggleAudioBtn.disabled = false;
 toggleVideoBtn.disabled = false;
 fullScreenBtn.disabled = false;
 sideBySideBtn.disabled = false;
+muteAllBtn.disabled = false;
 videoQualitySelect.disabled = false;
+screenShareBtn.disabled = false;
 
 return localStream;
 } catch (error) {
@@ -475,6 +494,29 @@ if (!localStream) {
 hideMessage();
 }
 }
+};
+
+const getDisplayStream = async () => {
+    try {
+        const constraints = { video: true, audio: true };
+        const displayStream = await navigator.mediaDevices.getDisplayMedia(constraints);
+        localVideo.srcObject = displayStream;
+
+        localVideo.muted = true;
+        toggleAudioBtn.disabled = false;
+        toggleVideoBtn.disabled = false;
+
+        // Listen for the end of screen share
+        displayStream.getVideoTracks()[0].onended = () => {
+            hangup();
+        };
+
+        return displayStream;
+    } catch (error) {
+        console.error("Error getting display media:", error);
+        showMessage("Screen sharing was cancelled or failed.", true);
+        return null;
+    }
 };
 
 // Set up the WebRTC peer connection
@@ -566,13 +608,20 @@ stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
 const offer = await peerConnection.createOffer();
 await peerConnection.setLocalDescription(offer);
 
-const participants = { [userId]: username };
+const participants = { 
+  [userId]: {
+    username: username,
+    isMuted: joinMutedCheckbox.checked,
+    isVideoOff: joinMutedCheckbox.checked
+  }
+};
 
 await setDoc(roomRef, {
 offer: { sdp: offer.sdp, type: offer.type },
 createdBy: userId,
 createdByUsername: username,
-participants: participants
+participants: participants,
+isLocked: false
 });
 
 roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
@@ -627,6 +676,12 @@ showMessage("Room does not exist.", true);
 return;
 }
 
+const roomData = roomSnapshot.data();
+if (roomData.isLocked) {
+  showMessage("This room is locked by the host.", true);
+  return;
+}
+
 showMessage(`Joining room: ${roomId}`);
 
 const startMuted = joinMutedCheckbox.checked;
@@ -643,7 +698,11 @@ const answer = await peerConnection.createAnswer();
 await peerConnection.setLocalDescription(answer);
 
 await updateDoc(roomRef, { answer: { sdp: answer.sdp, type: answer.type } });
-await updateDoc(roomRef, { [`participants.${userId}`]: username });
+await updateDoc(roomRef, { [`participants.${userId}`]: {
+  username: username,
+  isMuted: joinMutedCheckbox.checked,
+  isVideoOff: joinMutedCheckbox.checked
+}});
 
 candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
 snapshot.docChanges().forEach(async (change) => {
@@ -678,6 +737,11 @@ peerConnection = null;
 localStream = null;
 isCreator = false;
 
+// Remove user from active users list
+if (userId) {
+  await deleteDoc(doc(db, `artifacts/${appId}/public/data/active-users`, userId));
+}
+
 if (roomRef) {
 const roomSnapshot = await getDoc(roomRef);
 const participants = roomSnapshot.data()?.participants || {};
@@ -700,11 +764,13 @@ if (candidatesListener) candidatesListener();
 if (chatListener) chatListener();
 if (roomsListener) roomsListener();
 if (participantsListener) participantsListener();
+if (activeUsersListener) activeUsersListener();
 roomSnapshotListener = null;
 candidatesListener = null;
 chatListener = null;
 roomsListener = null;
 participantsListener = null;
+activeUsersListener = null;
 
 // Reset UI state
 roomIdInput.value = '';
@@ -716,7 +782,10 @@ toggleAudioBtn.disabled = true;
 toggleVideoBtn.disabled = true;
 fullScreenBtn.disabled = true;
 sideBySideBtn.disabled = true;
+muteAllBtn.disabled = true;
+lockRoomBtn.disabled = true;
 videoQualitySelect.disabled = true;
+screenShareBtn.disabled = true;
 startRecordingBtn.disabled = true;
 stopRecordingBtn.disabled = true;
 sendChatBtn.disabled = true;
@@ -724,25 +793,100 @@ chatContainer.innerHTML = '';
 participantsList.innerHTML = 'No participants in this room.';
 };
 
+const startScreenShare = async () => {
+    if (!peerConnection) {
+        showMessage("Please join a room before sharing your screen.", true);
+        return;
+    }
+
+    const displayStream = await getDisplayStream();
+    if (!displayStream) {
+        return;
+    }
+
+    // Stop current local tracks
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+    }
+    localStream = displayStream;
+
+    // Get the RTCRtpSenders for the video and audio tracks
+    const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
+    const audioSender = peerConnection.getSenders().find(sender => sender.track.kind === 'audio');
+
+    // Replace the old tracks with the new screen share tracks
+    if (videoSender) {
+        videoSender.replaceTrack(localStream.getVideoTracks()[0]);
+    }
+    if (audioSender && localStream.getAudioTracks().length > 0) {
+        audioSender.replaceTrack(localStream.getAudioTracks()[0]);
+    } else if (audioSender) {
+        // If the screen share has no audio, send a null track to stop the audio stream
+        audioSender.replaceTrack(null);
+    }
+    
+    // Update UI for screen share
+    toggleVideoBtn.textContent = "Stop Sharing";
+    toggleAudioBtn.textContent = "Mute Audio";
+    toggleVideoBtn.classList.remove('btn-toggle-active');
+    toggleAudioBtn.classList.remove('btn-toggle-active');
+};
+
+
 // Toggle audio mute
-const toggleAudio = () => {
+const toggleAudio = async () => {
 if (localStream) {
 const audioTrack = localStream.getAudioTracks()[0];
-audioTrack.enabled = !audioTrack.enabled;
+const isMuted = !audioTrack.enabled;
+audioTrack.enabled = isMuted; 
 toggleAudioBtn.textContent = audioTrack.enabled ? "Mute Audio" : "Unmute Audio";
 toggleAudioBtn.classList.toggle('btn-toggle-active', !audioTrack.enabled);
+if (roomRef) {
+  const participantRef = doc(collection(roomRef, 'participants'), userId);
+  await updateDoc(doc(roomRef, 'participants', userId), { isMuted: !audioTrack.enabled });
+}
 }
 };
 
 // Toggle video mute
-const toggleVideo = () => {
+const toggleVideo = async () => {
 if (localStream) {
 const videoTrack = localStream.getVideoTracks()[0];
-videoTrack.enabled = !videoTrack.enabled;
+const isVideoOff = !videoTrack.enabled;
+videoTrack.enabled = isVideoOff;
 toggleVideoBtn.textContent = videoTrack.enabled ? "Mute Video" : "Unmute Video";
 toggleVideoBtn.classList.toggle('btn-toggle-active', !videoTrack.enabled);
+if (roomRef) {
+  const participantRef = doc(collection(roomRef, 'participants'), userId);
+  await updateDoc(doc(roomRef, 'participants', userId), { isVideoOff: !videoTrack.enabled });
+}
 }
 };
+
+// Host: Mute all other participants
+const muteAllParticipants = async () => {
+  if (isCreator && roomRef) {
+    const roomSnapshot = await getDoc(roomRef);
+    const participants = roomSnapshot.data()?.participants || {};
+    const promises = Object.keys(participants).map(async (participantId) => {
+      await updateDoc(doc(roomRef, 'participants', participantId), { isMuted: true });
+    });
+    await Promise.all(promises);
+    showMessage("All participants have been muted.", false);
+  }
+};
+
+// Toggle room lock status
+const toggleRoomLock = async () => {
+  if (isCreator && roomRef) {
+    const roomSnapshot = await getDoc(roomRef);
+    const isLocked = roomSnapshot.data()?.isLocked || false;
+    await updateDoc(roomRef, { isLocked: !isLocked });
+    lockRoomBtn.textContent = isLocked ? "Lock Room" : "Unlock Room";
+    showMessage(isLocked ? "Room is now unlocked." : "Room is now locked.", false);
+  }
+};
+
 
 // Start recording the remote video stream
 const startRecording = () => {
@@ -830,22 +974,33 @@ chatContainer.scrollTop = chatContainer.scrollHeight;
 const listenForParticipants = () => {
 if (participantsListener) participantsListener();
 participantsList.innerHTML = '';
-participantsListener = onSnapshot(roomRef, (snapshot) => {
+participantsListener = onSnapshot(doc(db, `artifacts/${appId}/public/data/video-rooms/${roomIdInput.value}`), (snapshot) => {
 const roomData = snapshot.data();
 const participants = roomData?.participants || {};
 const participantIds = Object.keys(participants);
 if (participantIds.length > 0) {
 participantsList.innerHTML = ''; // Clear previous list
 participantIds.forEach(id => {
+const participantData = participants[id];
 const participantDiv = document.createElement('div');
 participantDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded-sm';
-const participantName = participants[id] === username ? `${username} (You)` : participants[id];
+const participantName = participantData.username === username ? `${participantData.username} (You)` : participantData.username;
+const audioIcon = participantData.isMuted ? '<i class="fas fa-microphone-slash"></i>' : '<i class="fas fa-microphone"></i>';
+const videoIcon = participantData.isVideoOff ? '<i class="fas fa-video-slash"></i>' : '<i class="fas fa-video"></i>';
 participantDiv.innerHTML = `
 <i class="fas fa-user-circle text-lg"></i>
 <span class="text-sm flex-1">${participantName}</span>
+<span class="text-xs text-gray-400 space-x-2">${audioIcon} ${videoIcon}</span>
 `;
-// Add spotlight button for other participants
-if (id !== userId) {
+// Add spotlight and expel buttons for other participants if host
+if (isCreator && id !== userId) {
+const expelBtn = document.createElement('button');
+expelBtn.className = 'btn-danger ml-2 px-3 py-1 text-sm rounded-sm';
+expelBtn.innerHTML = '<i class="fas fa-ban"></i> Expel';
+expelBtn.addEventListener('click', () => {
+expelParticipant(id);
+});
+participantDiv.appendChild(expelBtn);
 const spotlightBtn = document.createElement('button');
 spotlightBtn.className = 'btn-toggle ml-2 text-sm';
 spotlightBtn.innerHTML = '<i class="fas fa-expand"></i> Spotlight';
@@ -861,6 +1016,45 @@ participantsList.innerHTML = 'No participants in this room.';
 }
 });
 };
+
+
+// Listen for active users on the website
+const listenForActiveUsers = () => {
+  if (activeUsersListener) activeUsersListener();
+  activeUsersList.innerHTML = 'Loading users...';
+  const activeUsersRef = collection(db, `artifacts/${appId}/public/data/active-users`);
+  activeUsersListener = onSnapshot(activeUsersRef, (snapshot) => {
+    activeUsersList.innerHTML = '';
+    const users = snapshot.docs.map(doc => doc.data().username);
+    if (users.length > 0) {
+      users.forEach(user => {
+        const userDiv = document.createElement('div');
+        userDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded-sm';
+        userDiv.innerHTML = `
+          <i class="fas fa-user-circle text-lg"></i>
+          <span class="text-sm flex-1">${user}</span>
+        `;
+        activeUsersList.appendChild(userDiv);
+      });
+    } else {
+      activeUsersList.innerHTML = '<p class="text-gray-500 text-sm">No active users.</p>';
+    }
+  });
+};
+
+// Expel a participant from the room
+const expelParticipant = async (participantId) => {
+  if (!isCreator || !roomRef) return;
+  const roomSnapshot = await getDoc(roomRef);
+  const participants = roomSnapshot.data()?.participants || {};
+  if (participants[participantId]) {
+    const newParticipants = { ...participants };
+    delete newParticipants[participantId];
+    await updateDoc(roomRef, { participants: newParticipants });
+    showMessage(`${participants[participantId].username} has been expelled.`, false);
+  }
+};
+
 
 // Spotlight a specific participant's video
 const spotlightParticipant = (participantId) => {
@@ -912,12 +1106,17 @@ const toggleSideBySide = () => {
 
 
 // Set the user's username and show the main app
-const setUsername = () => {
+const setUsername = async () => {
 const user = usernameInput.value.trim();
 if (user) {
 username = user;
 usernamePrompt.style.display = 'none';
 mainApp.style.display = 'grid';
+
+// Add user to active users list
+const activeUsersRef = doc(db, `artifacts/${appId}/public/data/active-users`, userId);
+await setDoc(activeUsersRef, { username: username, timestamp: serverTimestamp() });
+
 } else {
 showMessage("Please enter a username.", true);
 }
@@ -935,6 +1134,8 @@ return;
 }
 if (action === 'delete-all') {
 deleteAllRooms();
+} else if (action === 'create-room') {
+createRoom();
 }
 passwordModal.classList.add('hidden');
 };
@@ -968,15 +1169,34 @@ showMessage('Failed to delete rooms.', true);
 window.onload = () => {
 initFirebase();
 };
+
+window.addEventListener('beforeunload', async () => {
+  if (userId) {
+    try {
+      await deleteDoc(doc(db, `artifacts/${appId}/public/data/active-users`, userId));
+    } catch (e) {
+      console.error("Failed to remove user from active list on unload:", e);
+    }
+  }
+});
+
 submitUsernameBtn.addEventListener('click', setUsername);
 usernameInput.addEventListener('keydown', (e) => {
 if (e.key === 'Enter') setUsername();
 });
-createRoomBtn.addEventListener('click', createRoom);
+createRoomBtn.addEventListener('click', () => {
+passwordModalTitle.textContent = 'Create a New Room';
+passwordModalText.textContent = 'Please enter the administrator password to create a room.';
+confirmBtn.dataset.action = 'create-room';
+passwordModal.classList.remove('hidden');
+});
 joinRoomBtn.addEventListener('click', joinRoom);
 hangupBtn.addEventListener('click', hangup);
 toggleAudioBtn.addEventListener('click', toggleAudio);
 toggleVideoBtn.addEventListener('click', toggleVideo);
+screenShareBtn.addEventListener('click', startScreenShare);
+muteAllBtn.addEventListener('click', muteAllParticipants);
+lockRoomBtn.addEventListener('click', toggleRoomLock);
 startRecordingBtn.addEventListener('click', startRecording);
 stopRecordingBtn.addEventListener('click', stopRecording);
 sendChatBtn.addEventListener('click', sendMessage);
