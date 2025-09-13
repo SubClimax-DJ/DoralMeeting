@@ -1,856 +1,816 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Doral Video Conference</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Lato:wght@400;700&display=swap');
-body {
-font-family: 'Lato', sans-serif;
-background-color: #282828;
-color: #ebdbb2;
-}
-.header {
-background-color: #1d2021;
-color: #ebdbb2;
-}
-.container-card {
-background-color: #32302f;
-border-radius: 0.5rem;
-padding: 2rem;
-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-.btn-primary {
-@apply px-6 py-3 font-semibold rounded-sm transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
-background-color: #458588;
-color: #ebdbb2;
-}
-.btn-danger {
-@apply px-6 py-3 font-semibold rounded-sm transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
-background-color: #fb4934;
-color: #ebdbb2;
-}
-.btn-toggle {
-@apply px-4 py-2 font-semibold rounded-sm transition duration-300 focus:outline-none;
-background-color: #504945;
-color: #ebdbb2;
-}
-.btn-toggle-active {
-@apply px-4 py-2 font-semibold rounded-sm transition duration-300 focus:outline-none;
-background-color: #b8bb26;
-color: #1d2021;
-}
-.input-field {
-@apply w-full px-4 py-3 rounded-sm border border-gray-600 focus:outline-none focus:ring-2 transition duration-200;
-background-color: #32302f;
-color: #ebdbb2;
-}
-.video-container {
-position: relative;
-width: 100%;
-padding-top: 56.25%; /* 16:9 Aspect Ratio */
-background-color: #1d2021;
-border-radius: 0.5rem;
-overflow: hidden;
-}
-.video-element {
-position: absolute;
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-object-fit: cover;
-transition: all 0.3s ease-in-out;
-}
-#localVideo {
-width: 150px;
-height: 112.5px;
-position: absolute;
-bottom: 1rem;
-right: 1rem;
-border-radius: 0.25rem;
-z-index: 10;
-border: 2px solid #ebdbb2;
-box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-}
-#remoteVideo {
-position: absolute;
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-object-fit: cover;
-transition: all 0.3s ease-in-out;
-}
-.chat-container {
-background-color: #3c3836;
-border: 1px solid #504945;
-border-radius: 0.5rem;
-height: 300px;
-overflow-y: auto;
-display: flex;
-flex-direction: column-reverse;
-}
-.message {
-padding: 0.5rem 1rem;
-margin: 0.5rem;
-border-radius: 0.75rem;
-max-width: 85%;
-word-wrap: break-word;
-}
-.my-message {
-background-color: #458588;
-color: #ebdbb2;
-align-self: flex-end;
-}
-.other-message {
-background-color: #665c54;
-color: #ebdbb2;
-align-self: flex-start;
-}
-.modal-overlay {
-position: fixed;
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-background-color: rgba(0, 0, 0, 0.7);
-display: flex;
-justify-content: center;
-align-items: center;
-z-index: 50;
-}
-.modal-content {
-background-color: #32302f;
-padding: 2rem;
-border-radius: 0.5rem;
-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-width: 90%;
-max-width: 400px;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doral Video Conference</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Crimson+Pro:wght@400;600&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #282828;
+            color: #ebdbb2;
+        }
+
+        .header {
+            background-color: #1d2021;
+            color: #ebdbb2;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .container-card {
+            background-color: #32302f;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-primary {
+            @apply px-6 py-3 font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#458588] focus:ring-offset-[#282828];
+            background-color: #458588;
+            color: #ebdbb2;
+        }
+
+        .btn-danger {
+            @apply px-6 py-3 font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#fb4934] focus:ring-offset-[#282828];
+            background-color: #fb4934;
+            color: #ebdbb2;
+        }
+
+        .btn-toggle {
+            @apply px-4 py-2 font-semibold rounded-lg transition-all duration-300 focus:outline-none hover:bg-[#665c54];
+            background-color: #504945;
+            color: #ebdbb2;
+        }
+
+        .btn-toggle-active {
+            @apply bg-[#b8bb26] text-[#1d2021] hover:bg-[#d8bb26] focus:ring-[#b8bb26];
+        }
+
+        .layout-btn-active {
+             @apply bg-[#b8bb26] text-[#1d2021] hover:bg-[#d8bb26];
+        }
+
+        .input-field {
+            @apply w-full px-4 py-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200;
+            background-color: #32302f;
+            color: #ebdbb2;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            background-color: #1d2021;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        
+        #remoteVideo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: all 0.3s ease-in-out;
+        }
+        
+        #localVideo {
+            position: absolute;
+            bottom: 1rem;
+            right: 1rem;
+            width: 150px;
+            height: 112.5px;
+            border-radius: 0.75rem;
+            z-index: 10;
+            border: 2px solid #ebdbb2;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease-in-out;
+            object-fit: cover;
+        }
+        
+        .chat-container {
+            background-color: #3c3836;
+            border: 1px solid #504945;
+            border-radius: 0.5rem;
+            height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 0.5rem;
+        }
+
+        .message {
+            padding: 0.5rem 1rem;
+            border-radius: 0.75rem;
+            max-width: 85%;
+            word-wrap: break-word;
+        }
+        
+        .my-message {
+            background-color: #458588;
+            color: #ebdbb2;
+            align-self: flex-end;
+        }
+        
+        .other-message {
+            background-color: #665c54;
+            color: #ebdbb2;
+            align-self: flex-start;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none; /* Firefox */
+        }
+    </style>
 </head>
 <body class="flex flex-col items-center min-h-screen p-4">
-
-<!-- Header -->
-<header class="header w-full py-4 mb-8 flex flex-col sm:flex-row items-center justify-between px-6 shadow-md">
-<div class="flex items-center">
-<img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="School Logo" class="h-12 mr-4">
-<h1 class="text-3xl sm:text-4xl font-semibold font-['Crimson_Pro']">
-Doral Video Conference
-</h1>
-</div>
-<div class="text-sm mt-2 sm:mt-0 font-light" id="auth-status">Authenticating...</div>
-</header>
-
-<!-- Main App Content (hidden initially) -->
-<main id="mainApp" class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 hidden">
-<!-- Video and Controls -->
-<div class="md:col-span-2 container-card">
-<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feed</h2>
-<div class="video-container mb-4">
-<video id="remoteVideo" class="video-element" autoplay playsinline></video>
-<video id="localVideo" class="video-element" autoplay playsinline muted></video>
-</div>
-<div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 items-center justify-center">
-<button id="toggleAudioBtn" class="btn-toggle" disabled><i class="fas fa-microphone"></i> Mute Audio</button>
-<button id="toggleVideoBtn" class="btn-toggle" disabled><i class="fas fa-video"></i> Mute Video</button>
-<button id="hangupBtn" class="btn-danger flex-1" disabled>Hang Up</button>
-</div>
-<div class="flex mt-4 space-x-4 justify-center">
-<button id="startRecordingBtn" class="btn-primary" disabled>Start Recording</button>
-<button id="stopRecordingBtn" class="btn-danger" disabled>Stop Recording</button>
-</div>
-<a id="downloadRecording" style="display: none;"></a>
-</div>
-
-<!-- Room Management & Chat -->
-<div class="md:col-span-1 space-y-8">
-<div class="container-card">
-<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Room Management</h2>
-<div class="flex flex-col space-y-4">
-<div class="flex space-x-2">
-<input type="text" id="roomIdInput" placeholder="Enter Room ID" class="input-field flex-1" />
-<button id="joinRoomBtn" class="btn-primary" disabled>Join</button>
-</div>
-<div class="flex items-center space-x-2">
-<input type="checkbox" id="joinMutedCheckbox" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
-<label for="joinMutedCheckbox" class="text-sm">Join with camera/mic off</label>
-</div>
-<button id="createRoomBtn" class="btn-primary" disabled>Create New Room</button>
-<button id="deleteAllRoomsBtn" class="btn-danger" disabled>Delete All Rooms</button>
-</div>
-</div>
-
-<div class="container-card">
-<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Active Rooms</h2>
-<div id="activeRoomsList" class="space-y-2">
-<p class="text-gray-500 text-sm">Loading rooms...</p>
-</div>
-</div>
-
-<div class="container-card">
-<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2>
-<div id="participantsList" class="space-y-2 text-gray-400 text-sm">
-No participants in this room.
-</div>
-</div>
-
-<div class="container-card">
-<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
-<div class="chat-container mb-4" id="chatContainer"></div>
-<div class="flex space-x-2">
-<input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" />
-<button id="sendChatBtn" class="btn-primary" disabled>Send</button>
-</div>
-</div>
-</div>
-</main>
-
-<!-- Initial Username Prompt -->
-<div id="usernamePrompt" class="md:col-span-3 flex flex-col items-center justify-center p-8 bg-[#32302f] rounded-lg shadow-xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 md:w-1/2">
-<h2 class="text-2xl font-bold font-['Crimson_Pro'] mb-4">Enter Your Username</h2>
-<p class="text-sm text-gray-400 mb-6 text-center">Your username will be visible to other participants in the chat.</p>
-<input type="text" id="usernameInput" placeholder="e.g., JaneDoe" class="input-field max-w-sm mb-4" />
-<button id="submitUsernameBtn" class="btn-primary max-w-xs w-full">Start</button>
-</div>
-
-<!-- Password Modal (Hidden by default) -->
-<div id="passwordModal" class="modal-overlay hidden">
-<div class="modal-content flex flex-col space-y-4">
-<h2 class="text-xl font-bold font-['Crimson_Pro']">Enter Password</h2>
-<p class="text-sm text-gray-400">To delete all rooms, please enter the administrator password.</p>
-<input type="password" id="passwordInput" placeholder="Password" class="input-field" />
-<div class="flex space-x-4">
-<button id="confirmDeleteBtn" class="btn-danger flex-1">Confirm</button>
-<button id="cancelDeleteBtn" class="btn-toggle flex-1">Cancel</button>
-</div>
-</div>
-</div>
-
-<!-- Global Status Message -->
-<div id="status-message" class="fixed bottom-4 left-1/2 -translate-x-1/2 p-4 rounded-lg text-sm text-center text-gray-700 bg-gray-100 hidden"></div>
-
-<!-- Font Awesome Icons -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
-
-<!-- Firebase SDKs -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, setLogLevel, serverTimestamp, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-// Hardcoded Firebase configuration
-const hardcodedFirebaseConfig = {
-  apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
-  authDomain: "video-meeting-e73eb.firebaseapp.com",
-  projectId: "video-meeting-e73eb",
-  storageBucket: "video-meeting-e73eb.firebasestorage.app",
-  messagingSenderId: "80496795033",
-  appId: "1:80496795033:web:3ac35c631d76301f77c708",
-  measurementId: "G-SFPQ0PJRPG"
-};
-
-// Use the environment's config if available, otherwise use the hardcoded one
-const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config !== '{}'
-    ? JSON.parse(__firebase_config)
-    : hardcodedFirebaseConfig;
-
-// Global variables provided by the environment
-const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.appId;
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-// UI Elements
-const usernamePrompt = document.getElementById('usernamePrompt');
-const mainApp = document.getElementById('mainApp');
-const usernameInput = document.getElementById('usernameInput');
-const submitUsernameBtn = document.getElementById('submitUsernameBtn');
-const localVideo = document.getElementById('localVideo');
-const remoteVideo = document.getElementById('remoteVideo');
-const roomIdInput = document.getElementById('roomIdInput');
-const createRoomBtn = document.getElementById('createRoomBtn');
-const joinRoomBtn = document.getElementById('joinRoomBtn');
-const deleteAllRoomsBtn = document.getElementById('deleteAllRoomsBtn');
-const hangupBtn = document.getElementById('hangupBtn');
-const toggleAudioBtn = document.getElementById('toggleAudioBtn');
-const toggleVideoBtn = document.getElementById('toggleVideoBtn');
-const startRecordingBtn = document.getElementById('startRecordingBtn');
-const stopRecordingBtn = document.getElementById('stopRecordingBtn');
-const chatInput = document.getElementById('chatInput');
-const sendChatBtn = document.getElementById('sendChatBtn');
-const chatContainer = document.getElementById('chatContainer');
-const statusMessage = document.getElementById('status-message');
-const authStatus = document.getElementById('auth-status');
-const activeRoomsList = document.getElementById('activeRoomsList');
-const joinMutedCheckbox = document.getElementById('joinMutedCheckbox');
-const participantsList = document.getElementById('participantsList');
-
-
-// Password Modal Elements
-const passwordModal = document.getElementById('passwordModal');
-const passwordInput = document.getElementById('passwordInput');
-const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
-
-// Firestore and Auth instances
-let app, db, auth;
-let userId;
-
-// User-specific variables
-let username;
-let isCreator = false;
-
-// WebRTC variables
-let peerConnection = null;
-let localStream = null;
-let roomRef = null;
-let roomSnapshotListener = null;
-let candidatesListener = null;
-let chatListener = null;
-let roomsListener = null;
-let participantsListener = null;
-
-// Recording variables
-let mediaRecorder;
-let recordedChunks = [];
-
-// WebRTC STUN servers
-const configuration = {
-iceServers: [
-{ urls: 'stun:stun.l.google.com:19302' },
-{ urls: 'stun:stun1.l.google.com:19302' },
-]
-};
-
-// Function to display messages to the user
-const showMessage = (msg, isError = false) => {
-statusMessage.textContent = msg;
-statusMessage.className = `fixed bottom-4 left-1/2 -translate-x-1/2 p-4 rounded-lg text-sm text-center transition-all duration-300 transform animate-fade-in ${isError ? 'text-red-700 bg-red-100' : 'text-gray-700 bg-gray-100'}`;
-statusMessage.style.display = 'block';
-};
-
-// Function to hide the status message
-const hideMessage = () => {
-statusMessage.style.display = 'none';
-};
-
-// Initialize Firebase and Auth
-const initFirebase = async () => {
-try {
-app = initializeApp(firebaseConfig);
-db = getFirestore(app);
-auth = getAuth(app);
-setLogLevel('debug');
-
-onAuthStateChanged(auth, async (user) => {
-if (user) {
-userId = user.uid;
-authStatus.textContent = `User ID: ${userId}`;
-createRoomBtn.disabled = false;
-joinRoomBtn.disabled = false;
-deleteAllRoomsBtn.disabled = false;
-listenForRooms();
-} else {
-authStatus.textContent = 'Authenticating...';
-try {
-if (initialAuthToken) {
-await signInWithCustomToken(auth, initialAuthToken);
-} else {
-await signInAnonymously(auth);
-}
-} catch (error) {
-console.error("Firebase Auth Error:", error);
-showMessage("Authentication failed.", true);
-}
-}
-});
-} catch (error) {
-console.error("Firebase Initialization Error:", error);
-showMessage(`Firebase initialization failed: ${error.message}`, true);
-}
-};
-
-// Get the user's local video and audio stream
-const getLocalStream = async (startMuted) => {
-try {
-localStream = await navigator.mediaDevices.getUserMedia({ video: !startMuted, audio: !startMuted });
-localVideo.srcObject = localStream;
-localVideo.muted = true;
-
-if (startMuted) {
-localStream.getAudioTracks()[0].enabled = false;
-localStream.getVideoTracks()[0].enabled = false;
-toggleAudioBtn.textContent = "Unmute Audio";
-toggleVideoBtn.textContent = "Turn On Video";
-} else {
-toggleAudioBtn.textContent = "Mute Audio";
-toggleVideoBtn.textContent = "Mute Video";
-}
-toggleAudioBtn.classList.toggle('btn-toggle-active', !startMuted);
-toggleVideoBtn.classList.toggle('btn-toggle-active', !startMuted);
-toggleAudioBtn.disabled = false;
-toggleVideoBtn.disabled = false;
-return localStream;
-} catch (error) {
-console.error("Error getting user media:", error);
-if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-showMessage("Access to camera/microphone was denied. Please check your browser's settings.", true);
-} else {
-showMessage("Could not access camera and microphone. Please grant permissions.", true);
-}
-return null;
-} finally {
-if (!localStream) {
-hideMessage();
-}
-}
-};
-
-// Set up the WebRTC peer connection
-const setupPeerConnection = () => {
-peerConnection = new RTCPeerConnection(configuration);
-
-peerConnection.onicecandidate = (event) => {
-if (event.candidate) {
-const candidatesCollection = collection(roomRef, 'candidates');
-addDoc(candidatesCollection, { candidate: JSON.stringify(event.candidate.toJSON()), sender: userId });
-}
-};
-
-peerConnection.ontrack = (event) => {
-if (event.streams && event.streams[0]) {
-remoteVideo.srcObject = event.streams[0];
-startRecordingBtn.disabled = false;
-}
-};
-};
-
-// Listen for and display active rooms
-const listenForRooms = () => {
-if (roomsListener) {
-roomsListener();
-}
-const roomsCollectionRef = collection(db, `artifacts/${appId}/public/data/video-rooms`);
-roomsListener = onSnapshot(roomsCollectionRef, (snapshot) => {
-activeRoomsList.innerHTML = '';
-if (snapshot.empty) {
-activeRoomsList.innerHTML = '<p class="text-gray-500 text-sm">No active rooms.</p>';
-} else {
-snapshot.forEach(doc => {
-const roomData = doc.data();
-const roomName = doc.id;
-const numParticipants = Object.keys(roomData.participants || {}).length;
-const isOccupied = numParticipants > 1;
-
-const statusIcon = isOccupied
-? '<i class="fas fa-lock text-red-500"></i>'
-: '<i class="fas fa-check-circle text-green-500"></i>';
-
-const roomDiv = document.createElement('div');
-roomDiv.className = 'flex items-center justify-between p-2 bg-[#3c3836] rounded-sm hover:bg-[#504945] transition duration-150 cursor-pointer';
-roomDiv.innerHTML = `
-<div class="flex items-center space-x-2">
-<span>${statusIcon}</span>
-<div class="flex flex-col">
-<span class="font-semibold">${roomName}</span>
-<span class="text-xs text-gray-400">Created by: ${roomData.createdByUsername}</span>
-</div>
-</div>
-<button data-room-id="${roomName}" class="join-room-btn px-3 py-1 text-sm rounded-sm bg-blue-600 text-white hover:bg-blue-700">Join</button>
-`;
-activeRoomsList.appendChild(roomDiv);
-});
-document.querySelectorAll('.join-room-btn').forEach(button => {
-button.addEventListener('click', (e) => {
-roomIdInput.value = e.target.dataset.roomId;
-joinRoom();
-});
-});
-}
-});
-};
-
-// Create a new video room
-const createRoom = async () => {
-if (!userId) {
-showMessage("Authentication in progress. Please wait.", true);
-return;
-}
-isCreator = true;
-const roomName = `room-${Math.random().toString(36).substring(2, 9)}`;
-roomIdInput.value = roomName;
-roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomName);
-
-showMessage("Creating room...");
-
-const startMuted = joinMutedCheckbox.checked;
-const stream = await getLocalStream(startMuted);
-if (!stream) {
-return;
-}
-
-setupPeerConnection();
-stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
-
-const offer = await peerConnection.createOffer();
-await peerConnection.setLocalDescription(offer);
-
-const participants = { [userId]: username };
-
-await setDoc(roomRef, {
-offer: { sdp: offer.sdp, type: offer.type },
-createdBy: userId,
-createdByUsername: username,
-participants: participants
-});
-
-roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
-const data = snapshot.data();
-if (!snapshot.exists()) {
-hangup();
-showMessage("Room closed by host.", false);
-return;
-}
-if (data && data.answer && !peerConnection.currentRemoteDescription) {
-const answer = new RTCSessionDescription(data.answer);
-await peerConnection.setRemoteDescription(answer);
-}
-});
-
-candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
-snapshot.docChanges().forEach(async (change) => {
-if (change.type === "added") {
-const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
-await peerConnection.addIceCandidate(candidate);
-}
-});
-});
-
-listenForChat(roomRef);
-listenForParticipants();
-
-showMessage(`Room created! Share this ID with your client: ${roomName}`);
-createRoomBtn.disabled = true;
-joinRoomBtn.disabled = true;
-hangupBtn.disabled = false;
-sendChatBtn.disabled = false;
-};
-
-// Join an existing room
-const joinRoom = async () => {
-if (!userId) {
-showMessage("Authentication in progress. Please wait.", true);
-return;
-}
-const roomId = roomIdInput.value;
-if (!roomId) {
-showMessage("Please enter a Room ID.", true);
-return;
-}
-
-roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomId);
-const roomSnapshot = await getDoc(roomRef);
-
-if (!roomSnapshot.exists()) {
-showMessage("Room does not exist.", true);
-return;
-}
-
-showMessage(`Joining room: ${roomId}`);
-
-const startMuted = joinMutedCheckbox.checked;
-const stream = await getLocalStream(startMuted);
-if (!stream) return;
-
-setupPeerConnection();
-stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
-
-const offer = roomSnapshot.data().offer;
-await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-
-const answer = await peerConnection.createAnswer();
-await peerConnection.setLocalDescription(answer);
-
-await updateDoc(roomRef, { answer: { sdp: answer.sdp, type: answer.type } });
-await updateDoc(roomRef, { [`participants.${userId}`]: username });
-
-candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
-snapshot.docChanges().forEach(async (change) => {
-if (change.type === "added") {
-const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
-await peerConnection.addIceCandidate(candidate);
-}
-});
-});
-
-listenForChat(roomRef);
-listenForParticipants();
-
-showMessage(`Successfully joined room ${roomId}!`);
-createRoomBtn.disabled = true;
-joinRoomBtn.disabled = true;
-hangupBtn.disabled = false;
-sendChatBtn.disabled = false;
-};
-
-// Hang up the call and clean up resources
-const hangup = async () => {
-if (peerConnection) {
-peerConnection.close();
-}
-if (localStream) {
-localStream.getTracks().forEach(track => track.stop());
-}
-localVideo.srcObject = null;
-remoteVideo.srcObject = null;
-peerConnection = null;
-localStream = null;
-isCreator = false;
-
-if (roomRef) {
-const roomSnapshot = await getDoc(roomRef);
-const participants = roomSnapshot.data()?.participants || {};
-if (participants[userId]) {
-const newParticipants = { ...participants };
-delete newParticipants[userId];
-await updateDoc(roomRef, { participants: newParticipants });
-if (Object.keys(newParticipants).length === 0) {
-await deleteDoc(roomRef);
-showMessage('Room has been automatically closed.', false);
-} else {
-showMessage(`${username} has left the room.`, false);
-}
-}
-}
-
-// Stop all listeners
-if (roomSnapshotListener) roomSnapshotListener();
-if (candidatesListener) candidatesListener();
-if (chatListener) chatListener();
-if (roomsListener) roomsListener();
-if (participantsListener) participantsListener();
-roomSnapshotListener = null;
-candidatesListener = null;
-chatListener = null;
-roomsListener = null;
-participantsListener = null;
-
-roomIdInput.value = '';
-hideMessage();
-createRoomBtn.disabled = false;
-joinRoomBtn.disabled = false;
-hangupBtn.disabled = true;
-toggleAudioBtn.disabled = true;
-toggleVideoBtn.disabled = true;
-startRecordingBtn.disabled = true;
-stopRecordingBtn.disabled = true;
-sendChatBtn.disabled = true;
-chatContainer.innerHTML = '';
-participantsList.innerHTML = 'No participants in this room.';
-};
-
-// Toggle audio mute
-const toggleAudio = () => {
-if (localStream) {
-const audioTrack = localStream.getAudioTracks()[0];
-audioTrack.enabled = !audioTrack.enabled;
-toggleAudioBtn.textContent = audioTrack.enabled ? "Mute Audio" : "Unmute Audio";
-toggleAudioBtn.classList.toggle('btn-toggle-active', !audioTrack.enabled);
-}
-};
-
-// Toggle video mute
-const toggleVideo = () => {
-if (localStream) {
-const videoTrack = localStream.getVideoTracks()[0];
-videoTrack.enabled = !videoTrack.enabled;
-toggleVideoBtn.textContent = videoTrack.enabled ? "Mute Video" : "Unmute Video";
-toggleVideoBtn.classList.toggle('btn-toggle-active', !videoTrack.enabled);
-}
-};
-
-// Start recording the remote video stream
-const startRecording = () => {
-if (!remoteVideo.srcObject) {
-showMessage("No remote stream to record.", true);
-return;
-}
-recordedChunks = [];
-const stream = remoteVideo.srcObject;
-mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
-
-mediaRecorder.ondataavailable = (e) => {
-if (e.data.size > 0) {
-recordedChunks.push(e.data);
-}
-};
-
-mediaRecorder.onstop = () => {
-const blob = new Blob(recordedChunks, { type: 'video/webm' });
-const url = URL.createObjectURL(blob);
-const a = document.getElementById('downloadRecording');
-a.style.display = 'block';
-a.href = url;
-a.download = `conference-recording-${Date.now()}.webm`;
-a.click();
-URL.revokeObjectURL(url);
-showMessage("Recording downloaded successfully!");
-};
-
-mediaRecorder.start();
-showMessage("Recording started...");
-startRecordingBtn.disabled = true;
-stopRecordingBtn.disabled = false;
-};
-
-// Stop recording
-const stopRecording = () => {
-if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-mediaRecorder.stop();
-showMessage("Recording stopped. Your download should start shortly.");
-}
-};
-
-// Send a chat message
-const sendMessage = async () => {
-const message = chatInput.value.trim();
-if (message === "" || !roomRef) return;
-
-const chatMessagesRef = collection(roomRef, 'chat-messages');
-await addDoc(chatMessagesRef, {
-senderId: userId,
-senderUsername: username,
-text: message,
-timestamp: serverTimestamp()
-});
-chatInput.value = '';
-};
-
-// Listen for new chat messages
-const listenForChat = (roomDocRef) => {
-if (chatListener) chatListener();
-const chatMessagesRef = collection(roomDocRef, 'chat-messages');
-chatListener = onSnapshot(chatMessagesRef, (snapshot) => {
-snapshot.docChanges().forEach(change => {
-if (change.type === 'added') {
-const messageData = change.doc.data();
-displayMessage(messageData);
-}
-});
-}, (error) => {
-console.error("Error listening to chat messages:", error);
-});
-};
-
-// Display a chat message in the UI
-const displayMessage = (messageData) => {
-const messageDiv = document.createElement('div');
-messageDiv.className = `message ${messageData.senderId === userId ? 'my-message' : 'other-message'}`;
-messageDiv.innerHTML = `<span class="font-bold">${messageData.senderUsername}:</span> ${messageData.text}`;
-chatContainer.appendChild(messageDiv);
-chatContainer.scrollTop = chatContainer.scrollHeight;
-};
-
-// Listen for and display participants in the current room
-const listenForParticipants = () => {
-if (participantsListener) participantsListener();
-participantsList.innerHTML = '';
-participantsListener = onSnapshot(roomRef, (snapshot) => {
-const roomData = snapshot.data();
-const participants = roomData?.participants || {};
-const participantIds = Object.keys(participants);
-if (participantIds.length > 0) {
-participantsList.innerHTML = ''; // Clear previous list
-participantIds.forEach(id => {
-const participantDiv = document.createElement('div');
-participantDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded-sm';
-const participantName = participants[id] === username ? `${username} (You)` : participants[id];
-participantDiv.innerHTML = `
-<i class="fas fa-user-circle text-lg"></i>
-<span class="text-sm">${participantName}</span>
-`;
-participantsList.appendChild(participantDiv);
-});
-} else {
-participantsList.innerHTML = 'No participants in this room.';
-}
-});
-};
-
-// Set the user's username and show the main app
-const setUsername = () => {
-const user = usernameInput.value.trim();
-if (user) {
-username = user;
-usernamePrompt.style.display = 'none';
-mainApp.style.display = 'grid';
-} else {
-showMessage("Please enter a username.", true);
-}
-};
-
-// Delete all rooms with a password
-const deleteAllRooms = async () => {
-const password = passwordInput.value;
-if (password !== 'max') {
-showMessage('Incorrect password.', true);
-return;
-}
-
-passwordModal.classList.add('hidden');
-showMessage('Deleting all rooms...', false);
-const roomsCollectionRef = collection(db, `artifacts/${appId}/public/data/video-rooms`);
-try {
-const roomsSnapshot = await getDocs(roomsCollectionRef);
-if (roomsSnapshot.empty) {
-showMessage('No rooms to delete.', false);
-return;
-}
-const deletePromises = roomsSnapshot.docs.map(async (roomDoc) => {
-const chatMessagesRef = collection(roomDoc.ref, 'chat-messages');
-const chatSnapshot = await getDocs(chatMessagesRef);
-const chatDeletePromises = chatSnapshot.docs.map(chatDoc => deleteDoc(chatDoc.ref));
-await Promise.all(chatDeletePromises);
-await deleteDoc(roomDoc.ref);
-});
-await Promise.all(deletePromises);
-showMessage('All rooms have been deleted.', false);
-} catch (error) {
-console.error('Error deleting rooms:', error);
-showMessage('Failed to delete rooms.', true);
-}
-};
-
-// Event Listeners
-window.onload = () => {
-initFirebase();
-};
-submitUsernameBtn.addEventListener('click', setUsername);
-usernameInput.addEventListener('keydown', (e) => {
-if (e.key === 'Enter') setUsername();
-});
-createRoomBtn.addEventListener('click', createRoom);
-joinRoomBtn.addEventListener('click', joinRoom);
-hangupBtn.addEventListener('click', hangup);
-toggleAudioBtn.addEventListener('click', toggleAudio);
-toggleVideoBtn.addEventListener('click', toggleVideo);
-startRecordingBtn.addEventListener('click', startRecording);
-stopRecordingBtn.addEventListener('click', stopRecording);
-sendChatBtn.addEventListener('click', sendMessage);
-chatInput.addEventListener('keydown', (e) => {
-if (e.key === 'Enter') sendMessage();
-});
-deleteAllRoomsBtn.addEventListener('click', () => {
-passwordModal.classList.remove('hidden');
-});
-confirmDeleteBtn.addEventListener('click', deleteAllRooms);
-cancelDeleteBtn.addEventListener('click', () => {
-passwordModal.classList.add('hidden');
-passwordInput.value = '';
-});
-
-</script>
+    <header class="header w-full py-4 mb-8 flex flex-col sm:flex-row items-center justify-between px-6 shadow-md rounded-lg">
+        <div class="flex items-center">
+            <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="School Logo" class="h-12 mr-4 rounded-full">
+            <h1 class="text-3xl sm:text-4xl font-semibold font-['Crimson_Pro']">
+                Doral Video Conference
+            </h1>
+        </div>
+        <div class="text-sm mt-2 sm:mt-0 font-light" id="auth-status">Authenticating...</div>
+    </header>
+
+    <!-- Initial Username Prompt -->
+    <div id="usernamePrompt" class="w-full max-w-lg container-card flex flex-col items-center justify-center p-8">
+        <h2 class="text-2xl font-bold font-['Crimson_Pro'] mb-4">Enter Your Username</h2>
+        <p class="text-sm text-gray-400 mb-6 text-center">Your username will be visible to other participants in the chat.</p>
+        <input type="text" id="usernameInput" placeholder="e.g., JaneDoe" class="input-field max-w-sm mb-4" />
+        <div class="flex flex-col space-y-2 text-sm w-full max-w-sm">
+            <label class="flex items-center space-x-2">
+                <input type="checkbox" id="micOffCheckbox" class="rounded text-[#458588]">
+                <span>Start with microphone off</span>
+            </label>
+            <label class="flex items-center space-x-2">
+                <input type="checkbox" id="cameraOffCheckbox" class="rounded text-[#458588]">
+                <span>Start with camera off</span>
+            </label>
+        </div>
+        <button id="submitUsernameBtn" class="btn-primary max-w-xs w-full mt-6">Start</button>
+    </div>
+
+    <!-- Main App Content (hidden initially) -->
+    <main id="mainApp" class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 hidden">
+        <!-- Video and Controls -->
+        <div class="md:col-span-2 container-card">
+            <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feed</h2>
+            <div class="video-container mb-4">
+                <video id="remoteVideo" autoplay playsinline></video>
+                <video id="localVideo" autoplay playsinline muted></video>
+            </div>
+            <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 items-center justify-center">
+                <button id="toggleAudioBtn" class="btn-toggle rounded-lg"><i class="fas fa-microphone"></i> Mute Audio</button>
+                <button id="toggleVideoBtn" class="btn-toggle rounded-lg"><i class="fas fa-video"></i> Mute Video</button>
+                <button id="hangupBtn" class="btn-danger flex-1 rounded-lg" disabled>Hang Up</button>
+            </div>
+        </div>
+
+        <!-- Room Management & Chat -->
+        <div class="md:col-span-1 space-y-8">
+            <div class="container-card">
+                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Room Management</h2>
+                <div class="flex flex-col space-y-4">
+                    <div class="flex space-x-2">
+                        <input type="text" id="roomIdInput" placeholder="Enter Room ID" class="input-field flex-1" />
+                        <button id="joinRoomBtn" class="btn-primary">Join</button>
+                    </div>
+                    <button id="createRoomBtn" class="btn-primary">Create New Room</button>
+                </div>
+            </div>
+
+            <div class="container-card" id="roomCreatorControls" style="display: none;">
+                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Layout Controls</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <button class="btn-toggle layout-btn rounded-lg" data-layout="full">Full Screen</button>
+                    <button class="btn-toggle layout-btn rounded-lg" data-layout="pip-bottom-right">Picture-in-Picture</button>
+                    <button class="btn-toggle layout-btn rounded-lg" data-layout="side-by-side">Side-by-Side</button>
+                    <button class="btn-toggle layout-btn rounded-lg" data-layout="local-on-top">Local-on-Top</button>
+                    <button class="btn-primary col-span-2 rounded-lg" id="takeStageBtn"><i class="fas fa-star"></i> Take the Stage</button>
+                </div>
+            </div>
+
+            <div class="container-card" id="participantsList" style="display: none;">
+                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2>
+                <p class="text-gray-400 text-sm">No other participants.</p>
+            </div>
+            
+            <div class="container-card">
+                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Active Rooms</h2>
+                <div id="activeRoomsList" class="space-y-2">
+                    <p class="text-gray-500 text-sm">Loading rooms...</p>
+                </div>
+            </div>
+
+            <div class="container-card">
+                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
+                <div class="chat-container mb-4 scrollbar-hide" id="chatContainer"></div>
+                <div class="flex space-x-2">
+                    <input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" disabled/>
+                    <button id="sendChatBtn" class="btn-primary rounded-lg" disabled>Send</button>
+                </div>
+            </div>
+        </div>
+    </main>
+    <div id="status-message" class="fixed bottom-4 left-1/2 -translate-x-1/2 p-4 rounded-lg text-sm text-center text-gray-700 bg-gray-100 hidden"></div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, setLogLevel, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // UI Elements
+        const usernamePrompt = document.getElementById('usernamePrompt');
+        const mainApp = document.getElementById('mainApp');
+        const usernameInput = document.getElementById('usernameInput');
+        const submitUsernameBtn = document.getElementById('submitUsernameBtn');
+        const micOffCheckbox = document.getElementById('micOffCheckbox');
+        const cameraOffCheckbox = document.getElementById('cameraOffCheckbox');
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const roomIdInput = document.getElementById('roomIdInput');
+        const createRoomBtn = document.getElementById('createRoomBtn');
+        const joinRoomBtn = document.getElementById('joinRoomBtn');
+        const hangupBtn = document.getElementById('hangupBtn');
+        const toggleAudioBtn = document.getElementById('toggleAudioBtn');
+        const toggleVideoBtn = document.getElementById('toggleVideoBtn');
+        const chatInput = document.getElementById('chatInput');
+        const sendChatBtn = document.getElementById('sendChatBtn');
+        const chatContainer = document.getElementById('chatContainer');
+        const statusMessage = document.getElementById('status-message');
+        const authStatus = document.getElementById('auth-status');
+        const activeRoomsList = document.getElementById('activeRoomsList');
+        const roomCreatorControls = document.getElementById('roomCreatorControls');
+        const participantsList = document.getElementById('participantsList');
+        const takeStageBtn = document.getElementById('takeStageBtn');
+
+
+        // Firestore and Auth instances
+        let app, db, auth;
+        let userId;
+
+        // User-specific variables
+        let username;
+        let isCreator = false;
+
+        // WebRTC variables
+        let peerConnection = null;
+        let localStream = null;
+        let roomRef = null;
+        let roomSnapshotListener = null;
+        let candidatesListener = null;
+        let chatListener = null;
+        let roomsListener = null;
+        let participantsListener = null;
+        let previousParticipants = {};
+        let isMuted = false;
+        let isVideoOff = false;
+
+        // WebRTC STUN servers
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+            ]
+        };
+        
+        const showMessage = (msg, isError = false) => {
+            statusMessage.textContent = msg;
+            statusMessage.style.display = 'block';
+            statusMessage.className = `fixed bottom-4 left-1/2 -translate-x-1/2 p-4 rounded-lg text-sm text-center transition-all duration-300 transform animate-fade-in ${isError ? 'text-red-700 bg-red-100' : 'text-gray-700 bg-gray-100'}`;
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 5000);
+        };
+
+        const hideMessage = () => {
+            statusMessage.style.display = 'none';
+        };
+
+        // Initialize Firebase and Auth
+        const initFirebase = async () => {
+            try {
+                if (Object.keys(firebaseConfig).length === 0) {
+                     showMessage("Firebase configuration is missing.", true);
+                     return;
+                }
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setLogLevel('debug');
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        authStatus.textContent = `User ID: ${userId}`;
+                        createRoomBtn.disabled = false;
+                        joinRoomBtn.disabled = false;
+                        listenForRooms();
+                    } else {
+                        authStatus.textContent = 'Authenticating...';
+                        try {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        } catch (error) {
+                            console.error("Firebase Auth Error:", error);
+                            showMessage("Authentication failed.", true);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                showMessage(`Firebase initialization failed: ${error.message}`, true);
+            }
+        };
+
+        const getLocalStream = async () => {
+            try {
+                const audioEnabled = !micOffCheckbox.checked;
+                const videoEnabled = !cameraOffCheckbox.checked;
+
+                if (!audioEnabled && !videoEnabled) {
+                    showMessage("Cannot start call without either audio or video enabled.", true);
+                    return null;
+                }
+                
+                localStream = await navigator.mediaDevices.getUserMedia({ video: videoEnabled, audio: audioEnabled });
+                localVideo.srcObject = localStream;
+                localVideo.muted = true;
+                
+                isMuted = !audioEnabled;
+                isVideoOff = !videoEnabled;
+
+                toggleAudioBtn.innerHTML = `<i class="fas fa-${isMuted ? 'microphone-slash' : 'microphone'}"></i> ${isMuted ? "Unmute Audio" : "Mute Audio"}`;
+                toggleAudioBtn.classList.toggle('btn-toggle-active', !isMuted);
+
+                toggleVideoBtn.innerHTML = `<i class="fas fa-${isVideoOff ? 'video-slash' : 'video'}"></i> ${isVideoOff ? "Turn On Video" : "Turn Off Video"}`;
+                toggleVideoBtn.classList.toggle('btn-toggle-active', !isVideoOff);
+
+                toggleAudioBtn.disabled = false;
+                toggleVideoBtn.disabled = false;
+                
+                return localStream;
+            } catch (error) {
+                console.error("Error getting user media:", error);
+                if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+                    showMessage("Access to camera/microphone was denied. Please check your browser's settings.", true);
+                } else {
+                    showMessage("Could not access camera and microphone. Please grant permissions.", true);
+                }
+                return null;
+            } finally {
+                if (!localStream) {
+                    hideMessage();
+                }
+            }
+        };
+
+        const setupPeerConnection = () => {
+            peerConnection = new RTCPeerConnection(configuration);
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    const candidatesCollection = collection(roomRef, 'candidates');
+                    addDoc(candidatesCollection, { candidate: JSON.stringify(event.candidate.toJSON()), sender: userId });
+                }
+            };
+
+            peerConnection.ontrack = (event) => {
+                if (event.streams && event.streams[0]) {
+                    remoteVideo.srcObject = event.streams[0];
+                }
+            };
+        };
+
+        const listenForRooms = () => {
+            if (roomsListener) {
+                roomsListener();
+            }
+            const roomsCollectionRef = collection(db, `artifacts/${appId}/public/data/video-rooms`);
+            roomsListener = onSnapshot(roomsCollectionRef, (snapshot) => {
+                activeRoomsList.innerHTML = '';
+                if (snapshot.empty) {
+                    activeRoomsList.innerHTML = '<p class="text-gray-500 text-sm">No active rooms.</p>';
+                } else {
+                    snapshot.forEach(doc => {
+                        const roomData = doc.data();
+                        const roomName = doc.id;
+                        const roomDiv = document.createElement('div');
+                        roomDiv.className = 'flex items-center justify-between p-2 bg-[#3c3836] rounded-lg hover:bg-[#504945] transition duration-150 cursor-pointer';
+                        roomDiv.innerHTML = `
+                            <div class="flex flex-col">
+                                <span class="font-semibold text-sm">${roomName}</span>
+                                <span class="text-xs text-gray-400">Host: ${roomData.createdByUsername}</span>
+                            </div>
+                            <button data-room-id="${roomName}" class="join-room-btn px-3 py-1 text-sm rounded-lg bg-[#458588] text-white hover:bg-[#689d6a] transition-colors duration-200">Join</button>
+                        `;
+                        activeRoomsList.appendChild(roomDiv);
+                    });
+                    document.querySelectorAll('.join-room-btn').forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            roomIdInput.value = e.target.dataset.roomId;
+                            joinRoom();
+                        });
+                    });
+                }
+            });
+        };
+
+        const createRoom = async () => {
+            if (!userId || !username) {
+                showMessage("Authentication in progress or no username. Please wait.", true);
+                return;
+            }
+
+            isCreator = true;
+            roomCreatorControls.style.display = 'block';
+            participantsList.style.display = 'block';
+
+            const roomName = `room-${Math.random().toString(36).substring(2, 9)}`;
+            roomIdInput.value = roomName;
+            roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomName);
+
+            showMessage("Creating room...");
+
+            const stream = await getLocalStream();
+            if (!stream) return;
+
+            setupPeerConnection();
+            stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            
+            await setDoc(roomRef, { 
+                offer: { sdp: offer.sdp, type: offer.type }, 
+                createdBy: userId, 
+                createdByUsername: username,
+                participants: { [userId]: username }
+            });
+
+            roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
+                if (!snapshot.exists()) {
+                    hangup();
+                    showMessage("Room closed by host.", false);
+                    return;
+                }
+                const data = snapshot.data();
+                if (data && data.answer && !peerConnection.currentRemoteDescription) {
+                    const answer = new RTCSessionDescription(data.answer);
+                    await peerConnection.setRemoteDescription(answer);
+                }
+            });
+
+            candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    if (change.type === "added" && change.doc.data().sender !== userId) {
+                        const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
+                        await peerConnection.addIceCandidate(candidate);
+                    }
+                });
+            });
+
+            listenForParticipants();
+            listenForChat(roomRef);
+            
+            showMessage(`Room created! Share this ID: ${roomName}`);
+            createRoomBtn.disabled = true;
+            joinRoomBtn.disabled = true;
+            hangupBtn.disabled = false;
+            sendChatBtn.disabled = false;
+        };
+
+        const joinRoom = async () => {
+            if (!userId || !username) {
+                showMessage("Authentication in progress or no username. Please wait.", true);
+                return;
+            }
+
+            const roomId = roomIdInput.value;
+            if (!roomId) {
+                showMessage("Please enter a Room ID.", true);
+                return;
+            }
+
+            roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomId);
+            const roomSnapshot = await getDoc(roomRef);
+
+            if (!roomSnapshot.exists()) {
+                showMessage("Room does not exist.", true);
+                return;
+            }
+
+            showMessage(`Joining room: ${roomId}`);
+
+            const stream = await getLocalStream();
+            if (!stream) return;
+
+            setupPeerConnection();
+            stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+            const offer = roomSnapshot.data().offer;
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            await updateDoc(roomRef, { 
+                answer: { sdp: answer.sdp, type: answer.type },
+                [`participants.${userId}`]: username
+            });
+            
+            candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    if (change.type === "added" && change.doc.data().sender !== userId) {
+                        const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
+                        await peerConnection.addIceCandidate(candidate);
+                    }
+                });
+            });
+
+            listenForParticipants();
+            listenForChat(roomRef);
+            listenForLayouts();
+
+            showMessage(`Successfully joined room ${roomId}!`);
+            createRoomBtn.disabled = true;
+            joinRoomBtn.disabled = true;
+            hangupBtn.disabled = false;
+            sendChatBtn.disabled = false;
+        };
+
+        const hangup = async () => {
+            if (peerConnection) {
+                peerConnection.close();
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
+            peerConnection = null;
+            localStream = null;
+
+            if (roomSnapshotListener) roomSnapshotListener();
+            if (candidatesListener) candidatesListener();
+            if (chatListener) chatListener();
+            if (roomsListener) roomsListener();
+            if (participantsListener) participantsListener();
+            
+            roomSnapshotListener = null;
+            candidatesListener = null;
+            chatListener = null;
+            roomsListener = null;
+            participantsListener = null;
+
+            if (roomRef) {
+                const roomDoc = await getDoc(roomRef);
+                if (roomDoc.exists()) {
+                    const roomData = roomDoc.data();
+                    const participants = roomData.participants || {};
+                    const participantCount = Object.keys(participants).length;
+
+                    if (participantCount === 1) {
+                         // This user is the last one in the room, so delete it
+                        try {
+                            const messagesCollectionRef = collection(roomRef, 'chat-messages');
+                            const messagesSnapshot = await getDocs(messagesCollectionRef);
+                            messagesSnapshot.forEach(async (msgDoc) => await deleteDoc(doc(messagesCollectionRef, msgDoc.id)));
+                            await deleteDoc(roomRef);
+                        } catch (error) {
+                            console.error("Error deleting room data:", error);
+                        }
+                    } else {
+                        // Not the last person, just remove this participant
+                        await updateDoc(roomRef, { [`participants.${userId}`]: null });
+                    }
+                }
+            }
+
+            isCreator = false;
+            roomCreatorControls.style.display = 'none';
+            participantsList.style.display = 'none';
+            roomIdInput.value = '';
+            hideMessage();
+            createRoomBtn.disabled = false;
+            joinRoomBtn.disabled = false;
+            hangupBtn.disabled = true;
+            toggleAudioBtn.disabled = true;
+            toggleVideoBtn.disabled = true;
+            sendChatBtn.disabled = true;
+            chatInput.disabled = true;
+            chatContainer.innerHTML = '';
+        };
+
+        const toggleAudio = () => {
+            if (localStream) {
+                isMuted = !isMuted;
+                localStream.getAudioTracks()[0].enabled = !isMuted;
+                toggleAudioBtn.innerHTML = `<i class="fas fa-${isMuted ? 'microphone-slash' : 'microphone'}"></i> ${isMuted ? "Unmute Audio" : "Mute Audio"}`;
+                toggleAudioBtn.classList.toggle('btn-toggle-active', !isMuted);
+            }
+        };
+
+        const toggleVideo = () => {
+            if (localStream) {
+                isVideoOff = !isVideoOff;
+                localStream.getVideoTracks()[0].enabled = !isVideoOff;
+                toggleVideoBtn.innerHTML = `<i class="fas fa-${isVideoOff ? 'video-slash' : 'video'}"></i> ${isVideoOff ? "Turn On Video" : "Turn Off Video"}`;
+                toggleVideoBtn.classList.toggle('btn-toggle-active', !isVideoOff);
+            }
+        };
+
+        const sendMessage = async () => {
+            const message = chatInput.value.trim();
+            if (message === "" || !roomRef) return;
+
+            const chatMessagesRef = collection(roomRef, 'chat-messages');
+            await addDoc(chatMessagesRef, {
+                senderId: userId,
+                senderUsername: username,
+                text: message,
+                timestamp: serverTimestamp()
+            });
+            chatInput.value = '';
+        };
+
+        const listenForChat = (roomDocRef) => {
+            if (chatListener) chatListener();
+            const chatMessagesRef = collection(roomDocRef, 'chat-messages');
+            chatListener = onSnapshot(chatMessagesRef, (snapshot) => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') {
+                        const messageData = change.doc.data();
+                        displayMessage(messageData);
+                    }
+                });
+            }, (error) => {
+                console.error("Error listening to chat messages:", error);
+            });
+        };
+
+        const displayMessage = (messageData) => {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message rounded-xl ${messageData.senderId === userId ? 'my-message' : 'other-message'}`;
+            messageDiv.innerHTML = `<span class="font-bold">${messageData.senderUsername}:</span> ${messageData.text}`;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        };
+
+        const listenForParticipants = () => {
+            if (participantsListener) participantsListener();
+            participantsList.style.display = 'block';
+
+            participantsListener = onSnapshot(roomRef, (snapshot) => {
+                const roomData = snapshot.data();
+                if (!roomData || !roomData.participants) return;
+
+                const currentParticipants = roomData.participants;
+                const previousKeys = Object.keys(previousParticipants);
+                const currentKeys = Object.keys(currentParticipants);
+
+                currentKeys.forEach(id => {
+                    if (!previousKeys.includes(id)) {
+                        showMessage(`${currentParticipants[id]} joined the room.`);
+                    }
+                });
+
+                previousKeys.forEach(id => {
+                    if (!currentKeys.includes(id)) {
+                        if (id !== userId) {
+                           showMessage(`${previousParticipants[id]} left the room.`);
+                        }
+                    }
+                });
+
+                previousParticipants = currentParticipants;
+
+                participantsList.innerHTML = `<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2>`;
+                for (const id in currentParticipants) {
+                    const participantDiv = document.createElement('div');
+                    participantDiv.className = 'flex items-center justify-between p-2 bg-[#3c3836] rounded-lg mb-2';
+                    participantDiv.innerHTML = `<span>${currentParticipants[id]} ${id === userId ? '(You)' : ''}</span>`;
+                    participantsList.appendChild(participantDiv);
+                }
+            });
+        };
+        
+        const setupLayoutButtons = () => {
+            document.querySelectorAll('.layout-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const layout = btn.dataset.layout;
+                    let remoteStyles = {};
+                    let localStyles = { width: 150, height: 112.5, bottom: 1, right: 1, units: 'px' };
+
+                    switch (layout) {
+                        case 'full':
+                            remoteStyles = { width: 100, height: 100, top: 0, left: 0, units: '%' };
+                            localStyles = { width: 25, height: 25, bottom: 5, right: 5, units: '%' };
+                            break;
+                        case 'pip-bottom-right':
+                            remoteStyles = { width: 100, height: 100, top: 0, left: 0, units: '%' };
+                            localStyles = { width: 150, height: 112.5, bottom: 4, right: 4, units: 'px' };
+                            break;
+                        case 'side-by-side':
+                            remoteStyles = { width: 50, height: 100, top: 0, left: 50, units: '%' };
+                            localStyles = { width: 50, height: 100, top: 0, left: 0, units: '%' };
+                            break;
+                        case 'local-on-top':
+                            remoteStyles = { width: 100, height: 100, top: 0, left: 0, units: '%' };
+                            localStyles = { width: 100, height: 100, top: 0, left: 0, units: '%' };
+                            break;
+                    }
+                    if (roomRef && isCreator) {
+                        await updateDoc(roomRef, { layout: { remote: remoteStyles, local: localStyles } });
+                    }
+                });
+            });
+        };
+
+        const listenForLayouts = () => {
+            if (isCreator) return;
+            onSnapshot(roomRef, (snapshot) => {
+                const data = snapshot.data();
+                if (data && data.layout) {
+                    const { remote, local } = data.layout;
+                    remoteVideo.style.width = `${remote.width}${remote.units}`;
+                    remoteVideo.style.height = `${remote.height}${remote.units}`;
+                    remoteVideo.style.top = `${remote.top}${remote.units}`;
+                    remoteVideo.style.left = `${remote.left}${remote.units}`;
+                    localVideo.style.width = `${local.width}${local.units}`;
+                    localVideo.style.height = `${local.height}${local.units}`;
+                    localVideo.style.bottom = `${local.bottom}${local.units}`;
+                    localVideo.style.right = `${local.right}${local.units}`;
+                }
+            });
+        };
+        
+        takeStageBtn.addEventListener('click', async () => {
+            if (roomRef && isCreator) {
+                const remoteStyles = { width: 100, height: 100, top: 0, left: 0, units: '%' };
+                const localStyles = { width: 100, height: 100, top: 0, left: 0, units: '%' };
+                await updateDoc(roomRef, { layout: { remote: remoteStyles, local: localStyles } });
+            }
+        });
+
+        const setUsername = () => {
+            const user = usernameInput.value.trim();
+            if (user) {
+                username = user;
+                usernamePrompt.style.display = 'none';
+                mainApp.style.display = 'grid';
+                chatInput.disabled = false;
+                sendChatBtn.disabled = false;
+            } else {
+                showMessage("Please enter a username.", true);
+            }
+        };
+
+        // Event Listeners
+        window.onload = () => {
+            initFirebase();
+        };
+
+        submitUsernameBtn.addEventListener('click', setUsername);
+        usernameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') setUsername();
+        });
+
+        createRoomBtn.addEventListener('click', createRoom);
+        joinRoomBtn.addEventListener('click', joinRoom);
+        hangupBtn.addEventListener('click', hangup);
+        toggleAudioBtn.addEventListener('click', toggleAudio);
+        toggleVideoBtn.addEventListener('click', toggleVideo);
+        sendChatBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        
+        setupLayoutButtons();
+    </script>
 </body>
 </html>
