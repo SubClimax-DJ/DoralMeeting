@@ -199,7 +199,6 @@ Doral Video Conference
 <button id="screenShareBtn" class="btn-toggle" disabled><i class="fas fa-desktop"></i> Screen Share</button>
 <button id="fullScreenBtn" class="btn-toggle" disabled><i class="fas fa-expand"></i> Fullscreen</button>
 <button id="sideBySideBtn" class="btn-toggle" disabled><i class="fas fa-columns"></i> Side-by-Side</button>
-<button id="muteAllBtn" class="btn-toggle" disabled><i class="fas fa-volume-off"></i> Mute All</button>
 <button id="hangupBtn" class="btn-danger flex-1" disabled>Leave Room</button>
 </div>
 <div class="flex mt-4 space-x-4 items-center justify-center">
@@ -335,7 +334,6 @@ const toggleVideoBtn = document.getElementById('toggleVideoBtn');
 const screenShareBtn = document.getElementById('screenShareBtn');
 const fullScreenBtn = document.getElementById('fullScreenBtn');
 const sideBySideBtn = document.getElementById('sideBySideBtn');
-const muteAllBtn = document.getElementById('muteAllBtn');
 const videoQualitySelect = document.getElementById('videoQualitySelect');
 const volumeControl = document.getElementById('volumeControl');
 const startRecordingBtn = document.getElementById('startRecordingBtn');
@@ -475,7 +473,7 @@ toggleAudioBtn.disabled = false;
 toggleVideoBtn.disabled = false;
 fullScreenBtn.disabled = false;
 sideBySideBtn.disabled = false;
-muteAllBtn.disabled = false;
+lockRoomBtn.disabled = false;
 videoQualitySelect.disabled = false;
 screenShareBtn.disabled = false;
 
@@ -781,7 +779,6 @@ toggleAudioBtn.disabled = true;
 toggleVideoBtn.disabled = true;
 fullScreenBtn.disabled = true;
 sideBySideBtn.disabled = true;
-muteAllBtn.disabled = true;
 lockRoomBtn.disabled = true;
 videoQualitySelect.disabled = true;
 screenShareBtn.disabled = true;
@@ -860,19 +857,6 @@ if (roomRef) {
   await updateDoc(doc(roomRef, 'participants', userId), { isVideoOff: !videoTrack.enabled });
 }
 }
-};
-
-// Host: Mute all other participants
-const muteAllParticipants = async () => {
-  if (isCreator && roomRef) {
-    const roomSnapshot = await getDoc(roomRef);
-    const participants = roomSnapshot.data()?.participants || {};
-    const promises = Object.keys(participants).map(async (participantId) => {
-      await updateDoc(doc(roomRef, 'participants', participantId), { isMuted: true });
-    });
-    await Promise.all(promises);
-    showMessage("All participants have been muted.", false);
-  }
 };
 
 // Toggle room lock status
@@ -1183,7 +1167,6 @@ hangupBtn.addEventListener('click', hangup);
 toggleAudioBtn.addEventListener('click', toggleAudio);
 toggleVideoBtn.addEventListener('click', toggleVideo);
 screenShareBtn.addEventListener('click', startScreenShare);
-muteAllBtn.addEventListener('click', muteAllParticipants);
 lockRoomBtn.addEventListener('click', toggleRoomLock);
 startRecordingBtn.addEventListener('click', startRecording);
 stopRecordingBtn.addEventListener('click', stopRecording);
