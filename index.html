@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Live Meetings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        // Firebase and WebRTC Libraries
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, addDoc, query, where, getDocs, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        setLogLevel('debug'); // Enable Firestore debug logging
+
+        // --- Global Variables (provided by the environment) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // WARNING: Using hardcoded Firebase configuration is a security risk.
+        // This is done to address a temporary environment issue, as explicitly requested.
+        // For production, use environment variables.
+        const firebaseConfig = {
+          apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
+          authDomain: "video-meeting-e73eb.firebaseapp.com",
+          projectId: "video-meeting-e73eb",
+          storageBucket: "video-meeting-e73eb.firebasestorage.app",
+          messagingSenderId: "80496795033",
+          appId: "1:80496795033:web:3ac35c631d76301f77c708",
+          measurementId: "G-SFPQ0PJRPG"
+        };
+        
+        let db, auth, userId;
+        let localStream, remoteStream, peerConnection;
+        let localVideo, remoteVideo, chatMessages, messageInput, meetingIdInput;
+        let meetingState = 'home';
+        const chatCollectionRef = 'chat';
+        const signalingCollectionRef = 'signaling';
+        const signalingOfferCollectionRef = 'offers';
+        const signalingAnswerCollectionRef = 'answers';
+        const iceCandidatesCollectionRef = 'iceCandidates';
+        
+        // Custom message box function instead of alert()
+        function showMessage(message) {
+            const modal = document.getElementById('message-modal');
+            const messageText = document.getElementById('message-text');
+            messageText.textContent = message;
+            modal.classList.remove('hidden');
+        }
+
+        // --- Firebase Initialization and Authentication ---
+        async function initializeFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('user-id-display').textContent = `Your User ID: ${userId}`;
+                        console.log('User signed in with UID:', userId);
+                        // Start the app logic after successful auth
+                        document.getElementById('app-container').classList.remove('hidden');
+                        document.getElementById('loading').classList.add('hidden');
+                        
+                        // Check if a meeting ID is in the URL to automatically join
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const meetingId = urlParams.get('meetingId');
+                        if (meetingId) {
+                            meetingIdInput.value = meetingId;
+                            showMeetingView();
+                            joinMeeting(meetingId);
+                        } else {
+                            showHomeView();
+                        }
+                    } else {
+                        console.log('User not signed in. Signing in anonymously...');
+                        // Since a hardcoded Firebase config is used, the environment's custom token is invalid.
+                        // We will always sign in anonymously in this case.
+                        await signInAnonymously(auth);
+                    }
+                });
+            } catch (e) {
+                console.error("Error during Firebase initialization or auth:", e);
+                document.getElementById('loading').classList.add('hidden');
+                showMessage(`Failed to initialize the application. Please check the console for details: ${e.message}`);
+            }
+        }
+
+        // --- UI State Management ---
+        function showHomeView() {
+            document.getElementById('home-view').classList.remove('hidden');
+            document.getElementById('meeting-view').classList.add('hidden');
+        }
+
+        function showMeetingView() {
+            document.getElementById('home-view').classList.add('hidden');
+            document.getElementById('meeting-view').classList.remove('hidden');
+        }
+
+        // --- WebRTC Logic ---
+        async function startLocalStream() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+            } catch (e) {
+                console.error("Error getting user media:", e);
+                showMessage("Failed to access your camera and microphone. Please check your browser permissions.");
+            }
+        }
+        
+        // Function to hang up the call and clean up
+        function hangUp() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            if (localVideo) localVideo.srcObject = null;
+            if (remoteVideo) remoteVideo.srcObject = null;
+            showHomeView();
+            showMessage("You have left the meeting.");
+        }
+
+        async function createPeerConnection(meetingId) {
+            peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                ]
+            });
+
+            // Add local tracks to peer connection
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            // Handle ICE candidates
+            peerConnection.onicecandidate = async (event) => {
+                if (event.candidate) {
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/${signalingCollectionRef}/${meetingId}/${iceCandidatesCollectionRef}`), event.candidate.toJSON());
+                }
+            };
+
+            // Handle remote stream
+            peerConnection.ontrack = (event) => {
+                if (remoteVideo.srcObject !== event.streams[0]) {
+                    remoteVideo.srcObject = event.streams[0];
+                }
+            };
+        }
+        
+        // Host function to mute/kick a specific attendee
+        async function sendControlMessage(meetingId, targetUserId, action) {
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/public/data/${signalingCollectionRef}/${meetingId}/controls`), {
+                    targetUserId: targetUserId,
+                    action: action,
+                    timestamp: new Date()
+                });
+                console.log(`Sent control message: ${action} to ${targetUserId}`);
+            } catch (e) {
+                console.error("Error sending control message:", e);
+            }
+        }
+
+        // --- Host Functionality ---
+        async function createMeeting() {
+            const meetingId = document.getElementById('meeting-id-host').value.trim();
+            if (!meetingId) {
+                showMessage("Please enter a valid meeting ID.");
+                return;
+            }
+            
+            showMeetingView();
+            await startLocalStream();
+            await createPeerConnection(meetingId);
+
+            try {
+                // Create a signaling document for the meeting
+                await setDoc(doc(db, `artifacts/${appId}/public/data/${signalingCollectionRef}`, meetingId), {
+                    createdAt: new Date(),
+                    host: userId
+                });
+                
+                // Create an offer and set it as local description
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+
+                // Save the offer to Firestore
+                await setDoc(doc(db, `artifacts/${appId}/public/data/${signalingCollectionRef}/${meetingId}/${signalingOfferCollectionRef}`, 'hostOffer'), {
+                    offer: offer.toJSON(),
+                    host: userId
+                });
+
+                // Listen for an answer from an attendee
+                onSnapshot(doc(db, `artifacts/${appId}/public/data/${signalingCollectionRef}/${meetingId}/${signalingAnswerCollectionRef}`, 'attendeeAnswer'), async (snapshot) => {
+                    const data = snapshot.data();
+                    if (data && data.answer) {
+                        const answer = new RTCSessionDescription(data.answer);
+                        if (!peerConnection.currentRemoteDescription) {
+                            await peerConnection.setRemoteDescription(answer);
+                        }
+                    }
+                });
+
+                // Listen for ICE candidates from the attendee
+                onSnapshot(collection(db, `artifacts/${appId}/public/data/${signalingCollectionRef}/${meetingId}/${iceCandidatesCollectionRef}`), (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added') {
+                            const candidate = new RTCIceCandidate(change.doc.data());
+                            peerConnection.addIceCandidate(candidate);
+                        }
+                    });
+                });
+                
+                // Listen for attendees joining
+                onSnapshot(collection(db, `artifacts/${appId}/public/data/${chatCollectionRef}/${meetingId}/messages`), (snapshot) => {
+                    const participants = new Set();
+                    snapshot.forEach(doc => participants.add(doc.data().userId));
+                    updateParticipantList(Array.from(participants), true, meetingId);
+                });
+
+                // Show the OBS link for the host
+                const obsUrl = `${window.location.origin}${window.location.pathname}?meetingId=${meetingId}`;
+                document.getElementById('obs-link').textContent = obsUrl;
+                document.getElementById('obs-link').href = obsUrl;
+                document.getElementById('obs-container').classList.remove('hidden');
+
+            } catch (e) {
+                console.error("Error creating meeting:", e);
+                showMessage("Failed to create the meeting. Please try again.");
+            }
+        }
+        
+        function updateParticipantList(participants, isHost, meetingId) {
+            const listContainer = document.getElementById('participant-list-container');
+            if (isHost) {
+                listContainer.classList.remove('hidden');
+                const list = document.getElementById('participant-list');
+                list.innerHTML = '';
+                
+                participants.forEach(pId => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'flex items-center justify-between p-2 rounded-lg bg-gray-700 text-silver';
+                    
+                    const userIdSpan = document.createElement('span');
+                    userIdSpan.textContent = pId === userId ? `You (${pId.substring(0,8)})` : pId.substring(0,8);
+                    listItem.appendChild(userIdSpan);
+                    
+                    if (pId !== userId) {
+                        const buttonContainer = document.createElement('div');
+                        
+                        const muteBtn = document.createElement('button');
+                        muteBtn.innerHTML = `
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path>
+                            </svg>
+                        `;
+                        muteBtn.className = 'p-2 text-silver hover:text-white transition-colors duration-200';
+                        muteBtn.onclick = () => sendControlMessage(meetingId, pId, 'mute');
+                        buttonContainer.appendChild(muteBtn);
+                        
+                        const kickBtn = document.createElement('button');
+                        kickBtn.innerHTML = `
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" fill-rule="evenodd"></path>
+                            </svg>
+                        `;
+                        kickBtn.className = 'p-2 text-dark-red hover:text-red-900 transition-colors duration-200';
+                        kickBtn.onclick = () => sendControlMessage(meetingId, pId, 'kick');
+                        buttonContainer.appendChild(kickBtn);
+                        
+                        listItem.appendChild(buttonContainer);
+                    }
+                    list.appendChild(listItem);
+                });
+            } else {
+                listContainer.classList.add('hidden');
+            }
+        }
+
+        // --- Attendee Functionality ---
+        async function joinMeeting(meetingId) {
+            if (!meetingId) {
+                meetingId = meetingIdInput.value.trim();
+            }
+            if (!meetingId) {
+                showMessage("Please enter a meeting ID.");
+                return;
+            }
+
+            showMeetingView();
+            await startLocalStream();
+            await createPeerConnection(meetingId);
+
+            try {
+                // Listen for the host's offer
+                onSnapshot(doc(db, `artifacts/${appId}/public/data/${signalingCollectionRef}/${meetingId}/${signalingOfferCollectionRef}`, 'hostOffer'), async (snapshot) => {
+                    const data = snapshot.data();
+                    if (data && data.offer) {
+                        const offer = new RTCSessionDescription(data.offer);
+                        await peerConnection.setRemoteDescription(offer);
+
+                        // Create an answer and set it as local description
+                        const answer = await peerConnection.createAnswer();
+                        await peerConnection.setLocalDescription(answer);
+
+                        // Save the answer to Firestore
+                        await setDoc(doc(db, `artifacts/${appId}/public/data/${signalingCollectionRef}/${meetingId}/${signalingAnswerCollectionRef}`, 'attendeeAnswer'), {
+                            answer: answer.toJSON(),
+                            attendee: userId
+                        });
+                    }
+                });
+
+                // Listen for ICE candidates from the host
+                onSnapshot(collection(db, `artifacts/${appId}/public/data/${signalingCollectionRef}/${meetingId}/${iceCandidatesCollectionRef}`), (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added') {
+                            const candidate = new RTCIceCandidate(change.doc.data());
+                            peerConnection.addIceCandidate(candidate);
+                        }
+                    });
+                });
+                
+                // Listen for control messages from the host
+                onSnapshot(collection(db, `artifacts/${appId}/public/data/${signalingCollectionRef}/${meetingId}/controls`), (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added') {
+                            const data = change.doc.data();
+                            if (data.targetUserId === userId) {
+                                if (data.action === 'mute') {
+                                    if (localStream) {
+                                        localStream.getTracks().forEach(track => {
+                                            if (track.kind === 'video' || track.kind === 'audio') {
+                                                track.enabled = false;
+                                            }
+                                        });
+                                        showMessage("You have been muted by the host.");
+                                    }
+                                } else if (data.action === 'kick') {
+                                    hangUp();
+                                    showMessage("You have been kicked from the meeting.");
+                                }
+                            }
+                        }
+                    });
+                });
+
+            } catch (e) {
+                console.error("Error joining meeting:", e);
+                showMessage("Failed to join the meeting. Please check the meeting ID and try again.");
+            }
+        }
+
+        // --- Chat Functionality ---
+        async function sendChatMessage() {
+            const meetingId = meetingIdInput.value.trim() || document.getElementById('meeting-id-host').value.trim();
+            if (!meetingId || !messageInput.value.trim()) {
+                return;
+            }
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/public/data/${chatCollectionRef}/${meetingId}/messages`), {
+                    userId: userId,
+                    message: messageInput.value.trim(),
+                    timestamp: new Date()
+                });
+                messageInput.value = '';
+            } catch (e) {
+                console.error("Error sending message:", e);
+                showMessage("Failed to send message.");
+            }
+        }
+
+        function listenForChatMessages(meetingId) {
+            const messagesQuery = query(collection(db, `artifacts/${appId}/public/data/${chatCollectionRef}/${meetingId}/messages`));
+            onSnapshot(messagesQuery, (snapshot) => {
+                const messages = [];
+                snapshot.forEach(doc => {
+                    messages.push(doc.data());
+                });
+                // Sort messages by timestamp
+                messages.sort((a, b) => a.timestamp.toDate() - b.timestamp.toDate());
+                chatMessages.innerHTML = '';
+                messages.forEach(msg => {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'p-2 text-sm ' + (msg.userId === userId ? 'text-right bg-navy text-silver rounded-bl-xl rounded-tr-xl self-end' : 'text-left bg-gray-600 text-white rounded-br-xl rounded-tl-xl self-start');
+                    msgDiv.innerHTML = `<span class="font-bold">${msg.userId.substring(0, 8)}...</span>: ${msg.message}`;
+                    chatMessages.appendChild(msgDiv);
+                });
+                chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to latest message
+            });
+        }
+        
+        // --- Event Listeners and Initial Setup ---
+        window.onload = () => {
+            localVideo = document.getElementById('local-video');
+            remoteVideo = document.getElementById('remote-video');
+            chatMessages = document.getElementById('chat-messages');
+            messageInput = document.getElementById('message-input');
+            meetingIdInput = document.getElementById('meeting-id-attendee');
+
+            document.getElementById('create-meeting-btn').onclick = createMeeting;
+            document.getElementById('join-meeting-btn').onclick = () => joinMeeting();
+            document.getElementById('send-message-btn').onclick = sendChatMessage;
+            document.getElementById('close-modal').onclick = () => {
+                document.getElementById('message-modal').classList.add('hidden');
+            };
+            document.getElementById('hangup-btn').onclick = hangUp;
+            
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendChatMessage();
+                }
+            });
+
+            // Start Firebase initialization
+            initializeFirebase();
+        };
+
+        // Handle navigation to and from meeting view
+        const meetingPageObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'class' && document.getElementById('meeting-view').classList.contains('hidden') === false) {
+                    const meetingId = meetingIdInput.value.trim() || document.getElementById('meeting-id-host').value.trim();
+                    if (meetingId) {
+                        listenForChatMessages(meetingId);
+                    }
+                }
+            });
+        });
+        meetingPageObserver.observe(document.getElementById('meeting-view'), { attributes: true });
+        
+    </script>
+</head>
+<body class="bg-black min-h-screen flex items-center justify-center font-sans p-4 text-white">
+
+    <!-- Custom Tailwind Colors for Professional Look -->
+    <style>
+      .bg-dark-red { background-color: #8B0000; }
+      .bg-navy { background-color: #000080; }
+      .text-silver { color: #C0C0C0; }
+    </style>
+
+    <!-- Loading Screen -->
+    <div id="loading" class="fixed inset-0 flex items-center justify-center bg-gray-950 bg-opacity-90 z-50 transition-opacity duration-300">
+        <div class="text-white text-3xl animate-pulse">Loading...</div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app-container" class="hidden w-full max-w-5xl p-6 bg-gray-900 rounded-3xl shadow-2xl flex flex-col items-center">
+        
+        <!-- User ID Display -->
+        <div class="w-full text-center text-silver text-sm mb-4">
+            <span id="user-id-display"></span>
+        </div>
+
+        <!-- Home View -->
+        <div id="home-view" class="w-full flex flex-col items-center space-y-8">
+            <h1 class="text-5xl font-extrabold text-white">Live Meeting</h1>
+            <div class="w-full md:w-2/3 flex flex-col space-y-6">
+                <div class="bg-gray-800 p-8 rounded-2xl shadow-lg border-l-4 border-dark-red">
+                    <h2 class="text-3xl font-bold text-dark-red mb-4">Host a Meeting</h2>
+                    <input type="text" id="meeting-id-host" placeholder="Enter a new meeting ID" class="w-full p-4 border-2 border-gray-700 rounded-xl focus:outline-none focus:ring-4 focus:ring-dark-red focus:border-dark-red transition-all duration-200 text-white bg-gray-900">
+                    <button id="create-meeting-btn" class="w-full mt-6 bg-dark-red hover:bg-red-900 text-white font-bold py-4 px-8 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg">
+                        Create Meeting
+                    </button>
+                    <div id="obs-container" class="hidden mt-6 bg-gray-700 p-5 rounded-xl border-l-4 border-silver">
+                        <p class="text-md font-semibold text-white">OBS Studio Link for Browser Source:</p>
+                        <a id="obs-link" class="text-sm break-all text-silver hover:text-gray-200 hover:underline transition-colors duration-200" href="#" target="_blank"></a>
+                    </div>
+                </div>
+                <div class="bg-gray-800 p-8 rounded-2xl shadow-lg border-l-4 border-navy">
+                    <h2 class="text-3xl font-bold text-navy mb-4">Join a Meeting</h2>
+                    <input type="text" id="meeting-id-attendee" placeholder="Enter existing meeting ID" class="w-full p-4 border-2 border-gray-700 rounded-xl focus:outline-none focus:ring-4 focus:ring-navy focus:border-navy transition-all duration-200 text-white bg-gray-900">
+                    <button id="join-meeting-btn" class="w-full mt-6 bg-navy hover:bg-blue-900 text-white font-bold py-4 px-8 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg">
+                        Join Meeting
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Meeting View -->
+        <div id="meeting-view" class="hidden w-full h-full flex flex-col lg:flex-row space-y-6 lg:space-y-0 lg:space-x-8">
+            <div class="flex-grow flex flex-col space-y-6">
+                <div class="relative w-full aspect-video bg-gray-950 rounded-3xl overflow-hidden shadow-2xl">
+                    <video id="remote-video" autoplay playsinline class="w-full h-full object-contain"></video>
+                    <div class="absolute bottom-6 right-6 w-1/3 aspect-video rounded-xl overflow-hidden shadow-xl border-4 border-silver">
+                        <video id="local-video" autoplay muted playsinline class="w-full h-full object-cover"></video>
+                    </div>
+                </div>
+                <div class="flex items-center justify-center p-4">
+                     <button id="hangup-btn" class="flex items-center px-6 py-3 bg-dark-red text-white font-bold rounded-full shadow-lg hover:bg-red-900 transition-colors duration-200">
+                         <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M17.707 15.293c.39.39.39 1.023 0 1.414l-2 2a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414l2-2a1 1 0 011.414 0l.293.293.707-.707a1 1 0 011.414 0zM10 3a1 1 0 011 1v2a1 1 0 11-2 0V4a1 1 0 011-1zm-4 7a1 1 0 01-1 1H3a1 1 0 110-2h2a1 1 0 011 1zm8-1a1 1 0 100 2h2a1 1 0 100-2h-2zm-6 3a1 1 0 00-1 1v2a1 1 0 102 0v-2a1 1 0 00-1-1zM4 11a1 1 0 01-1 1H2a1 1 0 110-2h1a1 1 0 011 1zm12-1a1 1 0 100 2h1a1 1 0 100-2h-1z" clip-rule="evenodd" fill-rule="evenodd"></path>
+                        </svg>
+                        Leave Meeting
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex-grow flex flex-col bg-gray-900 rounded-2xl p-6 shadow-inner w-full lg:w-96">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-2xl font-bold text-white">Chat</h3>
+                    <div class="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div>
+                </div>
+                <div id="chat-messages" class="flex-grow flex flex-col space-y-2 overflow-y-auto mb-4 p-4 border border-gray-700 rounded-xl bg-gray-800 shadow-sm">
+                    <!-- Chat messages will be appended here -->
+                </div>
+                <div class="flex items-center space-x-3">
+                    <input type="text" id="message-input" placeholder="Type a message..." class="flex-grow p-4 border-2 border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-silver text-silver bg-gray-800">
+                    <button id="send-message-btn" class="bg-navy hover:bg-blue-900 text-white font-bold py-4 px-6 rounded-xl transition-colors duration-200 shadow-sm hover:shadow-md">
+                        <svg class="w-6 h-6 transform rotate-90" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Custom Modal for Messages -->
+    <div id="message-modal" class="hidden fixed inset-0 bg-gray-950 bg-opacity-70 z-50 flex items-center justify-center transition-opacity duration-300">
+        <div class="bg-gray-800 text-silver p-6 rounded-lg shadow-xl max-w-sm w-full transform scale-95 transition-transform duration-300">
+            <h3 class="text-lg font-bold mb-2">Notice</h3>
+            <p id="message-text" class="text-gray-400 mb-4"></p>
+            <button id="close-modal" class="w-full bg-navy hover:bg-blue-900 text-white font-bold py-2 rounded-lg transition-colors duration-200">
+                OK
+            </button>
+        </div>
+    </div>
+
+</body>
+</html>
