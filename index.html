@@ -194,7 +194,7 @@ Doral Video Conference
 <button id="toggleAudioBtn" class="btn-toggle" disabled><i class="fas fa-microphone"></i> Mute Audio</button>
 <button id="toggleVideoBtn" class="btn-toggle" disabled><i class="fas fa-video"></i> Mute Video</button>
 <button id="fullScreenBtn" class="btn-toggle" disabled><i class="fas fa-expand"></i> Fullscreen</button>
-<button id="hdBtn" class="btn-toggle" disabled>HD Video</button>
+<button id="hdBtn" class="btn-toggle" disabled>SD Video</button>
 <button id="hangupBtn" class="btn-danger flex-1" disabled>Leave Room</button>
 </div>
 <div class="flex mt-4 space-x-4 items-center justify-center">
@@ -224,6 +224,7 @@ Doral Video Conference
 </div>
 <button id="createRoomBtn" class="btn-primary" disabled>Create New Room</button>
 <button id="takeTheStageBtn" class="btn-primary" style="display:none;" disabled>Take the Stage</button>
+<button id="endStageBtn" class="btn-danger" style="display:none;">End Stage</button>
 <button id="deleteAllRoomsBtn" class="btn-danger" disabled>Delete All Rooms</button>
 </div>
 </div>
@@ -309,6 +310,7 @@ const createRoomBtn = document.getElementById('createRoomBtn');
 const joinRoomBtn = document.getElementById('joinRoomBtn');
 const deleteAllRoomsBtn = document.getElementById('deleteAllRoomsBtn');
 const takeTheStageBtn = document.getElementById('takeTheStageBtn');
+const endStageBtn = document.getElementById('endStageBtn');
 const hangupBtn = document.getElementById('hangupBtn');
 const toggleAudioBtn = document.getElementById('toggleAudioBtn');
 const toggleVideoBtn = document.getElementById('toggleVideoBtn');
@@ -358,6 +360,14 @@ let stageListener = null;
 // Recording variables
 let mediaRecorder;
 let recordedChunks = [];
+
+// Video quality options
+const videoQualities = [
+  { label: 'SD Video', width: 640, height: 480 },
+  { label: 'HD Video', width: 1280, height: 720 },
+  { label: 'FHD Video', width: 1920, height: 1080 }
+];
+let currentQualityIndex = 0;
 
 // WebRTC STUN servers
 const configuration = {
@@ -418,10 +428,16 @@ showMessage(`Firebase initialization failed: ${error.message}`, true);
 // Get the user's local video and audio stream
 const getLocalStream = async (startMuted, isHost) => {
 try {
-const constraints = {
-audio: true,
-video: isHost ? { width: 1920, height: 1080 } : true
-};
+  // Set initial quality for host and participants
+  currentQualityIndex = isHost ? 2 : 0;
+  const constraints = {
+    audio: true,
+    video: {
+      width: videoQualities[currentQualityIndex].width,
+      height: videoQualities[currentQualityIndex].height
+    }
+  };
+
 localStream = await navigator.mediaDevices.getUserMedia(constraints);
 localVideo.srcObject = localStream;
 localVideo.muted = true;
@@ -441,6 +457,8 @@ toggleAudioBtn.disabled = false;
 toggleVideoBtn.disabled = false;
 fullScreenBtn.disabled = false;
 hdBtn.disabled = false;
+hdBtn.textContent = videoQualities[(currentQualityIndex + 1) % videoQualities.length].label;
+
 return localStream;
 } catch (error) {
 console.error("Error getting user media:", error);
@@ -735,48 +753,56 @@ toggleVideoBtn.classList.toggle('btn-toggle-active', !videoTrack.enabled);
 }
 };
 
-// Toggle HD video quality
+// Toggle video quality
 const toggleHd = async () => {
 if (!localStream) {
 showMessage("Please start a video call first.", true);
 return;
 }
 
-const currentVideoTrack = localStream.getVideoTracks()[0];
-const currentSettings = currentVideoTrack.getSettings();
-const isHd = currentSettings.height >= 720;
-
 hdBtn.disabled = true;
 
+// Cycle to the next quality
+currentQualityIndex = (currentQualityIndex + 1) % videoQualities.length;
+const newQuality = videoQualities[currentQualityIndex];
+
 const newConstraints = {
-audio: true,
-video: isHd ? { width: 640, height: 480 } : { width: 1920, height: 1080 }
+  audio: true,
+  video: {
+    width: newQuality.width,
+    height: newQuality.height
+  }
 };
 
 try {
-const newStream = await navigator.mediaDevices.getUserMedia(newConstraints);
-const newVideoTrack = newStream.getVideoTracks()[0];
-const oldVideoTrack = localStream.getVideoTracks()[0];
-if (oldVideoTrack) {
-oldVideoTrack.stop();
-}
-localStream.removeTrack(oldVideoTrack);
-localStream.addTrack(newVideoTrack);
-localVideo.srcObject = localStream;
+  const newStream = await navigator.mediaDevices.getUserMedia(newConstraints);
+  const newVideoTrack = newStream.getVideoTracks()[0];
+  const oldVideoTrack = localStream.getVideoTracks()[0];
+  if (oldVideoTrack) {
+    oldVideoTrack.stop();
+  }
+  localStream.removeTrack(oldVideoTrack);
+  localStream.addTrack(newVideoTrack);
+  localVideo.srcObject = localStream;
 
-// Update peer connection with the new track
-const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
-if (sender) {
-sender.replaceTrack(newVideoTrack);
-}
+  // Update peer connection with the new track
+  const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+  if (sender) {
+    sender.replaceTrack(newVideoTrack);
+  }
 
-const newLabel = isHd ? 'SD Video' : 'HD Video';
-hdBtn.textContent = newLabel;
+  // Update button text to show the next quality
+  const nextQuality = videoQualities[(currentQualityIndex + 1) % videoQualities.length];
+  hdBtn.textContent = nextQuality.label;
+
+  showMessage(`Switched to ${newQuality.label} video.`, false);
 } catch (error) {
-console.error("Error setting video quality:", error);
-showMessage("Failed to change video quality.", true);
+  console.error("Error setting video quality:", error);
+  showMessage("Failed to change video quality. Your device may not support it.", true);
+  // Revert button text and index on failure
+  currentQualityIndex = (currentQualityIndex - 1 + videoQualities.length) % videoQualities.length;
 } finally {
-hdBtn.disabled = false;
+  hdBtn.disabled = false;
 }
 };
 
@@ -891,7 +917,7 @@ participantsList.innerHTML = 'No participants in this room.';
 
 // Handle the "Take the Stage" feature
 const takeTheStage = async () => {
-if (!roomRef) return;
+if (!roomRef || !isCreator) return;
 
 // Start the sakura animation
 const numPetals = 50;
@@ -914,14 +940,29 @@ stageLayout: 'spotlight',
 stageHostId: userId
 });
 
-// Update local UI
-localVideo.style.display = 'none';
-remoteVideo.style.zIndex = '15';
+// Hide buttons for the host and show the "End Stage" button
+takeTheStageBtn.style.display = 'none';
+endStageBtn.style.display = 'block';
 
 setTimeout(() => {
+// Clear sakura animation after a delay
 sakuraEffect.classList.add('hidden');
 sakuraEffect.innerHTML = '';
 }, duration);
+};
+
+// Handle ending the stage
+const endStage = async () => {
+if (!roomRef || !isCreator) return;
+
+await updateDoc(roomRef, {
+stageLayout: null,
+stageHostId: null
+});
+
+// Hide "End Stage" button and show "Take the Stage"
+endStageBtn.style.display = 'none';
+takeTheStageBtn.style.display = 'block';
 };
 
 // Listen for stage layout changes
@@ -930,19 +971,21 @@ if (stageListener) stageListener();
 stageListener = onSnapshot(roomRef, (snapshot) => {
 const data = snapshot.data();
 if (data.stageLayout === 'spotlight' && data.stageHostId) {
-// Make remote video full screen
+// It's a spotlight. Check if this user is the host
 if (data.stageHostId === userId) {
-// It's the host, hide own local video
-localVideo.style.display = 'none';
+  // Host's view: keep local video visible, remote video is hidden
+  localVideo.style.display = 'block';
+  remoteVideo.style.display = 'none';
 } else {
-// It's a participant, make remote video full screen and hide local video
-localVideo.style.display = 'none';
+  // Participant's view: hide local video, show remote video full screen
+  localVideo.style.display = 'none';
+  remoteVideo.style.display = 'block';
+  // I need to make the remote video fill the container.
 }
-remoteVideo.style.zIndex = '15';
 } else {
 // End of spotlight
 localVideo.style.display = 'block';
-remoteVideo.style.zIndex = '5';
+remoteVideo.style.display = 'block';
 }
 });
 };
@@ -1042,6 +1085,7 @@ passwordModalText.textContent = 'Please enter the password to take the stage.';
 confirmBtn.dataset.action = 'take-stage';
 passwordModal.classList.remove('hidden');
 });
+endStageBtn.addEventListener('click', endStage);
 confirmBtn.addEventListener('click', handleModalAction);
 cancelBtn.addEventListener('click', () => {
 passwordModal.classList.add('hidden');
