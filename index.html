@@ -146,7 +146,19 @@ Doral Video Conference
 </header>
 
 <!-- Main App Content (hidden initially) -->
-<main id="mainApp" class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 hidden">
+<main id="mainApp" class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 hidden">
+<!-- Left Sidebar for Chat -->
+<div class="md:col-span-1 space-y-8">
+<div class="container-card">
+<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
+<div class="chat-container mb-4" id="chatContainer"></div>
+<div class="flex space-x-2">
+<input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" />
+<button id="sendChatBtn" class="btn-primary" disabled>Send</button>
+</div>
+</div>
+</div>
+
 <!-- Video and Controls -->
 <div class="md:col-span-2 container-card">
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feed</h2>
@@ -172,7 +184,7 @@ Doral Video Conference
 <a id="downloadRecording" style="display: none;"></a>
 </div>
 
-<!-- Room Management & Chat -->
+<!-- Right Sidebar for Management -->
 <div class="md:col-span-1 space-y-8">
 <div class="container-card">
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Room Management</h2>
@@ -201,15 +213,6 @@ Doral Video Conference
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2>
 <div id="participantsList" class="space-y-2 text-gray-400 text-sm">
 No participants in this room.
-</div>
-</div>
-
-<div class="container-card">
-<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
-<div class="chat-container mb-4" id="chatContainer"></div>
-<div class="flex space-x-2">
-<input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" />
-<button id="sendChatBtn" class="btn-primary" disabled>Send</button>
 </div>
 </div>
 </div>
@@ -381,9 +384,13 @@ showMessage(`Firebase initialization failed: ${error.message}`, true);
 };
 
 // Get the user's local video and audio stream
-const getLocalStream = async (startMuted) => {
+const getLocalStream = async (startMuted, isHost) => {
 try {
-localStream = await navigator.mediaDevices.getUserMedia({ video: !startMuted, audio: !startMuted });
+const constraints = {
+audio: true,
+video: isHost ? { width: 1920, height: 1080 } : true
+};
+localStream = await navigator.mediaDevices.getUserMedia(constraints);
 localVideo.srcObject = localStream;
 localVideo.muted = true;
 
@@ -495,7 +502,7 @@ roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomName);
 showMessage("Creating room...");
 
 const startMuted = joinMutedCheckbox.checked;
-const stream = await getLocalStream(startMuted);
+const stream = await getLocalStream(startMuted, true);
 if (!stream) {
 return;
 }
@@ -570,7 +577,7 @@ return;
 showMessage(`Joining room: ${roomId}`);
 
 const startMuted = joinMutedCheckbox.checked;
-const stream = await getLocalStream(startMuted);
+const stream = await getLocalStream(startMuted, false);
 if (!stream) return;
 
 setupPeerConnection();
