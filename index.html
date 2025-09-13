@@ -278,8 +278,17 @@
                 return localStream;
             } catch (error) {
                 console.error("Error getting user media:", error);
-                showMessage("Could not access camera and microphone. Please grant permissions.", true);
+                if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+                    showMessage("Access to camera/microphone was denied. Please check your browser's settings.", true);
+                } else {
+                    showMessage("Could not access camera and microphone. Please grant permissions.", true);
+                }
                 return null;
+            } finally {
+                // Ensure the "Creating room..." message is hidden in case of a failure
+                if (!localStream) {
+                    hideMessage();
+                }
             }
         };
 
@@ -345,7 +354,10 @@
             showMessage("Creating room...");
 
             const stream = await getLocalStream();
-            if (!stream) return;
+            if (!stream) {
+                // The getLocalStream() function already shows a message, so we just return here.
+                return;
+            }
 
             setupPeerConnection();
             stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
