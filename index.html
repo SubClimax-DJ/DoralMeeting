@@ -133,26 +133,7 @@
 
         <!-- Main App Content (hidden initially) -->
         <div id="mainApp" class="md:col-span-3 hidden grid grid-cols-1 md:grid-cols-3 gap-8">
-            <!-- Video and Controls -->
-            <div class="md:col-span-2 container-card">
-                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feed</h2>
-                <div class="video-container mb-4">
-                    <video id="remoteVideo" class="video-element" autoplay playsinline></video>
-                    <video id="localVideo" class="video-element" autoplay playsinline muted></video>
-                </div>
-                <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 items-center justify-center">
-                    <button id="toggleAudioBtn" class="btn-toggle"><i class="fas fa-microphone"></i> Mute Audio</button>
-                    <button id="toggleVideoBtn" class="btn-toggle"><i class="fas fa-video"></i> Mute Video</button>
-                    <button id="hangupBtn" class="btn-danger flex-1" disabled>Hang Up</button>
-                </div>
-                <div class="flex mt-4 space-x-4 justify-center">
-                    <button id="startRecordingBtn" class="btn-primary" disabled>Start Recording</button>
-                    <button id="stopRecordingBtn" class="btn-danger" disabled>Stop Recording</button>
-                </div>
-                <a id="downloadRecording" style="display: none;"></a>
-            </div>
-
-            <!-- Room Management & Chat -->
+            <!-- Room Management & Chat (now on the left) -->
             <div class="md:col-span-1 space-y-8">
                 <div class="container-card">
                     <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Room Management</h2>
@@ -185,6 +166,25 @@
                         <button id="sendChatBtn" class="btn-primary">Send</button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Video and Controls (now on the right) -->
+            <div class="md:col-span-2 container-card">
+                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feed</h2>
+                <div class="video-container mb-4">
+                    <video id="remoteVideo" class="video-element" autoplay playsinline></video>
+                    <video id="localVideo" class="video-element" autoplay playsinline muted></video>
+                </div>
+                <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 items-center justify-center">
+                    <button id="toggleAudioBtn" class="btn-toggle"><i class="fas fa-microphone"></i> Mute Audio</button>
+                    <button id="toggleVideoBtn" class="btn-toggle"><i class="fas fa-video"></i> Mute Video</button>
+                    <button id="hangupBtn" class="btn-danger flex-1" disabled>Hang Up</button>
+                </div>
+                <div class="flex mt-4 space-x-4 justify-center">
+                    <button id="startRecordingBtn" class="btn-primary" disabled>Start Recording</button>
+                    <button id="stopRecordingBtn" class="btn-danger" disabled>Stop Recording</button>
+                </div>
+                <a id="downloadRecording" style="display: none;"></a>
             </div>
         </div>
     </main>
@@ -246,6 +246,8 @@
         let username;
         let isCreator = false;
         let remotePeerId = null;
+        let isAudioMuted = false;
+        let isVideoOff = false;
 
         // WebRTC variables
         let peerConnection = null;
@@ -320,8 +322,12 @@
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 localVideo.srcObject = localStream;
                 localVideo.muted = true;
-                toggleAudioBtn.disabled = false;
-                toggleVideoBtn.disabled = false;
+                
+                // Set initial button state
+                isAudioMuted = !localStream.getAudioTracks()[0].enabled;
+                isVideoOff = !localStream.getVideoTracks()[0].enabled;
+                updateButtonState();
+
                 return localStream;
             } catch (error) {
                 console.error("Error getting user media:", error);
@@ -336,6 +342,28 @@
                     hideMessage();
                 }
             }
+        };
+
+        const updateButtonState = () => {
+            // Update audio button
+            if (isAudioMuted) {
+                toggleAudioBtn.textContent = "Unmute Audio";
+                toggleAudioBtn.classList.remove('btn-toggle-active');
+            } else {
+                toggleAudioBtn.textContent = "Mute Audio";
+                toggleAudioBtn.classList.add('btn-toggle-active');
+            }
+            toggleAudioBtn.disabled = !localStream;
+
+            // Update video button
+            if (isVideoOff) {
+                toggleVideoBtn.textContent = "Turn On Video";
+                toggleVideoBtn.classList.remove('btn-toggle-active');
+            } else {
+                toggleVideoBtn.textContent = "Mute Video";
+                toggleVideoBtn.classList.add('btn-toggle-active');
+            }
+            toggleVideoBtn.disabled = !localStream;
         };
 
         const setupPeerConnection = () => {
@@ -673,20 +701,18 @@
         };
 
         const toggleAudio = () => {
-            if (localStream) {
-                isMuted = !isMuted;
-                localStream.getAudioTracks()[0].enabled = !isMuted;
-                toggleAudioBtn.textContent = isMuted ? "Unmute Audio" : "Mute Audio";
-                toggleAudioBtn.classList.toggle('btn-toggle-active', !isMuted);
+            if (localStream && localStream.getAudioTracks().length > 0) {
+                isAudioMuted = !isAudioMuted;
+                localStream.getAudioTracks()[0].enabled = !isAudioMuted;
+                updateButtonState();
             }
         };
 
         const toggleVideo = () => {
-            if (localStream) {
+            if (localStream && localStream.getVideoTracks().length > 0) {
                 isVideoOff = !isVideoOff;
                 localStream.getVideoTracks()[0].enabled = !isVideoOff;
-                toggleVideoBtn.textContent = isVideoOff ? "Turn On Video" : "Turn Off Video";
-                toggleVideoBtn.classList.toggle('btn-toggle-active', !isVideoOff);
+                updateButtonState();
             }
         };
 
