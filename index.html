@@ -169,6 +169,15 @@
                 </div>
             </div>
 
+            <div class="container-card" id="roomCreatorControls" style="display: none;">
+                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Layout Controls</h2>
+                <div class="flex flex-col space-y-4">
+                    <button class="btn-toggle layout-btn" data-layout="full">Full Screen</button>
+                    <button class="btn-toggle layout-btn" data-layout="pip-bottom-right">Picture-in-Picture (Bottom Right)</button>
+                    <button class="btn-toggle layout-btn" data-layout="side-by-side">Side-by-Side</button>
+                </div>
+            </div>
+
             <div class="container-card">
                 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
                 <div class="chat-container mb-4" id="chatContainer"></div>
@@ -180,9 +189,6 @@
         </div>
     </main>
     <div id="status-message" class="fixed bottom-4 left-1/2 -translate-x-1/2 p-4 rounded-lg text-sm text-center text-gray-700 bg-gray-100 hidden"></div>
-    <div id="creator-message" class="fixed top-24 left-1/2 -translate-x-1/2 p-2 rounded-lg text-sm text-center text-ebdbb2 bg-gray-700 hidden">
-        You can now click and drag the remote video to move and resize it.
-    </div>
 
     <!-- Font Awesome Icons -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
@@ -225,7 +231,7 @@
         const statusMessage = document.getElementById('status-message');
         const authStatus = document.getElementById('auth-status');
         const activeRoomsList = document.getElementById('activeRoomsList');
-        const creatorMessage = document.getElementById('creator-message');
+        const roomCreatorControls = document.getElementById('roomCreatorControls');
 
         // Firestore and Auth instances
         let app, db, auth;
@@ -247,12 +253,6 @@
         // Recording variables
         let mediaRecorder;
         let recordedChunks = [];
-
-        // Drag and drop variables
-        let isDragging = false;
-        let isResizing = false;
-        let startX, startY, startWidth, startHeight;
-        const resizeHandleSize = 15;
 
         // WebRTC STUN servers
         const configuration = {
@@ -385,7 +385,7 @@
             }
 
             isCreator = true;
-            creatorMessage.style.display = 'block';
+            roomCreatorControls.style.display = 'block';
             
             const roomName = `room-${Math.random().toString(36).substring(2, 9)}`;
             roomIdInput.value = roomName;
@@ -435,7 +435,7 @@
 
             listenForChat(roomRef);
 
-            setupDragAndDrop();
+            setupLayoutButtons();
 
             showMessage(`Room created! Share this ID with your client: ${roomName}`);
             createRoomBtn.disabled = true;
@@ -513,74 +513,31 @@
             sendChatBtn.disabled = false;
         };
 
-        const updateRemoteVideoStyle = async (newStyles) => {
-            if (!isCreator || !roomRef) return;
-            const controlsRef = doc(roomRef, 'video-controls', 'styles');
-            await updateDoc(controlsRef, newStyles);
-        };
-
-        const setupDragAndDrop = () => {
+        const setupLayoutButtons = () => {
             if (!isCreator) return;
-            
-            remoteVideo.classList.add('resizable');
 
-            remoteVideo.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+            document.querySelectorAll('.layout-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const layout = btn.dataset.layout;
+                    let styles = {};
 
-                const rect = remoteVideo.getBoundingClientRect();
-                const containerRect = remoteVideo.parentElement.getBoundingClientRect();
-                const mouseX = e.clientX;
-                const mouseY = e.clientY;
+                    switch (layout) {
+                        case 'full':
+                            styles = { width: 100, height: 100, top: 0, left: 0 };
+                            break;
+                        case 'pip-bottom-right':
+                            styles = { width: 40, height: 40, top: 55, left: 55 };
+                            break;
+                        case 'side-by-side':
+                            styles = { width: 50, height: 100, top: 0, left: 50 };
+                            break;
+                    }
 
-                const onRight = mouseX > (rect.right - resizeHandleSize);
-                const onBottom = mouseY > (rect.bottom - resizeHandleSize);
-
-                if (onRight || onBottom) {
-                    isResizing = true;
-                    startX = mouseX;
-                    startY = mouseY;
-                    startWidth = rect.width;
-                    startHeight = rect.height;
-                } else {
-                    isDragging = true;
-                    startX = mouseX - rect.left;
-                    startY = mouseY - rect.top;
-                }
-            });
-
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging && !isResizing) return;
-                
-                const videoContainer = remoteVideo.parentElement;
-                const containerRect = videoContainer.getBoundingClientRect();
-                
-                if (isDragging) {
-                    let newLeft = e.clientX - startX - containerRect.left;
-                    let newTop = e.clientY - startY - containerRect.top;
-
-                    newLeft = Math.max(0, Math.min(newLeft, containerRect.width - remoteVideo.offsetWidth));
-                    newTop = Math.max(0, Math.min(newTop, containerRect.height - remoteVideo.offsetHeight));
-                    
-                    const newLeftPercent = (newLeft / containerRect.width) * 100;
-                    const newTopPercent = (newTop / containerRect.height) * 100;
-
-                    updateRemoteVideoStyle({ left: newLeftPercent, top: newTopPercent });
-
-                } else if (isResizing) {
-                    const newWidth = startWidth + (e.clientX - startX);
-                    const newHeight = startHeight + (e.clientY - startY);
-
-                    const newWidthPercent = (newWidth / containerRect.width) * 100;
-                    const newHeightPercent = (newHeight / containerRect.height) * 100;
-                    
-                    updateRemoteVideoStyle({ width: newWidthPercent, height: newHeightPercent });
-                }
-            });
-
-            document.addEventListener('mouseup', () => {
-                isDragging = false;
-                isResizing = false;
+                    if (roomRef) {
+                        const controlsRef = doc(roomRef, 'video-controls', 'styles');
+                        await updateDoc(controlsRef, styles);
+                    }
+                });
             });
         };
 
@@ -596,7 +553,7 @@
             peerConnection = null;
             localStream = null;
             isCreator = false;
-            creatorMessage.style.display = 'none';
+            roomCreatorControls.style.display = 'none';
 
             if (roomSnapshotListener) roomSnapshotListener();
             if (candidatesListener) candidatesListener();
