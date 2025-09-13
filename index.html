@@ -83,6 +83,7 @@ width: 100%;
 height: 100%;
 object-fit: cover;
 transition: all 0.3s ease-in-out;
+z-index: 5; /* Ensure remote video is below local video by default */
 }
 .chat-container {
 background-color: #3c3836;
@@ -130,6 +131,28 @@ box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 width: 90%;
 max-width: 400px;
 }
+.sakura-container {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+pointer-events: none;
+overflow: hidden;
+z-index: 20; /* Above videos */
+}
+.sakura-petal {
+position: absolute;
+background: rgba(255, 192, 203, 0.8);
+border-radius: 50%;
+width: 10px;
+height: 10px;
+animation: falling 15s linear infinite;
+}
+@keyframes falling {
+0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+}
 </style>
 </head>
 <body class="flex flex-col items-center min-h-screen p-4">
@@ -165,11 +188,13 @@ Doral Video Conference
 <div class="video-container mb-4">
 <video id="remoteVideo" class="video-element" autoplay playsinline></video>
 <video id="localVideo" class="video-element" autoplay playsinline muted></video>
+<div id="sakuraEffect" class="sakura-container hidden"></div>
 </div>
 <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 items-center justify-center">
 <button id="toggleAudioBtn" class="btn-toggle" disabled><i class="fas fa-microphone"></i> Mute Audio</button>
 <button id="toggleVideoBtn" class="btn-toggle" disabled><i class="fas fa-video"></i> Mute Video</button>
 <button id="fullScreenBtn" class="btn-toggle" disabled><i class="fas fa-expand"></i> Fullscreen</button>
+<button id="hdBtn" class="btn-toggle" disabled>HD Video</button>
 <button id="hangupBtn" class="btn-danger flex-1" disabled>Leave Room</button>
 </div>
 <div class="flex mt-4 space-x-4 items-center justify-center">
@@ -198,6 +223,7 @@ Doral Video Conference
 <label for="joinMutedCheckbox" class="text-sm">Join with camera/mic off</label>
 </div>
 <button id="createRoomBtn" class="btn-primary" disabled>Create New Room</button>
+<button id="takeTheStageBtn" class="btn-primary" style="display:none;" disabled>Take the Stage</button>
 <button id="deleteAllRoomsBtn" class="btn-danger" disabled>Delete All Rooms</button>
 </div>
 </div>
@@ -229,12 +255,12 @@ No participants in this room.
 <!-- Password Modal (Hidden by default) -->
 <div id="passwordModal" class="modal-overlay hidden">
 <div class="modal-content flex flex-col space-y-4">
-<h2 class="text-xl font-bold font-['Crimson_Pro']">Enter Password</h2>
-<p class="text-sm text-gray-400">To delete all rooms, please enter the administrator password.</p>
+<h2 class="text-xl font-bold font-['Crimson_Pro']" id="passwordModalTitle">Enter Password</h2>
+<p class="text-sm text-gray-400" id="passwordModalText">To delete all rooms, please enter the administrator password.</p>
 <input type="password" id="passwordInput" placeholder="Password" class="input-field" />
 <div class="flex space-x-4">
-<button id="confirmDeleteBtn" class="btn-danger flex-1">Confirm</button>
-<button id="cancelDeleteBtn" class="btn-toggle flex-1">Cancel</button>
+<button id="confirmBtn" class="btn-danger flex-1" data-action="">Confirm</button>
+<button id="cancelBtn" class="btn-toggle flex-1">Cancel</button>
 </div>
 </div>
 </div>
@@ -282,10 +308,12 @@ const roomIdInput = document.getElementById('roomIdInput');
 const createRoomBtn = document.getElementById('createRoomBtn');
 const joinRoomBtn = document.getElementById('joinRoomBtn');
 const deleteAllRoomsBtn = document.getElementById('deleteAllRoomsBtn');
+const takeTheStageBtn = document.getElementById('takeTheStageBtn');
 const hangupBtn = document.getElementById('hangupBtn');
 const toggleAudioBtn = document.getElementById('toggleAudioBtn');
 const toggleVideoBtn = document.getElementById('toggleVideoBtn');
 const fullScreenBtn = document.getElementById('fullScreenBtn');
+const hdBtn = document.getElementById('hdBtn');
 const volumeControl = document.getElementById('volumeControl');
 const startRecordingBtn = document.getElementById('startRecordingBtn');
 const stopRecordingBtn = document.getElementById('stopRecordingBtn');
@@ -297,13 +325,16 @@ const authStatus = document.getElementById('auth-status');
 const activeRoomsList = document.getElementById('activeRoomsList');
 const joinMutedCheckbox = document.getElementById('joinMutedCheckbox');
 const participantsList = document.getElementById('participantsList');
+const sakuraEffect = document.getElementById('sakuraEffect');
 
 
 // Password Modal Elements
 const passwordModal = document.getElementById('passwordModal');
+const passwordModalTitle = document.getElementById('passwordModalTitle');
+const passwordModalText = document.getElementById('passwordModalText');
 const passwordInput = document.getElementById('passwordInput');
-const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+const confirmBtn = document.getElementById('confirmBtn');
+const cancelBtn = document.getElementById('cancelBtn');
 
 // Firestore and Auth instances
 let app, db, auth;
@@ -322,6 +353,7 @@ let candidatesListener = null;
 let chatListener = null;
 let roomsListener = null;
 let participantsListener = null;
+let stageListener = null;
 
 // Recording variables
 let mediaRecorder;
@@ -408,6 +440,7 @@ toggleVideoBtn.classList.toggle('btn-toggle-active', !startMuted);
 toggleAudioBtn.disabled = false;
 toggleVideoBtn.disabled = false;
 fullScreenBtn.disabled = false;
+hdBtn.disabled = false;
 return localStream;
 } catch (error) {
 console.error("Error getting user media:", error);
@@ -546,12 +579,17 @@ await peerConnection.addIceCandidate(candidate);
 
 listenForChat(roomRef);
 listenForParticipants();
+listenForStageLayout();
+
+takeTheStageBtn.style.display = 'block';
+takeTheStageBtn.disabled = false;
 
 showMessage(`Room created! Share this ID with your client: ${roomName}`);
 createRoomBtn.disabled = true;
 joinRoomBtn.disabled = true;
 hangupBtn.disabled = false;
 sendChatBtn.disabled = false;
+hdBtn.disabled = false;
 };
 
 // Join an existing room
@@ -603,12 +641,14 @@ await peerConnection.addIceCandidate(candidate);
 
 listenForChat(roomRef);
 listenForParticipants();
+listenForStageLayout();
 
 showMessage(`Successfully joined room ${roomId}!`);
 createRoomBtn.disabled = true;
 joinRoomBtn.disabled = true;
 hangupBtn.disabled = false;
 sendChatBtn.disabled = false;
+hdBtn.disabled = false;
 };
 
 // Hang up the call and clean up resources
@@ -639,6 +679,8 @@ showMessage('Room has been automatically closed.', false);
 showMessage(`${username} has left the room.`, false);
 }
 }
+// Clean up stage layout
+await updateDoc(roomRef, { stageLayout: null });
 }
 
 // Stop all listeners
@@ -647,12 +689,15 @@ if (candidatesListener) candidatesListener();
 if (chatListener) chatListener();
 if (roomsListener) roomsListener();
 if (participantsListener) participantsListener();
+if (stageListener) stageListener();
 roomSnapshotListener = null;
 candidatesListener = null;
 chatListener = null;
 roomsListener = null;
 participantsListener = null;
+stageListener = null;
 
+// Reset UI state
 roomIdInput.value = '';
 hideMessage();
 createRoomBtn.disabled = false;
@@ -661,11 +706,13 @@ hangupBtn.disabled = true;
 toggleAudioBtn.disabled = true;
 toggleVideoBtn.disabled = true;
 fullScreenBtn.disabled = true;
+hdBtn.disabled = true;
 startRecordingBtn.disabled = true;
 stopRecordingBtn.disabled = true;
 sendChatBtn.disabled = true;
 chatContainer.innerHTML = '';
 participantsList.innerHTML = 'No participants in this room.';
+takeTheStageBtn.style.display = 'none';
 };
 
 // Toggle audio mute
@@ -687,6 +734,52 @@ toggleVideoBtn.textContent = videoTrack.enabled ? "Mute Video" : "Unmute Video";
 toggleVideoBtn.classList.toggle('btn-toggle-active', !videoTrack.enabled);
 }
 };
+
+// Toggle HD video quality
+const toggleHd = async () => {
+if (!localStream) {
+showMessage("Please start a video call first.", true);
+return;
+}
+
+const currentVideoTrack = localStream.getVideoTracks()[0];
+const currentSettings = currentVideoTrack.getSettings();
+const isHd = currentSettings.height >= 720;
+
+hdBtn.disabled = true;
+
+const newConstraints = {
+audio: true,
+video: isHd ? { width: 640, height: 480 } : { width: 1920, height: 1080 }
+};
+
+try {
+const newStream = await navigator.mediaDevices.getUserMedia(newConstraints);
+const newVideoTrack = newStream.getVideoTracks()[0];
+const oldVideoTrack = localStream.getVideoTracks()[0];
+if (oldVideoTrack) {
+oldVideoTrack.stop();
+}
+localStream.removeTrack(oldVideoTrack);
+localStream.addTrack(newVideoTrack);
+localVideo.srcObject = localStream;
+
+// Update peer connection with the new track
+const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+if (sender) {
+sender.replaceTrack(newVideoTrack);
+}
+
+const newLabel = isHd ? 'SD Video' : 'HD Video';
+hdBtn.textContent = newLabel;
+} catch (error) {
+console.error("Error setting video quality:", error);
+showMessage("Failed to change video quality.", true);
+} finally {
+hdBtn.disabled = false;
+}
+};
+
 
 // Start recording the remote video stream
 const startRecording = () => {
@@ -796,6 +889,64 @@ participantsList.innerHTML = 'No participants in this room.';
 });
 };
 
+// Handle the "Take the Stage" feature
+const takeTheStage = async () => {
+if (!roomRef) return;
+
+// Start the sakura animation
+const numPetals = 50;
+const duration = 15000;
+for (let i = 0; i < numPetals; i++) {
+const petal = document.createElement('div');
+petal.classList.add('sakura-petal');
+petal.style.left = `${Math.random() * 100}%`;
+petal.style.animationDelay = `${Math.random() * 10}s`;
+petal.style.animationDuration = `${duration / 1000}s`;
+petal.style.opacity = Math.random() * 0.5 + 0.5;
+petal.style.transform = `rotate(${Math.random() * 360}deg)`;
+sakuraEffect.appendChild(petal);
+}
+sakuraEffect.classList.remove('hidden');
+
+// Update Firestore to signal the spotlight
+await updateDoc(roomRef, {
+stageLayout: 'spotlight',
+stageHostId: userId
+});
+
+// Update local UI
+localVideo.style.display = 'none';
+remoteVideo.style.zIndex = '15';
+
+setTimeout(() => {
+sakuraEffect.classList.add('hidden');
+sakuraEffect.innerHTML = '';
+}, duration);
+};
+
+// Listen for stage layout changes
+const listenForStageLayout = () => {
+if (stageListener) stageListener();
+stageListener = onSnapshot(roomRef, (snapshot) => {
+const data = snapshot.data();
+if (data.stageLayout === 'spotlight' && data.stageHostId) {
+// Make remote video full screen
+if (data.stageHostId === userId) {
+// It's the host, hide own local video
+localVideo.style.display = 'none';
+} else {
+// It's a participant, make remote video full screen and hide local video
+localVideo.style.display = 'none';
+}
+remoteVideo.style.zIndex = '15';
+} else {
+// End of spotlight
+localVideo.style.display = 'block';
+remoteVideo.style.zIndex = '5';
+}
+});
+};
+
 // Set the user's username and show the main app
 const setUsername = () => {
 const user = usernameInput.value.trim();
@@ -808,15 +959,26 @@ showMessage("Please enter a username.", true);
 }
 };
 
-// Delete all rooms with a password
-const deleteAllRooms = async () => {
+// Handle modal actions
+const handleModalAction = () => {
+const action = confirmBtn.dataset.action;
 const password = passwordInput.value;
+passwordInput.value = '';
 if (password !== 'max') {
 showMessage('Incorrect password.', true);
+passwordModal.classList.add('hidden');
 return;
 }
-
+if (action === 'delete-all') {
+deleteAllRooms();
+} else if (action === 'take-stage') {
+takeTheStage();
+}
 passwordModal.classList.add('hidden');
+};
+
+// Delete all rooms with a password
+const deleteAllRooms = async () => {
 showMessage('Deleting all rooms...', false);
 const roomsCollectionRef = collection(db, `artifacts/${appId}/public/data/video-rooms`);
 try {
@@ -864,14 +1026,24 @@ if (remoteVideo.requestFullscreen) {
 remoteVideo.requestFullscreen();
 }
 });
+hdBtn.addEventListener('click', toggleHd);
 volumeControl.addEventListener('input', (e) => {
 remoteVideo.volume = e.target.value / 100;
 });
 deleteAllRoomsBtn.addEventListener('click', () => {
+passwordModalTitle.textContent = 'Enter Password';
+passwordModalText.textContent = 'To delete all rooms, please enter the administrator password.';
+confirmBtn.dataset.action = 'delete-all';
 passwordModal.classList.remove('hidden');
 });
-confirmDeleteBtn.addEventListener('click', deleteAllRooms);
-cancelDeleteBtn.addEventListener('click', () => {
+takeTheStageBtn.addEventListener('click', () => {
+passwordModalTitle.textContent = 'Take the Stage';
+passwordModalText.textContent = 'Please enter the password to take the stage.';
+confirmBtn.dataset.action = 'take-stage';
+passwordModal.classList.remove('hidden');
+});
+confirmBtn.addEventListener('click', handleModalAction);
+cancelBtn.addEventListener('click', () => {
 passwordModal.classList.add('hidden');
 passwordInput.value = '';
 });
