@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Conference</title>
+    <title>Doral Video Conference</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Lato:wght@400;700&display=swap');
@@ -74,6 +74,15 @@
             border: 2px solid #ebdbb2;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
         }
+        #remoteVideo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: all 0.3s ease-in-out;
+        }
         .chat-container {
             background-color: #3c3836;
             border: 1px solid #504945;
@@ -107,7 +116,7 @@
         <div class="flex items-center">
             <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="School Logo" class="h-12 mr-4">
             <h1 class="text-3xl sm:text-4xl font-semibold font-['Crimson_Pro']">
-                Professional Video Conference
+                Doral Video Conference
             </h1>
         </div>
         <div class="text-sm mt-2 sm:mt-0 font-light" id="auth-status">Authenticating...</div>
@@ -145,6 +154,28 @@
                 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Active Rooms</h2>
                 <div id="activeRoomsList" class="space-y-2">
                     <p class="text-gray-500 text-sm">Loading rooms...</p>
+                </div>
+            </div>
+
+            <div class="container-card" id="roomCreatorControls" style="display: none;">
+                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Remote Video Controls</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="video-width" class="block text-sm font-medium mb-1">Width</label>
+                        <input type="range" id="video-width" min="10" max="100" value="100" class="w-full h-2 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <div>
+                        <label for="video-height" class="block text-sm font-medium mb-1">Height</label>
+                        <input type="range" id="video-height" min="10" max="100" value="100" class="w-full h-2 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <div>
+                        <label for="video-top" class="block text-sm font-medium mb-1">Top Offset</label>
+                        <input type="range" id="video-top" min="0" max="100" value="0" class="w-full h-2 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <div>
+                        <label for="video-left" class="block text-sm font-medium mb-1">Left Offset</label>
+                        <input type="range" id="video-left" min="0" max="100" value="0" class="w-full h-2 rounded-lg appearance-none cursor-pointer">
+                    </div>
                 </div>
             </div>
 
@@ -199,6 +230,13 @@
         const statusMessage = document.getElementById('status-message');
         const authStatus = document.getElementById('auth-status');
         const activeRoomsList = document.getElementById('activeRoomsList');
+        const roomCreatorControls = document.getElementById('roomCreatorControls');
+
+        // Video control elements
+        const videoWidthInput = document.getElementById('video-width');
+        const videoHeightInput = document.getElementById('video-height');
+        const videoTopInput = document.getElementById('video-top');
+        const videoLeftInput = document.getElementById('video-left');
 
         // Firestore and Auth instances
         let app, db, auth;
@@ -212,8 +250,10 @@
         let candidatesListener = null;
         let chatListener = null;
         let roomsListener = null;
+        let controlListener = null;
         let isMuted = false;
         let isVideoOff = false;
+        let isCreator = false;
 
         // WebRTC STUN servers
         const configuration = {
@@ -347,6 +387,9 @@
                 return;
             }
 
+            isCreator = true;
+            roomCreatorControls.style.display = 'block';
+            
             const roomName = `room-${Math.random().toString(36).substring(2, 9)}`;
             roomIdInput.value = roomName;
             roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomName);
@@ -355,7 +398,6 @@
 
             const stream = await getLocalStream();
             if (!stream) {
-                // The getLocalStream() function already shows a message, so we just return here.
                 return;
             }
 
@@ -366,6 +408,16 @@
             await peerConnection.setLocalDescription(offer);
 
             await setDoc(roomRef, { offer: { sdp: offer.sdp, type: offer.type }, createdBy: userId });
+            
+            // Set initial video controls
+            const controlsRef = doc(roomRef, 'controls', 'styles');
+            const defaultStyles = {
+                width: 100,
+                height: 100,
+                top: 0,
+                left: 0
+            };
+            await setDoc(controlsRef, defaultStyles);
 
             // Listen for answer
             roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
@@ -390,6 +442,12 @@
 
             // Listen for chat messages
             listenForChat(roomRef);
+
+            // Set up controls for the creator
+            videoWidthInput.addEventListener('input', updateRemoteVideoStyle);
+            videoHeightInput.addEventListener('input', updateRemoteVideoStyle);
+            videoTopInput.addEventListener('input', updateRemoteVideoStyle);
+            videoLeftInput.addEventListener('input', updateRemoteVideoStyle);
 
             showMessage(`Room created! Share this ID with your client: ${roomName}`);
             createRoomBtn.disabled = true;
@@ -448,11 +506,34 @@
             // Listen for chat messages
             listenForChat(roomRef);
 
+            // Listen for video control changes from the creator
+            const controlsRef = doc(roomRef, 'controls', 'styles');
+            controlListener = onSnapshot(controlsRef, (snapshot) => {
+                const styles = snapshot.data();
+                if (styles) {
+                    remoteVideo.style.width = `${styles.width}%`;
+                    remoteVideo.style.height = `${styles.height}%`;
+                    remoteVideo.style.top = `${styles.top}%`;
+                    remoteVideo.style.left = `${styles.left}%`;
+                }
+            });
+
             showMessage(`Successfully joined room ${roomId}!`);
             createRoomBtn.disabled = true;
             joinRoomBtn.disabled = true;
             hangupBtn.disabled = false;
             sendChatBtn.disabled = false;
+        };
+
+        const updateRemoteVideoStyle = async () => {
+            if (!isCreator || !roomRef) return;
+            const controlsRef = doc(roomRef, 'controls', 'styles');
+            await updateDoc(controlsRef, {
+                width: videoWidthInput.value,
+                height: videoHeightInput.value,
+                top: videoTopInput.value,
+                left: videoLeftInput.value,
+            });
         };
 
         const hangup = async () => {
@@ -466,14 +547,18 @@
             remoteVideo.srcObject = null;
             peerConnection = null;
             localStream = null;
+            isCreator = false;
+            roomCreatorControls.style.display = 'none';
 
             // Remove listeners
             if (roomSnapshotListener) roomSnapshotListener();
             if (candidatesListener) candidatesListener();
             if (chatListener) chatListener();
+            if (controlListener) controlListener();
             roomSnapshotListener = null;
             candidatesListener = null;
             chatListener = null;
+            controlListener = null;
 
             if (roomRef) {
                 try {
