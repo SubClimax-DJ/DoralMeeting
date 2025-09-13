@@ -3,399 +3,371 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>V 3.31 | Doral Video Conference - created by Coach Prebeg</title>
+    <title>Doral Video Conference</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Gruvbox-inspired dark theme with custom accents */
-        @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Inter:wght@400;500;600&display=swap');
-
+        @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Lato:wght@400;700&display=swap');
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Lato', sans-serif;
             background-color: #282828;
             color: #ebdbb2;
         }
-
         .header {
             background-color: #1d2021;
-            border-bottom: 1px solid #504945;
+            color: #ebdbb2;
         }
-
         .container-card {
             background-color: #32302f;
-            border-radius: 0.75rem;
+            border-radius: 0.5rem;
             padding: 2rem;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-            border: 1px solid #504945;
         }
-
-        /* Primary button with a navy-like blue color */
         .btn-primary {
-            @apply px-6 py-3 font-semibold rounded-lg transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+            @apply px-6 py-3 font-semibold rounded-sm transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
             background-color: #458588;
             color: #ebdbb2;
         }
-        /* Danger button with a dark red accent */
         .btn-danger {
-            @apply px-6 py-3 font-semibold rounded-lg transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
+            @apply px-6 py-3 font-semibold rounded-sm transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
             background-color: #fb4934;
             color: #ebdbb2;
         }
-        /* Toggle buttons for video/audio, with silver accents */
         .btn-toggle {
-            @apply px-4 py-2 font-semibold rounded-lg transition duration-300 focus:outline-none flex items-center justify-center space-x-2;
+            @apply px-4 py-2 font-semibold rounded-sm transition duration-300 focus:outline-none;
             background-color: #504945;
             color: #ebdbb2;
         }
-        /* Active state for toggle buttons */
         .btn-toggle-active {
-            @apply bg-green-500 text-white;
+            @apply px-4 py-2 font-semibold rounded-sm transition duration-300 focus:outline-none;
             background-color: #b8bb26;
             color: #1d2021;
         }
-
         .input-field {
-            @apply w-full px-4 py-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200;
+            @apply w-full px-4 py-3 rounded-sm border border-gray-600 focus:outline-none focus:ring-2 transition duration-200;
             background-color: #32302f;
             color: #ebdbb2;
         }
-
         .video-container {
             position: relative;
             width: 100%;
-            aspect-ratio: 16 / 9;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
             background-color: #1d2021;
-            border-radius: 0.75rem;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        }
-        
-        .active-speaker-border {
-            box-shadow: 0 0 10px 5px rgba(184, 187, 38, 0.7);
-            border-color: #b8bb26;
-        }
-
-        #localVideo {
-            width: 150px;
-            height: 112.5px;
-            position: absolute;
-            bottom: 1rem;
-            right: 1rem;
             border-radius: 0.5rem;
-            z-index: 10;
-            border: 2px solid #ebdbb2;
-            transition: transform 0.3s ease-in-out;
+            overflow: hidden;
         }
-        #localVideo:hover {
-            transform: scale(1.1);
-        }
-        /* Screen share video occupies the main video container */
-        .video-container #screenShareVideo {
-            display: none;
-            position: absolute;
-            top: 0;
-            left: 0;
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
             width: 100%;
-            height: 100%;
-            object-fit: contain;
-            background-color: black;
-            z-index: 1;
+            min-height: 400px;
         }
-
-        #remoteVideo {
+        .video-grid-item {
+            position: relative;
+            background-color: #1d2021;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            transition: border 0.3s ease;
+        }
+        .video-grid-item.speaking {
+            border: 4px solid #b8bb26;
+        }
+        .video-grid-item video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: all 0.3s ease-in-out;
         }
-
+        .video-label {
+            position: absolute;
+            bottom: 0.5rem;
+            left: 0.5rem;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+        }
+        .video-status-icons {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+            color: #ebdbb2;
+        }
         .chat-container {
             background-color: #3c3836;
             border: 1px solid #504945;
             border-radius: 0.5rem;
-            height: 400px;
+            height: 300px;
             overflow-y: auto;
             display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            padding: 0.5rem;
+            flex-direction: column-reverse;
         }
-
         .message {
             padding: 0.5rem 1rem;
             margin: 0.5rem;
-            border-radius: 1.25rem;
+            border-radius: 0.75rem;
             max-width: 85%;
             word-wrap: break-word;
-            animation: fadeIn 0.3s ease-out;
         }
         .my-message {
             background-color: #458588;
             color: #ebdbb2;
             align-self: flex-end;
-            border-bottom-right-radius: 0.25rem;
         }
         .other-message {
             background-color: #665c54;
             color: #ebdbb2;
             align-self: flex-start;
-            border-bottom-left-radius: 0.25rem;
         }
-
-        .document-message {
-            background-color: #34495e;
-            border-left: 4px solid #3498db;
-            padding: 0.75rem 1rem;
-            animation: pulse-border 1s infinite alternate;
+        .modal {
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        
-        .status-popup {
-            @apply fixed bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-lg text-sm font-semibold transition-all duration-300 transform;
+        .modal-content {
+            background-color: #32302f;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 800px;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s;
+            border-radius: 0.5rem;
         }
-        .success {
-            @apply bg-green-500 text-white;
+        .close-btn {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
         }
-        .error {
-            @apply bg-red-500 text-white;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes pulse-border {
-            from { border-color: #3498db; }
-            to { border-color: #2980b9; }
-        }
-
-        .list-item {
-            @apply p-4 rounded-lg transition-colors duration-200 cursor-pointer;
-            background-color: #3c3836;
+        .close-btn:hover,
+        .close-btn:focus {
             color: #ebdbb2;
+            text-decoration: none;
+            cursor: pointer;
         }
-        .list-item:hover {
-            background-color: #504945;
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
-
-        /* Theater mode styling */
-        .theater-mode #remoteVideo {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: contain !important;
+        #whiteboard-tools {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            background-color: #3c3836;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            align-items: center;
         }
-
-        .theater-mode #localVideo,
-        .theater-mode .md\\:col-span-1 {
-            display: none !important;
+        .color-picker-btn {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            border: 2px solid transparent;
         }
-
-        /* Responsive layout for video and controls */
-        .video-section {
-            grid-column: 1 / -1;
+        .color-picker-btn.active {
+            border-color: #ebdbb2;
         }
-        /* New layout for chat and management on large screens */
-        @media (min-width: 768px) {
-            .app-grid {
-                grid-template-areas:
-                    "video video"
-                    "management chat";
-                grid-template-columns: 1fr 1fr;
-            }
-            .video-section {
-                grid-area: video;
-            }
-            .management-section {
-                grid-area: management;
-            }
-            .chat-section {
-                grid-area: chat;
-            }
-        }
-        .delete-chat-btn {
-            @apply text-red-400 hover:text-red-500 transition-colors cursor-pointer ml-2;
-        }
-        .raise-hand-btn {
-             @apply px-4 py-2 font-semibold rounded-lg transition duration-300 focus:outline-none flex items-center justify-center space-x-2;
-            background-color: #689d6a;
-            color: #1d2021;
-        }
-        .raise-hand-active {
-            background-color: #b8bb26;
-        }
-
     </style>
 </head>
 <body class="flex flex-col items-center min-h-screen p-4">
-
-    <header class="header w-full py-6 mb-8 flex flex-col sm:flex-row items-center justify-between px-8 shadow-md rounded-b-xl">
+    <header class="header w-full py-4 mb-8 flex flex-col sm:flex-row items-center justify-between px-6 shadow-md">
         <div class="flex items-center">
-            <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="School Logo" class="h-12 w-12 rounded-full mr-4 shadow-sm">
-            <h1 class="text-3xl font-bold font-['Inter']">
-                V 3.31 | Doral Video Conference 
-                <span class="block text-sm font-normal text-gray-400 -mt-2">created by Coach Prebeg</span>
+            <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="School Logo" class="h-12 mr-4">
+            <h1 class="text-3xl sm:text-4xl font-semibold font-['Crimson_Pro']">
+                Doral Video Conference
             </h1>
+            <div id="recording-indicator" class="hidden ml-4 px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-sm animate-pulse">REC</div>
         </div>
-        <div class="text-sm mt-2 sm:mt-0 font-medium text-gray-400" id="auth-status">Authenticating...</div>
+        <div class="text-sm mt-2 sm:mt-0 font-light" id="auth-status">Authenticating...</div>
     </header>
 
-    <main class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 app-grid">
-        
-        <!-- Modal for Username Prompt -->
-        <div id="usernameModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div class="container-card w-full max-w-md text-center">
-                <h2 class="text-2xl font-bold mb-4 text-[#ebdbb2]">Enter Your Username</h2>
-                <p class="text-sm text-gray-400 mb-6">This username will be visible to other participants in the meeting.</p>
-                <input type="text" id="usernameInput" placeholder="e.g., JaneDoe" class="input-field max-w-xs mb-4" />
-                <button id="submitUsernameBtn" class="btn-primary w-full max-w-xs">Start</button>
-            </div>
+    <main class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Initial Username Prompt -->
+        <div id="usernamePrompt" class="md:col-span-3 flex flex-col items-center justify-center p-8 bg-[#32302f] rounded-lg shadow-xl">
+            <h2 class="text-2xl font-bold font-['Crimson_Pro'] mb-4">Enter Your Username</h2>
+            <p class="text-sm text-gray-400 mb-6 text-center">Your username will be visible to other participants in the chat.</p>
+            <input type="text" id="usernameInput" placeholder="e.g., JaneDoe" class="input-field max-w-sm mb-4" />
+            <button id="submitUsernameBtn" class="btn-primary max-w-xs w-full">Start</button>
         </div>
-
-        <!-- Main App Content -->
-        <div id="mainApp" class="md:col-span-2 hidden grid grid-cols-1 md:grid-cols-2 gap-8 app-grid">
-            
-            <!-- Video and Controls -->
-            <div class="md:col-span-2 space-y-6 video-section">
-                <div class="container-card">
-                    <h2 class="text-xl font-bold mb-4">Video Feed</h2>
-                    <div class="video-container mb-4 rounded-lg overflow-hidden relative">
-                        <video id="remoteVideo" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
-                        <video id="screenShareVideo" class="absolute inset-0 w-full h-full object-contain bg-black z-10" autoplay playsinline></video>
-                        <video id="localVideo" class="absolute bottom-4 right-4 z-20 rounded-lg shadow-xl" autoplay playsinline muted></video>
-                    </div>
-                    <div class="flex flex-wrap gap-4 items-center justify-center">
-                        <button id="toggleAudioBtn" class="btn-toggle" disabled>
-                            <i class="fas fa-microphone"></i>
-                            <span class="text-sm">Mute Audio</span>
-                        </button>
-                        <button id="toggleVideoBtn" class="btn-toggle" disabled>
-                            <i class="fas fa-video"></i>
-                            <span class="text-sm">Mute Video</span>
-                        </button>
-                        <button id="hangupBtn" class="btn-danger" disabled>
-                            <i class="fas fa-phone-slash"></i>
-                            <span class="text-sm">Hang Up</span>
-                        </button>
-                    </div>
-                    <div class="flex flex-wrap gap-4 justify-center mt-4">
-                        <button id="startRecordingBtn" class="btn-primary text-sm" disabled>Start Recording</button>
-                        <button id="stopRecordingBtn" class="btn-danger text-sm" disabled>Stop Recording</button>
-                    </div>
-                    <div class="flex flex-wrap gap-4 justify-center mt-4">
-                         <button id="toggleScreenShareBtn" class="btn-primary text-sm flex items-center space-x-2" style="display:none;" disabled>
-                            <i class="fas fa-desktop"></i>
-                            <span>Start Screen Share</span>
-                        </button>
-                        <button id="toggleTheatreBtn" class="btn-primary w-full max-w-xs" style="display:none;">
-                            <i class="fas fa-guitar"></i>
-                            <span class="text-sm">Start Performance</span>
-                        </button>
-                         <button id="raiseHandBtn" class="raise-hand-btn flex-1" style="display:none;">
-                             <i class="fas fa-hand-paper"></i>
-                             <span class="text-sm">Raise Hand</span>
-                         </button>
-                    </div>
-                    <a id="downloadRecording" style="display: none;"></a>
+        
+        <!-- Device Selection (hidden initially) -->
+        <div id="deviceSelection" class="md:col-span-3 hidden flex flex-col items-center justify-center p-8 bg-[#32302f] rounded-lg shadow-xl">
+            <h2 class="text-2xl font-bold font-['Crimson_Pro'] mb-4">Select Devices</h2>
+            <div class="w-full max-w-sm space-y-4">
+                <div>
+                    <label for="cameraSelect" class="block text-sm font-semibold mb-2">Camera</label>
+                    <select id="cameraSelect" class="input-field"></select>
+                </div>
+                <div>
+                    <label for="micSelect" class="block text-sm font-semibold mb-2">Microphone</label>
+                    <select id="micSelect" class="input-field"></select>
                 </div>
             </div>
+            <button id="startCallBtn" class="btn-primary max-w-xs w-full mt-6">Continue</button>
+        </div>
 
-            <!-- Room Management & Participants -->
-            <div class="space-y-6 management-section">
+        <!-- Main App Content (hidden initially) -->
+        <div id="mainApp" class="md:col-span-3 hidden grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Room Management & Chat (now on the left) -->
+            <div class="md:col-span-1 space-y-8">
                 <div class="container-card">
-                    <h2 class="text-xl font-bold mb-4">Room Management</h2>
+                    <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Room Management</h2>
                     <div class="flex flex-col space-y-4">
                         <div class="flex space-x-2">
                             <input type="text" id="roomIdInput" placeholder="Enter Room ID" class="input-field flex-1" />
-                            <button id="joinRoomBtn" class="btn-primary" disabled>Join</button>
+                            <button id="joinRoomBtn" class="btn-primary">Join</button>
                         </div>
-                        <button id="createRoomBtn" class="btn-primary" disabled>Create New Room</button>
+                        <button id="createRoomBtn" class="btn-primary">Create New Room</button>
+                        <button id="deleteAllRoomsBtn" class="btn-danger">Delete All Rooms</button>
+                    </div>
+                </div>
+    
+                <div class="container-card">
+                    <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Active Rooms</h2>
+                    <div id="activeRoomsList" class="space-y-2">
+                        <p class="text-gray-500 text-sm">Loading rooms...</p>
                     </div>
                 </div>
                 
-                <div class="container-card">
-                    <h2 class="text-xl font-bold mb-4 flex justify-between items-center">
-                        Active Rooms
-                        <button id="cleanupBtn" class="text-sm font-normal text-red-500 hover:text-red-700 transition duration-200" disabled>
-                            Delete Inactive
-                        </button>
-                    </h2>
-                    <div id="activeRoomsList" class="space-y-2 text-sm text-gray-400">
-                        <p class="text-center text-gray-400 p-4">Loading rooms...</p>
-                    </div>
+                <div id="waitingRoomList" class="container-card hidden">
+                    <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Waiting Room</h2>
+                    <p class="text-gray-400 text-sm">No one is waiting.</p>
+                </div>
+                
+                <div id="whiteboard-host-controls" class="container-card hidden">
+                    <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Whiteboard</h2>
+                    <button id="toggleWhiteboardBtn" class="btn-primary w-full">Start Whiteboard</button>
                 </div>
 
                 <div class="container-card" id="participantsList" style="display: none;">
-                    <h2 class="text-xl font-bold mb-4 flex justify-between items-center">
-                        Participants
-                        <button id="muteAllBtn" class="text-sm font-normal text-gray-500 hover:text-gray-400 transition duration-200" style="display: none;">
-                            Mute All
-                        </button>
-                    </h2>
-                    <div id="participantsContainer" class="space-y-2">
-                        <p class="text-gray-500 text-sm">No other participants.</p>
+                    <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2>
+                    <p class="text-gray-400 text-sm">No other participants.</p>
+                </div>
+    
+                <div class="container-card">
+                    <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
+                    <div class="chat-container mb-4" id="chatContainer"></div>
+                    <div class="flex space-x-2">
+                        <input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" />
+                        <button id="sendChatBtn" class="btn-primary">Send</button>
                     </div>
-                    <div id="raisedHandsContainer" style="display: none;" class="mt-4">
-                        <h3 class="text-lg font-bold mb-2">Raised Hands</h3>
-                        <div id="raisedHandsList" class="space-y-1"></div>
-                    </div>
+                </div>
+                
+                <div id="file-sharing" class="container-card">
+                    <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Share Files</h2>
+                    <input type="file" id="fileInput" class="hidden" />
+                    <button id="uploadFileBtn" class="btn-primary w-full">Upload File</button>
+                    <p id="fileNameDisplay" class="text-xs text-gray-400 mt-2"></p>
                 </div>
             </div>
 
-            <!-- Chat Section -->
-            <div class="space-y-6 chat-section">
-                <div class="container-card h-full flex flex-col">
-                    <h2 class="text-xl font-bold mb-4">Chat</h2>
-                    <div class="chat-container flex-1 mb-4" id="chatContainer"></div>
-                    <div class="flex flex-col space-y-2">
-                        <input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" disabled/>
-                        <div class="flex space-x-2">
-                            <button id="sendChatBtn" class="btn-primary flex-1" disabled>
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
-                    </div>
+            <!-- Video and Controls (now on the right) -->
+            <div class="md:col-span-2 container-card">
+                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feeds</h2>
+                <div id="videoFeeds" class="video-grid">
+                    <!-- Dynamic video elements will be added here -->
+                </div>
+                <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 items-center justify-center mt-4">
+                    <button id="toggleAudioBtn" class="btn-toggle" disabled><i class="fas fa-microphone"></i> Mute Audio</button>
+                    <button id="toggleVideoBtn" class="btn-toggle" disabled><i class="fas fa-video"></i> Mute Video</button>
+                    <button id="screenShareBtn" class="btn-toggle" disabled><i class="fas fa-desktop"></i> Share Screen</button>
+                    <button id="hangupBtn" class="btn-danger flex-1" disabled>Hang Up</button>
+                    <button id="startRecordingBtn" class="btn-primary" disabled>Start Recording</button>
+                    <button id="raiseHandBtn" class="btn-primary hidden">Raise Hand</button>
+                    <button id="resetLayoutBtn" class="btn-primary hidden">Reset Layout</button>
                 </div>
             </div>
         </div>
     </main>
+    <canvas id="whiteboardCanvas" class="hidden absolute top-0 left-0 w-full h-full z-20"></canvas>
+    <div id="whiteboard-tools" class="hidden fixed bottom-4 right-4 z-30">
+        <button id="whiteboardClearBtn" class="btn-danger p-3"><i class="fas fa-trash"></i></button>
+        <input type="color" id="whiteboardColorPicker" value="#ebdbb2" class="p-0 border-0 bg-transparent cursor-pointer h-10 w-10">
+        <select id="whiteboardLineSize" class="bg-gray-700 text-ebdbb2 p-2 rounded-sm text-sm">
+            <option value="2">2px</option>
+            <option value="5">5px</option>
+            <option value="10">10px</option>
+        </select>
+    </div>
+    <canvas id="recordingCanvas" style="display:none;"></canvas>
+    <div id="documentViewer" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn" id="closeDocumentViewer">&times;</span>
+            <div id="documentViewerContent" class="mt-4" style="width:100%; height:80vh;"></div>
+        </div>
+    </div>
+    <div id="status-message" class="fixed bottom-4 left-1/2 -translate-x-1/2 p-4 rounded-lg text-sm text-center text-gray-700 bg-gray-100 hidden"></div>
+    <a id="downloadRecording" style="display: none;"></a>
 
-    <div id="status-message" class="status-popup hidden"></div>
+    <!-- Confirmation Modal -->
+    <div id="confirmationModal" class="modal hidden">
+        <div class="modal-content text-center">
+            <h3 class="text-xl font-bold mb-4">Confirm Deletion</h3>
+            <p class="mb-6">Are you sure you want to delete all active and inactive rooms? This action cannot be undone.</p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirmDeleteBtn" class="btn-danger">Delete All</button>
+                <button id="cancelDeleteBtn" class="btn-toggle">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Font Awesome Icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
 
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, setLogLevel, serverTimestamp, arrayRemove, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, setLogLevel, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // User's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
+            authDomain: "video-meeting-e73eb.firebaseapp.com",
+            projectId: "video-meeting-e73eb",
+            storageBucket: "video-meeting-e73eb.firebasestorage.app",
+            messagingSenderId: "80496795033",
+            appId: "1:80496795033:web:3ac35c631d76301f77c708",
+            measurementId: "G-SFPQ0PJRPG"
+        };
         
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.appId;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
         // UI Elements
-        const usernameModal = document.getElementById('usernameModal');
+        const usernamePrompt = document.getElementById('usernamePrompt');
         const mainApp = document.getElementById('mainApp');
         const usernameInput = document.getElementById('usernameInput');
         const submitUsernameBtn = document.getElementById('submitUsernameBtn');
-        const cleanupBtn = document.getElementById('cleanupBtn');
-        const toggleTheatreBtn = document.getElementById('toggleTheatreBtn');
-        const toggleScreenShareBtn = document.getElementById('toggleScreenShareBtn');
-        const muteAllBtn = document.getElementById('muteAllBtn');
-        const raiseHandBtn = document.getElementById('raiseHandBtn');
-        const raisedHandsContainer = document.getElementById('raisedHandsContainer');
-        const raisedHandsList = document.getElementById('raisedHandsList');
-
-        const localVideo = document.getElementById('localVideo');
-        const remoteVideo = document.getElementById('remoteVideo');
-        const screenShareVideo = document.getElementById('screenShareVideo');
+        const deviceSelection = document.getElementById('deviceSelection');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const micSelect = document.getElementById('micSelect');
+        const startCallBtn = document.getElementById('startCallBtn');
+        
+        const videoFeeds = document.getElementById('videoFeeds');
         const roomIdInput = document.getElementById('roomIdInput');
         const createRoomBtn = document.getElementById('createRoomBtn');
         const joinRoomBtn = document.getElementById('joinRoomBtn');
         const hangupBtn = document.getElementById('hangupBtn');
         const toggleAudioBtn = document.getElementById('toggleAudioBtn');
         const toggleVideoBtn = document.getElementById('toggleVideoBtn');
+        const screenShareBtn = document.getElementById('screenShareBtn');
         const startRecordingBtn = document.getElementById('startRecordingBtn');
-        const stopRecordingBtn = document.getElementById('stopRecordingBtn');
+        const recordingIndicator = document.getElementById('recording-indicator');
+        const downloadRecording = document.getElementById('downloadRecording');
         const chatInput = document.getElementById('chatInput');
         const sendChatBtn = document.getElementById('sendChatBtn');
         const chatContainer = document.getElementById('chatContainer');
@@ -403,35 +375,70 @@
         const authStatus = document.getElementById('auth-status');
         const activeRoomsList = document.getElementById('activeRoomsList');
         const participantsList = document.getElementById('participantsList');
-        const participantsContainer = document.getElementById('participantsContainer');
+        const waitingRoomList = document.getElementById('waitingRoomList');
+        const whiteboardCanvas = document.getElementById('whiteboardCanvas');
+        const whiteboardHostControls = document.getElementById('whiteboard-host-controls');
+        const toggleWhiteboardBtn = document.getElementById('toggleWhiteboardBtn');
+        const raiseHandBtn = document.getElementById('raiseHandBtn');
+        const fileInput = document.getElementById('fileInput');
+        const uploadFileBtn = document.getElementById('uploadFileBtn');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const documentViewer = document.getElementById('documentViewer');
+        const closeDocumentViewerBtn = document.getElementById('closeDocumentViewer');
+        const documentViewerContent = document.getElementById('documentViewerContent');
+        const recordingCanvas = document.getElementById('recordingCanvas');
+        const canvasCtx = recordingCanvas.getContext('2d');
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const whiteboardTools = document.getElementById('whiteboard-tools');
+        const whiteboardColorPicker = document.getElementById('whiteboardColorPicker');
+        const whiteboardLineSize = document.getElementById('whiteboardLineSize');
+        const whiteboardClearBtn = document.getElementById('whiteboardClearBtn');
+        const resetLayoutBtn = document.getElementById('resetLayoutBtn');
+        const deleteAllRoomsBtn = document.getElementById('deleteAllRoomsBtn');
+        const confirmationModal = document.getElementById('confirmationModal');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
 
         // Firestore and Auth instances
-        let app, db, auth;
-        let userId = null;
-        let isAuthReady = false;
+        let app, db, auth, storage;
+        let userId;
 
         // User-specific variables
-        let username = null;
+        let username;
         let isCreator = false;
+        let isRecording = false;
         let isHandRaised = false;
+
+        // WebRTC variables
+        let peerConnections = {}; 
         let localStream = null;
         let screenShareStream = null;
-        let peerConnection = null;
         let roomRef = null;
-        let isAudioMuted = false;
-        let isVideoOff = false;
-        let isScreenSharing = false;
+        let roomSnapshotListener = null;
+        let roomsListener = null;
+        let participantsListener = null;
+        let userStatusListener = null;
+        let whiteboardListener = null;
+        let documentShareListener = null;
+        let remoteMuteListener = null;
+        let activeSpeakerId = null;
+        let remoteStreams = {};
 
-        // Active speaker variables
-        let activeSpeakerCheckInterval;
-        let audioLevelThreshold = 0.05;
-        let audioActiveTimeout = null;
-        
         // Recording variables
         let mediaRecorder;
         let recordedChunks = [];
+        let drawingInterval;
 
-        // WebRTC variables
+        // Whiteboard variables
+        let isWhiteboardActive = false;
+        let whiteboardCtx;
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let currentWhiteboardColor = '#ebdbb2';
+        let currentWhiteboardSize = 2;
+
+        // WebRTC STUN servers
         const configuration = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -439,227 +446,249 @@
             ]
         };
 
-        // Firestore listeners
-        let roomSnapshotListener = null;
-        let candidatesListener = null;
-        let chatListener = null;
-        let roomsListener = null;
-        let participantsListener = null;
-
-        const showStatus = (msg, isError = false) => {
+        const showMessage = (msg, isError = false) => {
             statusMessage.textContent = msg;
-            statusMessage.classList.remove('hidden', 'success', 'error');
-            if (isError) {
-                statusMessage.classList.add('error');
-            } else {
-                statusMessage.classList.add('success');
-            }
-            setTimeout(() => {
-                statusMessage.classList.add('hidden');
-            }, 3000);
+            statusMessage.style.display = 'block';
+            statusMessage.className = `fixed bottom-4 left-1/2 -translate-x-1/2 p-4 rounded-lg text-sm text-center transition-all duration-300 transform animate-fade-in ${isError ? 'text-red-700 bg-red-100' : 'text-gray-700 bg-gray-100'}`;
         };
-        
-        const toggleMainAppButtons = (enabled) => {
-            createRoomBtn.disabled = !enabled;
-            joinRoomBtn.disabled = !enabled;
-            cleanupBtn.disabled = !enabled;
-            chatInput.disabled = !enabled;
-            sendChatBtn.disabled = !enabled;
-        }
 
-        const initFirebase = async () => {
+        const hideMessage = () => {
+            statusMessage.style.display = 'none';
+        };
+
+        const updateButtonState = () => {
+            if (localStream && localStream.getAudioTracks().length > 0) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                const isAudioMuted = !audioTrack.enabled;
+                toggleAudioBtn.textContent = isAudioMuted ? "Unmute Audio" : "Mute Audio";
+                toggleAudioBtn.classList.toggle('btn-toggle-active', !isAudioMuted);
+            }
+            toggleAudioBtn.disabled = !localStream;
+
+            if (localStream && localStream.getVideoTracks().length > 0) {
+                const videoTrack = localStream.getVideoTracks()[0];
+                const isVideoOff = !videoTrack.enabled;
+                toggleVideoBtn.textContent = isVideoOff ? "Turn On Video" : "Mute Video";
+                toggleVideoBtn.classList.toggle('btn-toggle-active', !isVideoOff);
+            }
+            toggleVideoBtn.disabled = !localStream;
+            screenShareBtn.disabled = !localStream;
+            startRecordingBtn.disabled = !localStream || !isCreator;
+        };
+
+        const getDevices = async () => {
             try {
-                if (Object.keys(firebaseConfig).length > 0) {
-                    app = initializeApp(firebaseConfig);
-                    db = getFirestore(app);
-                    auth = getAuth(app);
-                    setLogLevel('debug');
-                } else {
-                    showStatus("Firebase config is missing.", true);
-                    return;
-                }
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                cameraSelect.innerHTML = '';
+                micSelect.innerHTML = '';
+
+                let hasCameras = false;
+                let hasMics = false;
                 
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        isAuthReady = true;
-                        authStatus.textContent = `User: ${userId.substring(0, 8)}...`;
-                        listenForRooms();
-                        
-                        if (username) {
-                            showMainAppUI();
-                        }
-                    } else {
-                        try {
-                            if (initialAuthToken) {
-                                await signInWithCustomToken(auth, initialAuthToken);
-                            } else {
-                                await signInAnonymously(auth);
-                            }
-                        } catch (error) {
-                            console.error("Firebase Auth Error:", error);
-                            showStatus("Authentication failed.", true);
-                        }
+                devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.textContent = device.label || `${device.kind === 'videoinput' ? 'Camera' : 'Microphone'} ${device.deviceId.substring(0, 5)}...`;
+                    if (device.kind === 'videoinput') {
+                        cameraSelect.appendChild(option);
+                        hasCameras = true;
+                    } else if (device.kind === 'audioinput') {
+                        micSelect.appendChild(option);
+                        hasMics = true;
                     }
                 });
+
+                if (!hasCameras) {
+                    cameraSelect.innerHTML = '<option>No cameras found</option>';
+                    cameraSelect.disabled = true;
+                }
+                if (!hasMics) {
+                    micSelect.innerHTML = '<option>No microphones found</option>';
+                    micSelect.disabled = true;
+                }
             } catch (error) {
-                console.error("Firebase Initialization Error:", error);
-                showStatus(`Firebase initialization failed: ${error.message}`, true);
+                console.error("Error getting devices:", error);
+                showMessage("Could not access devices. Please check permissions.", true);
             }
         };
-
-        const showMainAppUI = () => {
-            usernameModal.classList.add('hidden');
-            mainApp.classList.remove('hidden');
-            toggleMainAppButtons(true);
-        }
 
         const getLocalStream = async () => {
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                localVideo.srcObject = localStream;
-                localVideo.muted = true;
-                isAudioMuted = !localStream.getAudioTracks()[0]?.enabled;
-                isVideoOff = !localStream.getVideoTracks()[0]?.enabled;
-                updateButtonState();
+                const videoDeviceId = cameraSelect.value;
+                const audioDeviceId = micSelect.value;
+                const constraints = {
+                    video: videoDeviceId ? { deviceId: { exact: videoDeviceId } } : false,
+                    audio: audioDeviceId ? { deviceId: { exact: audioDeviceId } } : false
+                };
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
                 return localStream;
             } catch (error) {
                 console.error("Error getting user media:", error);
-                if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-                    showStatus("Access to camera/microphone was denied. Please grant permissions.", true);
-                } else {
-                    showStatus("Could not access camera and microphone.", true);
-                }
+                showMessage("Could not access camera/microphone. Permissions may have been denied.", true);
                 return null;
             }
         };
 
-        const updateButtonState = () => {
-            if (localStream) {
-                toggleAudioBtn.disabled = false;
-                toggleVideoBtn.disabled = false;
-                if (isAudioMuted) {
-                    toggleAudioBtn.innerHTML = '<i class="fas fa-microphone-slash"></i> <span class="text-sm">Unmute Audio</span>';
-                    toggleAudioBtn.classList.remove('btn-toggle-active');
-                } else {
-                    toggleAudioBtn.innerHTML = '<i class="fas fa-microphone"></i> <span class="text-sm">Mute Audio</span>';
-                    toggleAudioBtn.classList.add('btn-toggle-active');
-                }
-                if (isVideoOff) {
-                    toggleVideoBtn.innerHTML = '<i class="fas fa-video-slash"></i> <span class="text-sm">Turn On Video</span>';
-                    toggleVideoBtn.classList.remove('btn-toggle-active');
-                } else {
-                    toggleVideoBtn.innerHTML = '<i class="fas fa-video"></i> <span class="text-sm">Mute Video</span>';
-                    toggleVideoBtn.classList.add('btn-toggle-active');
-                }
-            } else {
-                toggleAudioBtn.disabled = true;
-                toggleVideoBtn.disabled = true;
-            }
-        };
+        const initFirebase = async () => {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                storage = getStorage(app);
+                auth = getAuth(app);
+                setLogLevel('debug');
 
-        const setupPeerConnection = () => {
-            peerConnection = new RTCPeerConnection(configuration);
-
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    const candidatesCollection = collection(roomRef, 'candidates');
-                    addDoc(candidatesCollection, { candidate: JSON.stringify(event.candidate.toJSON()), sender: userId });
-                }
-            };
-
-            peerConnection.ontrack = (event) => {
-                if (event.track.kind === 'video') {
-                    if (event.track.label === 'screen-share') {
-                        screenShareVideo.srcObject = event.streams[0];
-                        screenShareVideo.style.display = 'block';
-                        remoteVideo.style.display = 'none';
-                    } else {
-                        remoteVideo.srcObject = event.streams[0];
-                        screenShareVideo.style.display = 'none';
-                        remoteVideo.style.display = 'block';
-                    }
-                }
-                startRecordingBtn.disabled = false;
-                
-                if (event.track.kind === 'audio') {
-                    startActiveSpeakerDetection();
-                }
-            };
-        };
-
-        const startActiveSpeakerDetection = () => {
-            if (activeSpeakerCheckInterval) {
-                clearInterval(activeSpeakerCheckInterval);
-            }
-            if (audioActiveTimeout) {
-                clearTimeout(audioActiveTimeout);
-            }
-
-            activeSpeakerCheckInterval = setInterval(async () => {
                 try {
-                    const senders = peerConnection.getSenders();
-                    let localActive = false;
-                    for (const sender of senders) {
-                        const track = sender.track;
-                        if (track && track.kind === 'audio') {
-                            const stats = await sender.getStats();
-                            stats.forEach(report => {
-                                if (report.type === 'outbound-rtp' && report.audioLevel > audioLevelThreshold) {
-                                    localActive = true;
-                                }
-                            });
-                        }
-                    }
-
-                    if (localActive) {
-                        await updateDoc(roomRef, { activeSpeaker: userId });
+                    // Try to sign in with the custom token if it exists
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        throw new Error("No custom token provided.");
                     }
                 } catch (error) {
-                    console.error("Error getting local audio stats:", error);
+                    // If custom token fails or is not present, fall back to anonymous sign-in
+                    console.error("Custom token failed:", error);
+                    console.log("Falling back to anonymous sign-in.");
+                    await signInAnonymously(auth);
                 }
-            }, 500);
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        authStatus.textContent = `User ID: ${userId}`;
+                        createRoomBtn.disabled = false;
+                        joinRoomBtn.disabled = false;
+                        listenForRooms();
+                    } else {
+                        // This case should not be reached with the new flow unless sign-in fails entirely
+                        authStatus.textContent = 'Authentication failed.';
+                        showMessage('Authentication failed. Please reload the page.', true);
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                showMessage(`Firebase initialization failed: ${error.message}`, true);
+            }
         };
 
-        const updateActiveSpeakerUI = (activeSpeakerId) => {
-            const remoteVideoContainer = remoteVideo.parentElement;
+        const setupPeerConnection = (targetUserId) => {
+            const peerConnection = new RTCPeerConnection(configuration);
+
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            peerConnection.onicecandidate = async (event) => {
+                if (event.candidate) {
+                    const candidatesCollectionRef = collection(roomRef, `candidates-${targetUserId}`);
+                    await addDoc(candidatesCollectionRef, { candidate: JSON.stringify(event.candidate.toJSON()), sender: userId });
+                }
+            };
             
-            if (activeSpeakerId && activeSpeakerId !== userId) {
-                remoteVideoContainer.classList.add('active-speaker-border');
-            } else {
-                remoteVideoContainer.classList.remove('active-speaker-border');
+            peerConnection.ontrack = (event) => {
+                const videoElement = document.getElementById(`video-${targetUserId}`);
+                if (videoElement) {
+                    videoElement.srcObject = event.streams[0];
+                    remoteStreams[targetUserId] = event.streams[0];
+                    if (event.streams[0].getAudioTracks().length > 0) {
+                        setupAudioDetection(event.streams[0], targetUserId);
+                    }
+                }
+            };
+            
+            peerConnections[targetUserId] = peerConnection;
+            return peerConnection;
+        };
+
+        const setupAudioDetection = (stream, id) => {
+            const source = audioCtx.createMediaStreamSource(stream);
+            const analyser = audioCtx.createAnalyser();
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            source.connect(analyser);
+
+            const checkVolume = () => {
+                analyser.getByteFrequencyData(dataArray);
+                const average = dataArray.reduce((acc, val) => acc + val, 0) / dataArray.length;
+                const isSpeaking = average > 40; 
+
+                const videoContainer = document.getElementById(`video-container-${id}`);
+                if (videoContainer) {
+                    videoContainer.classList.toggle('speaking', isSpeaking);
+                }
+                
+                if (isSpeaking && id !== activeSpeakerId) {
+                    activeSpeakerId = id;
+                } else if (!isSpeaking && id === activeSpeakerId) {
+                    const activeStreams = Object.keys(remoteStreams).filter(k => k !== userId).map(k => remoteStreams[k]);
+                    const newSpeaker = activeStreams.find(s => {
+                         const analyser = audioCtx.createAnalyser();
+                         const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                         audioCtx.createMediaStreamSource(s).connect(analyser);
+                         analyser.getByteFrequencyData(dataArray);
+                         const avg = dataArray.reduce((acc, val) => acc + val, 0) / dataArray.length;
+                         return avg > 40;
+                    });
+                    activeSpeakerId = newSpeaker ? Object.keys(remoteStreams).find(k => remoteStreams[k] === newSpeaker) : null;
+                }
+
+                if (stream.active) {
+                    requestAnimationFrame(checkVolume);
+                }
+            };
+            requestAnimationFrame(checkVolume);
+        };
+        
+        const createVideoElement = (id, label) => {
+            const videoContainer = document.createElement('div');
+            videoContainer.className = 'video-grid-item';
+            videoContainer.id = `video-container-${id}`;
+            
+            const video = document.createElement('video');
+            video.id = `video-${id}`;
+            video.autoplay = true;
+            video.playsinline = true;
+            if (id === userId) {
+                video.muted = true;
             }
+
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'video-label';
+            labelDiv.textContent = label;
+            
+            const statusIcons = document.createElement('div');
+            statusIcons.className = 'video-status-icons';
+            statusIcons.innerHTML = `
+                <i id="audio-icon-${id}" class="fas fa-microphone"></i>
+                <i id="video-icon-${id}" class="fas fa-video"></i>
+                <i id="hand-icon-${id}" class="fas fa-hand-paper hidden"></i>
+            `;
+
+            videoContainer.appendChild(video);
+            videoContainer.appendChild(labelDiv);
+            videoContainer.appendChild(statusIcons);
+            videoFeeds.appendChild(videoContainer);
         };
 
         const listenForRooms = () => {
-            if (roomsListener) roomsListener();
+            if (roomsListener) {
+                roomsListener();
+            }
             const roomsCollectionRef = collection(db, `artifacts/${appId}/public/data/video-rooms`);
             roomsListener = onSnapshot(roomsCollectionRef, (snapshot) => {
                 activeRoomsList.innerHTML = '';
                 if (snapshot.empty) {
-                    activeRoomsList.innerHTML = '<p class="text-center text-gray-400 p-4">No active rooms.</p>';
+                    activeRoomsList.innerHTML = '<p class="text-gray-500 text-sm">No active rooms.</p>';
                 } else {
                     snapshot.forEach(doc => {
                         const roomData = doc.data();
                         const roomName = doc.id;
                         const roomDiv = document.createElement('div');
-                        const participantCount = Object.values(roomData.participants || {}).filter(p => p !== null).length;
-                        roomDiv.className = 'list-item flex flex-col sm:flex-row items-start sm:items-center justify-between';
-                        const timeAgo = calculateTimeAgo(roomData.createdAt?.toDate());
-
+                        roomDiv.className = 'flex items-center justify-between p-2 bg-[#3c3836] rounded-sm hover:bg-[#504945] transition duration-150 cursor-pointer';
                         roomDiv.innerHTML = `
-                            <div class="flex flex-col mb-2 sm:mb-0">
-                                <span class="font-semibold text-[#ebdbb2]">${roomName}</span>
-                                <span class="text-xs text-gray-400">
-                                    Created by: ${roomData.createdByUsername} • ${timeAgo}
-                                </span>
+                            <div class="flex flex-col">
+                                <span class="font-semibold">${roomName}</span>
+                                <span class="text-xs text-gray-400">Created by: ${roomData.createdByUsername}</span>
                             </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="text-sm text-gray-400 flex items-center">
-                                    <i class="fas fa-user-circle mr-1"></i> ${participantCount}
-                                </span>
-                                <button data-room-id="${roomName}" class="join-room-btn px-4 py-2 text-sm rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors">Join</button>
-                            </div>
+                            <button data-room-id="${roomName}" class="join-room-btn px-3 py-1 text-sm rounded-sm bg-blue-600 text-white hover:bg-blue-700">Join</button>
                         `;
                         activeRoomsList.appendChild(roomDiv);
                     });
@@ -674,96 +703,128 @@
         };
 
         const createRoom = async () => {
-            if (!userId) {
-                showStatus("Authentication in progress. Please wait.", true);
-                return;
-            }
-
             isCreator = true;
-            participantsList.style.display = 'block';
-            toggleTheatreBtn.style.display = 'block';
-            toggleScreenShareBtn.style.display = 'inline-flex';
-            muteAllBtn.style.display = 'block';
             
             const roomName = `room-${Math.random().toString(36).substring(2, 9)}`;
             roomIdInput.value = roomName;
             roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomName);
 
-            showStatus("Creating room...");
+            showMessage("Creating room...");
 
-            const stream = await getLocalStream();
-            if (!stream) return;
+            createVideoElement(userId, username);
+            const localVideoElement = document.getElementById(`video-${userId}`);
+            localVideoElement.srcObject = localStream;
+            hangupBtn.disabled = false;
+            startRecordingBtn.disabled = false;
+            whiteboardHostControls.classList.remove('hidden');
+            raiseHandBtn.classList.add('hidden');
+            resetLayoutBtn.classList.remove('hidden');
+            whiteboardTools.classList.remove('hidden');
 
-            setupPeerConnection();
-            stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
-
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-
+            if (localStream.getAudioTracks().length > 0) {
+                setupAudioDetection(localStream, userId);
+            }
+            
             await setDoc(roomRef, { 
-                offer: { sdp: offer.sdp, type: offer.type }, 
-                createdAt: serverTimestamp(),
-                lastActive: serverTimestamp(),
                 createdBy: userId, 
                 createdByUsername: username,
                 participants: { [userId]: username },
-                theatreMode: false,
-                isScreenSharing: false,
-                activeSpeaker: null,
-                mutedParticipants: [],
-                raisedHands: []
+                status: { [userId]: { isMuted: false, isCamOff: false, isHandRaised: false } },
+                whiteboard: { isActive: false, data: [] },
+                sharedFiles: {},
+                waiting: {},
+                spotlightedUser: null
             });
 
             roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
                 const data = snapshot.data();
                 if (!snapshot.exists()) {
                     hangup();
-                    showStatus("Room closed by host.", false);
+                    showMessage("Room closed by host.", false);
                     return;
                 }
-                if (data && data.answer && !peerConnection.currentRemoteDescription) {
-                    const answer = new RTCSessionDescription(data.answer);
-                    await peerConnection.setRemoteDescription(answer);
-                }
-                if (isCreator) {
-                    await updateDoc(roomRef, { lastActive: serverTimestamp() });
-                }
-                updateTheatreMode(data);
-                updateScreenShareMode(data);
-                updateActiveSpeakerUI(data.activeSpeaker);
-                updateMutedStatus(data.mutedParticipants);
-                updateRaisedHands(data.raisedHands);
-            });
+                const newParticipants = data.participants;
+                const spotlightedUser = data.spotlightedUser;
+                const currentParticipants = Array.from(videoFeeds.children).map(el => el.id.replace('video-container-', '')).filter(id => id !== 'undefined');
 
-            candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
+                // Remove participants who have left
+                currentParticipants.forEach(id => {
+                    if (!newParticipants[id]) {
+                        const videoContainer = document.getElementById(`video-container-${id}`);
+                        if (videoContainer) videoContainer.remove();
+                        if (peerConnections[id]) peerConnections[id].close();
+                        delete peerConnections[id];
+                        delete remoteStreams[id];
+                    }
+                });
+
+                // Add new participants
+                for (const participantId in newParticipants) {
+                    if (participantId === userId || peerConnections[participantId] || document.getElementById(`video-container-${participantId}`)) continue;
+
+                    const peerConnection = setupPeerConnection(participantId);
+                    const offer = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offer);
+
+                    const offersRef = collection(roomRef, 'offers');
+                    await setDoc(doc(offersRef, participantId), { offer: { sdp: offer.sdp, type: offer.type }, from: userId });
+                    
+                    createVideoElement(participantId, newParticipants[participantId]);
+                    
+                    onSnapshot(doc(roomRef, 'answers', participantId), async (snapshot) => {
+                         const answerData = snapshot.data();
+                         if (answerData && answerData.answer && !peerConnection.currentRemoteDescription) {
+                             await peerConnection.setRemoteDescription(new RTCSessionDescription(answerData.answer));
+                         }
+                    });
+                }
+                updateParticipantsList(newParticipants);
+                updateWaitingRoom(data.waiting);
+                updateLayout(spotlightedUser);
+            });
+            
+            const offersRef = collection(roomRef, 'offers');
+            onSnapshot(offersRef, async (snapshot) => {
                 snapshot.docChanges().forEach(async (change) => {
-                    if (change.type === "added") {
-                        const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
-                        await peerConnection.addIceCandidate(candidate);
+                    if (change.type === 'added' && change.doc.id !== userId) {
+                        const offerData = change.doc.data();
+                        const peerConnection = setupPeerConnection(offerData.from);
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(offerData.offer));
+                        const answer = await peerConnection.createAnswer();
+                        await peerConnection.setLocalDescription(answer);
+                        const answersRef = collection(roomRef, 'answers');
+                        await setDoc(doc(answersRef, offerData.from), { answer: { sdp: answer.sdp, type: answer.type }, from: userId });
                     }
                 });
             });
 
-            listenForParticipants();
-            listenForChat(roomRef);
+            const answersRef = collection(roomRef, 'answers');
+            onSnapshot(answersRef, async (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    if (change.type === 'added' && change.doc.id === userId) {
+                        const answerData = change.doc.data();
+                        const peerConnection = peerConnections[answerData.from];
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(answerData.answer));
+                    }
+                });
+            });
 
-            showStatus(`Room created! Share this ID: ${roomName}`);
-            toggleMainAppButtons(false);
+            listenForUserStatus();
+            listenForChat(roomRef);
+            listenForWhiteboard();
+            listenForDocumentShares();
+
+            showMessage(`Room created! Share ID: ${roomName}`);
+            createRoomBtn.disabled = true;
+            joinRoomBtn.disabled = true;
             hangupBtn.disabled = false;
-            chatInput.disabled = false;
             sendChatBtn.disabled = false;
-            raiseHandBtn.style.display = 'none';
         };
 
         const joinRoom = async () => {
-            if (!userId) {
-                showStatus("Authentication in progress. Please wait.", true);
-                return;
-            }
-
-            const roomId = roomIdInput.value.trim();
+            const roomId = roomIdInput.value;
             if (!roomId) {
-                showStatus("Please enter a Room ID.", true);
+                showMessage("Please enter a Room ID.", true);
                 return;
             }
 
@@ -771,166 +832,214 @@
             const roomSnapshot = await getDoc(roomRef);
 
             if (!roomSnapshot.exists()) {
-                showStatus("Room does not exist.", true);
+                showMessage("Room does not exist.", true);
                 return;
             }
             
-            showStatus(`Joining room: ${roomId}`);
+            const roomData = roomSnapshot.data();
+            const hostId = roomData.createdBy;
 
             const stream = await getLocalStream();
             if (!stream) return;
-
-            setupPeerConnection();
-            stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
-
-            const offer = roomSnapshot.data().offer;
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-
-            await updateDoc(roomRef, { 
-                answer: { sdp: answer.sdp, type: answer.type },
-                [`participants.${userId}`]: username,
-                lastActive: serverTimestamp()
-            });
-
-            candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
-                snapshot.docChanges().forEach(async (change) => {
-                    if (change.type === "added") {
-                        const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
-                        await peerConnection.addIceCandidate(candidate);
-                    }
-                });
-            });
             
-            roomSnapshotListener = onSnapshot(roomRef, (snapshot) => {
+            await updateDoc(roomRef, { [`waiting.${userId}`]: username });
+            showMessage("You are in the waiting room. Please wait for the host to admit you.");
+            document.getElementById('mainApp').classList.add('hidden');
+
+            const waitingListener = onSnapshot(roomRef, async (snapshot) => {
                 const data = snapshot.data();
-                updateTheatreMode(data);
-                updateScreenShareMode(data);
-                updateActiveSpeakerUI(data.activeSpeaker);
-                updateMutedStatus(data.mutedParticipants);
-                updateRaisedHands(data.raisedHands);
+                if (data.participants[userId]) {
+                    waitingListener();
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    
+                    createVideoElement(userId, username);
+                    const localVideoElement = document.getElementById(`video-${userId}`);
+                    localVideoElement.srcObject = localStream;
+                    
+                    const peerConnection = setupPeerConnection(hostId);
+                    const offerRef = doc(roomRef, 'offers', userId);
+                    const answerRef = doc(roomRef, 'answers', userId);
+                    
+                    await setDoc(offerRef, { offer: null, from: userId, to: hostId });
+
+                    onSnapshot(doc(roomRef, 'answers', userId), async (snapshot) => {
+                        const answerData = snapshot.data();
+                        if (answerData && answerData.answer && !peerConnection.currentRemoteDescription) {
+                            await peerConnection.setRemoteDescription(new RTCSessionDescription(answerData.answer));
+                        }
+                    });
+
+                    await updateDoc(roomRef, { [`status.${userId}`]: { isMuted: false, isCamOff: false, isHandRaised: false } });
+
+                    listenForUserStatus();
+                    listenForParticipants();
+                    listenForChat(roomRef);
+                    listenForWhiteboard();
+                    listenForDocumentShares();
+                    raiseHandBtn.classList.remove('hidden');
+                    whiteboardTools.classList.remove('hidden');
+
+                    showMessage(`Successfully joined room ${roomId}!`);
+                    createRoomBtn.disabled = true;
+                    joinRoomBtn.disabled = true;
+                    hangupBtn.disabled = false;
+                    sendChatBtn.disabled = false;
+                } else if (data.waiting[userId] === null) {
+                    waitingListener();
+                    showMessage("You were denied entry by the host.", true);
+                    hangup();
+                }
             });
-
-            listenForChat(roomRef);
-            listenForParticipants();
-
-            showStatus(`Successfully joined room ${roomId}!`);
-            toggleMainAppButtons(false);
-            hangupBtn.disabled = false;
-            chatInput.disabled = false;
-            sendChatBtn.disabled = false;
-            raiseHandBtn.style.display = 'block';
         };
 
-        const listenForParticipants = () => {
-            if (participantsListener) participantsListener();
+        const updateParticipantsList = (participants) => {
             participantsList.style.display = 'block';
+            participantsList.innerHTML = `<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2>`;
+            for (const id in participants) {
+                if (participants[id] === null) continue;
+                const participantDiv = document.createElement('div');
+                participantDiv.className = 'flex flex-col items-start p-2 bg-[#3c3836] rounded-sm mb-2';
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'font-semibold';
+                nameSpan.textContent = `${participants[id]} ${id === userId ? '(You)' : ''}`;
 
-            const roomDocRef = roomRef;
-            participantsListener = onSnapshot(roomDocRef, (snapshot) => {
-                const roomData = snapshot.data();
-                if (!roomData || !roomData.participants) {
-                    participantsContainer.innerHTML = `<p class="text-gray-500 text-sm">No other participants.</p>`;
-                    return;
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'flex mt-2 space-x-2';
+
+                if (isCreator && id !== userId) {
+                    const kickBtn = document.createElement('button');
+                    kickBtn.textContent = 'Kick';
+                    kickBtn.className = 'px-3 py-1 text-sm rounded-sm bg-red-600 text-white hover:bg-red-700';
+                    kickBtn.addEventListener('click', () => kickParticipant(id));
+                    buttonContainer.appendChild(kickBtn);
+
+                    const muteBtn = document.createElement('button');
+                    muteBtn.textContent = 'Mute';
+                    muteBtn.className = 'px-3 py-1 text-sm rounded-sm bg-yellow-600 text-white hover:bg-yellow-700';
+                    muteBtn.addEventListener('click', () => muteParticipant(id));
+                    buttonContainer.appendChild(muteBtn);
+
+                    const spotlightBtn = document.createElement('button');
+                    spotlightBtn.textContent = 'Spotlight';
+                    spotlightBtn.className = 'px-3 py-1 text-sm rounded-sm bg-green-600 text-white hover:bg-green-700';
+                    spotlightBtn.addEventListener('click', () => spotlightParticipant(id));
+                    buttonContainer.appendChild(spotlightBtn);
                 }
-                const participants = roomData.participants;
-                participantsContainer.innerHTML = '';
+                
+                participantDiv.appendChild(nameSpan);
+                if (isCreator) participantDiv.appendChild(buttonContainer);
+                participantsList.appendChild(participantDiv);
+            }
+        };
 
-                for (const id in participants) {
-                    const participantDiv = document.createElement('div');
-                    participantDiv.className = 'list-item flex items-center justify-between space-x-2';
-                    
-                    const nameSpan = document.createElement('span');
-                    nameSpan.className = 'font-semibold text-[#ebdbb2]';
-                    nameSpan.textContent = `${participants[id]} ${id === userId ? '(You)' : ''}`;
+        const updateWaitingRoom = (waiting) => {
+            waitingRoomList.classList.toggle('hidden', Object.keys(waiting).length === 0);
+            waitingRoomList.innerHTML = `<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Waiting Room</h2>`;
+            for (const id in waiting) {
+                if (waiting[id] === null) continue;
+                const waitingDiv = document.createElement('div');
+                waitingDiv.className = 'flex items-center justify-between p-2 bg-[#3c3836] rounded-sm mb-2';
+                waitingDiv.innerHTML = `
+                    <span>${waiting[id]} is waiting...</span>
+                    <div>
+                        <button class="admit-btn px-3 py-1 text-sm rounded-sm bg-green-600 text-white hover:bg-green-700 mr-2" data-id="${id}">Admit</button>
+                        <button class="deny-btn px-3 py-1 text-sm rounded-sm bg-red-600 text-white hover:bg-red-700" data-id="${id}">Deny</button>
+                    </div>
+                `;
+                waitingRoomList.appendChild(waitingDiv);
+            }
+            document.querySelectorAll('.admit-btn').forEach(btn => btn.addEventListener('click', (e) => admitParticipant(e.target.dataset.id)));
+            document.querySelectorAll('.deny-btn').forEach(btn => btn.addEventListener('click', (e) => denyParticipant(e.target.dataset.id)));
+        };
 
-                    participantDiv.appendChild(nameSpan);
-                    
-                    const muteStatus = document.createElement('i');
-                    muteStatus.classList.add('fas', 'fa-microphone');
-                    muteStatus.title = "Audio Active";
-                    participantDiv.appendChild(muteStatus);
+        const admitParticipant = async (id) => {
+            const roomDoc = await getDoc(roomRef);
+            const data = roomDoc.data();
+            const waitingUser = data.waiting[id];
+            delete data.waiting[id];
+            data.participants[id] = waitingUser;
+            await updateDoc(roomRef, data);
+        };
 
-                    if (isCreator && id !== userId) {
-                        const muteBtn = document.createElement('button');
-                        const isMuted = roomData.mutedParticipants?.includes(id);
-                        muteBtn.innerHTML = isMuted ? '<i class="fas fa-microphone-slash"></i>' : '<i class="fas fa-microphone"></i>';
-                        muteBtn.title = isMuted ? `Unmute ${participants[id]}` : `Mute ${participants[id]}`;
-                        muteBtn.className = 'px-3 py-1 text-sm rounded-lg bg-gray-500 text-white hover:bg-gray-600 transition-colors';
-                        muteBtn.addEventListener('click', () => toggleParticipantMute(id, isMuted));
-                        participantDiv.appendChild(muteBtn);
+        const denyParticipant = async (id) => {
+            const roomDoc = await getDoc(roomRef);
+            const data = roomDoc.data();
+            delete data.waiting[id];
+            await updateDoc(roomRef, data);
+        };
 
-                        const kickBtn = document.createElement('button');
-                        kickBtn.innerHTML = '<i class="fas fa-user-slash"></i>';
-                        kickBtn.title = `Kick ${participants[id]}`;
-                        kickBtn.className = 'px-3 py-1 text-sm rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors';
-                        kickBtn.addEventListener('click', () => kickParticipant(id));
-                        participantDiv.appendChild(kickBtn);
-                    }
-                    participantsContainer.appendChild(participantDiv);
+        const spotlightParticipant = async (participantId) => {
+            if (isCreator && roomRef) {
+                await updateDoc(roomRef, { spotlightedUser: participantId });
+            }
+        };
+
+        const resetLayout = async () => {
+            if (isCreator && roomRef) {
+                await updateDoc(roomRef, { spotlightedUser: null });
+            }
+        };
+
+        const updateLayout = (spotlightedUser) => {
+            const videoContainers = document.querySelectorAll('.video-grid-item');
+            if (!spotlightedUser) {
+                videoContainers.forEach(container => {
+                    container.style = '';
+                    const video = container.querySelector('video');
+                    if (video) video.style = '';
+                });
+                return;
+            }
+
+            videoContainers.forEach(container => {
+                const id = container.id.replace('video-container-', '');
+                if (id === spotlightedUser) {
+                    container.style = 'grid-column: 1 / -1; grid-row: 1 / -1;';
+                    const video = container.querySelector('video');
+                    if (video) video.style.height = '100%';
+                } else {
+                    container.style = 'width: 150px; height: 100px;';
+                    const video = container.querySelector('video');
+                    if (video) video.style.height = '100px';
                 }
             });
-        };
-
-        const toggleParticipantMute = async (participantId, isMuted) => {
-            if (!isCreator || !roomRef) return;
-            try {
-                const roomDoc = await getDoc(roomRef);
-                const roomData = roomDoc.data();
-                let mutedParticipants = roomData.mutedParticipants || [];
-
-                if (isMuted) {
-                    mutedParticipants = mutedParticipants.filter(id => id !== participantId);
-                    showStatus(`Unmuted participant.`);
-                } else {
-                    mutedParticipants.push(participantId);
-                    showStatus(`Muted participant.`);
-                }
-                await updateDoc(roomRef, { mutedParticipants: mutedParticipants });
-            } catch (error) {
-                console.error("Error toggling mute status:", error);
-            }
-        };
-
-        const updateMutedStatus = (mutedParticipants) => {
-            if (!mutedParticipants) return;
-            const audioTracks = localStream?.getAudioTracks() || [];
-            if (audioTracks.length > 0) {
-                audioTracks[0].enabled = !mutedParticipants.includes(userId);
-                isAudioMuted = !audioTracks[0].enabled;
-                updateButtonState();
-            }
-        };
-
-        const muteAllParticipants = async () => {
-            if (!isCreator || !roomRef) return;
-            const roomDoc = await getDoc(roomRef);
-            const participants = roomDoc.data().participants;
-            const participantIds = Object.keys(participants).filter(id => id !== userId);
-            await updateDoc(roomRef, { mutedParticipants: participantIds });
-            showStatus("All participants have been muted.");
         };
 
         const kickParticipant = async (participantId) => {
             if (roomRef) {
                 const roomDoc = await getDoc(roomRef);
-                if (!roomDoc.exists()) {
-                    showStatus("Room no longer exists.", true);
-                    return;
-                }
                 const participants = roomDoc.data().participants;
-                const kickedUser = participants[participantId];
                 delete participants[participantId];
                 await updateDoc(roomRef, { participants });
-                showStatus(`${kickedUser} has been kicked.`, false);
+                showMessage(`${participants[participantId]} has been kicked.`);
+            }
+        };
+
+        const muteParticipant = async (participantId) => {
+            if (roomRef) {
+                const statusRef = doc(db, `artifacts/${appId}/public/data/video-rooms/${roomRef.id}/status`, participantId);
+                await updateDoc(statusRef, { isMuted: true }, { merge: true });
+                showMessage(`${participants[participantId]} has been muted.`);
+            }
+        };
+        
+        const muteAll = async () => {
+            if (isCreator && roomRef) {
+                const participantsDoc = await getDoc(roomRef);
+                const participants = participantsDoc.data().participants || {};
+                const promises = Object.keys(participants).map(id => {
+                    const statusRef = doc(db, `artifacts/${appId}/public/data/video-rooms/${roomRef.id}/status`, id);
+                    return updateDoc(statusRef, { isMuted: true }, { merge: true });
+                });
+                await Promise.all(promises);
+                showMessage("All participants have been muted.");
             }
         };
 
         const hangup = async () => {
-            if (peerConnection) {
-                peerConnection.close();
+            for (const peerId in peerConnections) {
+                peerConnections[peerId].close();
             }
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
@@ -938,125 +1047,192 @@
             if (screenShareStream) {
                 screenShareStream.getTracks().forEach(track => track.stop());
             }
-            localVideo.srcObject = null;
-            remoteVideo.srcObject = null;
-            screenShareVideo.srcObject = null;
-            peerConnection = null;
-            localStream = null;
-            screenShareStream = null;
-            isScreenSharing = false;
-
-            if (activeSpeakerCheckInterval) {
-                clearInterval(activeSpeakerCheckInterval);
-            }
-            if (audioActiveTimeout) {
-                clearTimeout(audioActiveTimeout);
-            }
+            videoFeeds.innerHTML = '';
+            
+            if (roomSnapshotListener) roomSnapshotListener();
+            if (roomsListener) roomsListener();
+            if (participantsListener) participantsListener();
+            if (userStatusListener) userStatusListener();
+            if (whiteboardListener) whiteboardListener();
+            if (documentShareListener) documentShareListener();
 
             if (roomRef) {
-                try {
-                    const userPath = `participants.${userId}`;
-                    await updateDoc(roomRef, { [userPath]: null, activeSpeaker: null });
-                    const roomDoc = await getDoc(roomRef);
-                    const participants = roomDoc.data().participants;
-                    const remainingParticipants = Object.values(participants).filter(p => p !== null);
-                    
-                    if (remainingParticipants.length === 0) {
+                const userPath = `participants.${userId}`;
+                await updateDoc(roomRef, { [userPath]: null });
+                const roomDoc = await getDoc(roomRef);
+                const participants = roomDoc.data().participants;
+                const remainingParticipants = Object.keys(participants).filter(key => participants[key] !== null);
+                
+                if (remainingParticipants.length === 0) {
+                    try {
                         await deleteDoc(roomRef);
-                        showStatus("Room is empty and has been closed.", false);
-                    } else {
-                        showStatus("You have left the room.", false);
+                    } catch (error) {
+                        console.error("Error deleting empty room data:", error);
                     }
-                } catch (error) {
-                    console.error("Error leaving room:", error);
                 }
             }
-            
-            if (isCreator && roomRef) {
-                await updateDoc(roomRef, { theatreMode: false, isScreenSharing: false, mutedParticipants: [], raisedHands: [] });
-            }
-
             isCreator = false;
             participantsList.style.display = 'none';
-            toggleTheatreBtn.style.display = 'none';
-            toggleScreenShareBtn.style.display = 'none';
-            muteAllBtn.style.display = 'none';
-            raiseHandBtn.style.display = 'none';
-            raisedHandsContainer.style.display = 'none';
-            raisedHandsList.innerHTML = '';
-            isHandRaised = false;
+            waitingRoomList.classList.add('hidden');
+            whiteboardHostControls.classList.add('hidden');
+            raiseHandBtn.classList.add('hidden');
+            resetLayoutBtn.classList.add('hidden');
 
             roomIdInput.value = '';
-            toggleMainAppButtons(true);
+            hideMessage();
+            createRoomBtn.disabled = false;
+            joinRoomBtn.disabled = false;
             hangupBtn.disabled = true;
+            sendChatBtn.disabled = true;
             toggleAudioBtn.disabled = true;
             toggleVideoBtn.disabled = true;
+            screenShareBtn.disabled = true;
             startRecordingBtn.disabled = true;
-            stopRecordingBtn.disabled = true;
-            chatInput.disabled = true;
-            sendChatBtn.disabled = true;
             chatContainer.innerHTML = '';
-            
-            updateButtonState();
-            document.body.classList.remove('theater-mode');
-            remoteVideo.parentElement.classList.remove('active-speaker-border');
+            whiteboardCanvas.classList.add('hidden');
+            whiteboardTools.classList.add('hidden');
         };
 
-        const toggleAudio = () => {
+        const toggleAudio = async () => {
             if (localStream && localStream.getAudioTracks().length > 0) {
-                isAudioMuted = !isAudioMuted;
-                localStream.getAudioTracks()[0].enabled = !isAudioMuted;
+                const audioTrack = localStream.getAudioTracks()[0];
+                audioTrack.enabled = !audioTrack.enabled;
                 updateButtonState();
+                if (roomRef) {
+                    const statusRef = doc(db, `artifacts/${appId}/public/data/video-rooms/${roomRef.id}/status`, userId);
+                    await setDoc(statusRef, { isMuted: !audioTrack.enabled }, { merge: true });
+                }
             }
         };
 
-        const toggleVideo = () => {
+        const toggleVideo = async () => {
             if (localStream && localStream.getVideoTracks().length > 0) {
-                isVideoOff = !isVideoOff;
-                localStream.getVideoTracks()[0].enabled = !isVideoOff;
+                const videoTrack = localStream.getVideoTracks()[0];
+                videoTrack.enabled = !videoTrack.enabled;
                 updateButtonState();
+                if (roomRef) {
+                    const statusRef = doc(db, `artifacts/${appId}/public/data/video-rooms/${roomRef.id}/status`, userId);
+                    await setDoc(statusRef, { isCamOff: !videoTrack.enabled }, { merge: true });
+                }
+            }
+        };
+        
+        const toggleScreenShare = async () => {
+            if (screenShareStream) {
+                screenShareStream.getTracks().forEach(track => track.stop());
+                screenShareStream = null;
+                localStream.getVideoTracks()[0].enabled = true; // Re-enable camera
+                screenShareBtn.textContent = 'Share Screen';
+                updateButtonState();
+            } else {
+                try {
+                    screenShareStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                    localStream.getVideoTracks()[0].enabled = false; // Disable camera
+                    screenShareStream.getTracks().forEach(track => {
+                        for (const peerId in peerConnections) {
+                            const sender = peerConnections[peerId].getSenders().find(s => s.track.kind === 'video');
+                            sender.replaceTrack(track);
+                        }
+                    });
+                    screenShareBtn.textContent = 'Stop Sharing';
+                    updateButtonState();
+                } catch (error) {
+                    console.error("Screen sharing failed:", error);
+                    showMessage("Screen sharing was denied or failed.", true);
+                    localStream.getVideoTracks()[0].enabled = true;
+                    updateButtonState();
+                }
             }
         };
 
         const startRecording = () => {
-            if (!remoteVideo.srcObject && !screenShareVideo.srcObject) {
-                showStatus("No remote stream to record.", true);
+            if (isRecording) {
+                mediaRecorder.stop();
                 return;
             }
-            recordedChunks = [];
-            const streamToRecord = remoteVideo.srcObject || screenShareVideo.srcObject;
-            mediaRecorder = new MediaRecorder(streamToRecord, { mimeType: 'video/webm; codecs=vp9' });
+            isRecording = true;
+            startRecordingBtn.textContent = 'Stop Recording';
+            startRecordingBtn.classList.remove('btn-primary');
+            startRecordingBtn.classList.add('btn-danger');
+            recordingIndicator.classList.remove('hidden');
+
+            recordingCanvas.width = videoFeeds.offsetWidth;
+            recordingCanvas.height = videoFeeds.offsetHeight;
+
+            const canvasStream = recordingCanvas.captureStream(25);
+            const audioTracks = [];
+            if (localStream && localStream.getAudioTracks().length > 0) {
+                audioTracks.push(localStream.getAudioTracks()[0]);
+            }
+            for (const id in peerConnections) {
+                const remoteStream = peerConnections[id].getRemoteStreams()[0];
+                if (remoteStream && remoteStream.getAudioTracks().length > 0) {
+                    audioTracks.push(remoteStream.getAudioTracks()[0]);
+                }
+            }
+            if (audioTracks.length > 0) {
+                const combinedAudio = audioCtx.createMediaStreamDestination();
+                audioTracks.forEach(track => {
+                    const source = audioCtx.createMediaStreamSource(new MediaStream([track]));
+                    source.connect(combinedAudio);
+                });
+                combinedAudio.stream.getAudioTracks().forEach(track => canvasStream.addTrack(track));
+            }
             
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) {
-                    recordedChunks.push(e.data);
+            mediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm' });
+            recordedChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
                 }
             };
-            
+
             mediaRecorder.onstop = () => {
                 const blob = new Blob(recordedChunks, { type: 'video/webm' });
                 const url = URL.createObjectURL(blob);
-                const a = document.getElementById('downloadRecording');
-                a.href = url;
-                a.download = `conference-recording-${Date.now()}.webm`;
-                a.click();
+                downloadRecording.href = url;
+                downloadRecording.download = `conference-recording-${Date.now()}.webm`;
+                downloadRecording.click();
                 URL.revokeObjectURL(url);
-                showStatus("Recording downloaded successfully!");
+                showMessage("Recording saved to your downloads.");
+                
+                isRecording = false;
+                startRecordingBtn.textContent = 'Start Recording';
+                startRecordingBtn.classList.remove('btn-danger');
+                startRecordingBtn.classList.add('btn-primary');
+                recordingIndicator.classList.add('hidden');
+                clearInterval(drawingInterval);
             };
-            
+
+            const drawVideos = () => {
+                const videos = document.querySelectorAll('#videoFeeds video');
+                if (videos.length === 0) return;
+                
+                canvasCtx.fillStyle = '#1d2021';
+                canvasCtx.fillRect(0, 0, recordingCanvas.width, recordingCanvas.height);
+                
+                let x = 0;
+                let y = 0;
+                let maxHeight = 0;
+
+                videos.forEach(video => {
+                    if (x + video.offsetWidth > recordingCanvas.width) {
+                        x = 0;
+                        y += maxHeight + 10;
+                        maxHeight = 0;
+                    }
+
+                    canvasCtx.drawImage(video, x, y, video.offsetWidth, video.offsetHeight);
+                    x += video.offsetWidth + 10;
+                    if (video.offsetHeight > maxHeight) {
+                        maxHeight = video.offsetHeight;
+                    }
+                });
+            };
+            drawingInterval = setInterval(drawVideos, 100);
             mediaRecorder.start();
-            showStatus("Recording started...");
-            startRecordingBtn.disabled = true;
-            stopRecordingBtn.disabled = false;
-        };
-        
-        const stopRecording = () => {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-                showStatus("Recording stopped. Your download should start shortly.");
-                startRecordingBtn.disabled = false;
-                stopRecordingBtn.disabled = true;
-            }
+            showMessage("Recording started.");
         };
 
         const sendMessage = async () => {
@@ -1072,36 +1248,14 @@
             });
             chatInput.value = '';
         };
-        
-        const deleteMessage = async (messageId) => {
-            if (!isCreator || !roomRef) {
-                showStatus("Only the host can delete messages.", true);
-                return;
-            }
-            try {
-                const messageRef = doc(collection(roomRef, 'chat-messages'), messageId);
-                await deleteDoc(messageRef);
-                showStatus("Message deleted.", false);
-            } catch (error) {
-                console.error("Error deleting message:", error);
-                showStatus("Could not delete message.", true);
-            }
-        };
 
         const listenForChat = (roomDocRef) => {
-            if (chatListener) chatListener();
             const chatMessagesRef = collection(roomDocRef, 'chat-messages');
-            chatListener = onSnapshot(chatMessagesRef, (snapshot) => {
+            onSnapshot(chatMessagesRef, (snapshot) => {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added') {
                         const messageData = change.doc.data();
-                        const messageId = change.doc.id;
-                        displayMessage(messageData, messageId);
-                    } else if (change.type === 'removed') {
-                        const messageElement = document.getElementById(`message-${change.doc.id}`);
-                        if (messageElement) {
-                            messageElement.remove();
-                        }
+                        displayMessage(messageData);
                     }
                 });
             }, (error) => {
@@ -1109,245 +1263,271 @@
             });
         };
 
-        const displayMessage = (messageData, messageId) => {
-            const messageDiv = document.createElement('div');
-            messageDiv.id = `message-${messageId}`;
-            const isMyMessage = messageData.senderId === userId;
-            messageDiv.className = `message ${isMyMessage ? 'my-message' : 'other-message'}`;
-            
-            let messageContent = `<span class="font-bold">${messageData.senderUsername}:</span> ${messageData.text}`;
-            
-            if (messageData.timestamp) {
-                const date = messageData.timestamp.toDate();
-                messageContent += `<div class="text-[10px] opacity-70 mt-1">${date.toLocaleTimeString()}</div>`;
-            }
+        const listenForUserStatus = () => {
+            if (userStatusListener) userStatusListener();
+            const statusCollectionRef = collection(db, `artifacts/${appId}/public/data/video-rooms/${roomRef.id}/status`);
+            userStatusListener = onSnapshot(statusCollectionRef, (snapshot) => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'modified' || change.type === 'added') {
+                        const statusData = change.doc.data();
+                        const participantId = change.doc.id;
+                        const audioIcon = document.getElementById(`audio-icon-${participantId}`);
+                        const videoIcon = document.getElementById(`video-icon-${participantId}`);
+                        const handIcon = document.getElementById(`hand-icon-${participantId}`);
 
-            messageDiv.innerHTML = messageContent;
-            
-            if (isCreator) {
-                const deleteBtn = document.createElement('i');
-                deleteBtn.className = 'fas fa-trash-alt delete-chat-btn text-xs';
-                deleteBtn.title = 'Delete Message';
-                deleteBtn.addEventListener('click', () => deleteMessage(messageId));
-                messageDiv.appendChild(deleteBtn);
-            }
-
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+                        if (audioIcon) {
+                            audioIcon.className = `fas ${statusData.isMuted ? 'fa-microphone-slash text-red-400' : 'fa-microphone text-green-400'}`;
+                        }
+                        if (videoIcon) {
+                            videoIcon.className = `fas ${statusData.isCamOff ? 'fa-video-slash text-red-400' : 'fa-video text-green-400'}`;
+                        }
+                        if (handIcon) {
+                            handIcon.classList.toggle('hidden', !statusData.isHandRaised);
+                        }
+                        
+                        if (participantId === userId) {
+                            if (statusData.isMuted) {
+                                if (localStream.getAudioTracks().length > 0) localStream.getAudioTracks()[0].enabled = false;
+                            }
+                        }
+                    }
+                });
+            });
         };
 
-        const setUsername = () => {
-            const user = usernameInput.value.trim();
-            if (user) {
-                username = user;
-                if (isAuthReady) {
-                    showMainAppUI();
+        const toggleHandRaise = async () => {
+            isHandRaised = !isHandRaised;
+            raiseHandBtn.classList.toggle('btn-toggle-active', isHandRaised);
+            if (roomRef) {
+                const statusRef = doc(db, `artifacts/${appId}/public/data/video-rooms/${roomRef.id}/status`, userId);
+                await setDoc(statusRef, { isHandRaised: isHandRaised }, { merge: true });
+            }
+        };
+
+        const listenForWhiteboard = () => {
+            if (whiteboardListener) whiteboardListener();
+            const whiteboardRef = doc(roomRef, 'whiteboard', 'data');
+            whiteboardListener = onSnapshot(whiteboardRef, (snapshot) => {
+                const data = snapshot.data();
+                if (data && data.isActive) {
+                    whiteboardCanvas.classList.remove('hidden');
+                    drawWhiteboard(data.data);
                 } else {
-                    showStatus("Authentication in progress. Please wait.", false);
-                }
-            } else {
-                showStatus("Please enter a username.", true);
-            }
-        };
-
-        const cleanupInactiveRooms = async () => {
-            showStatus("Cleaning up inactive rooms...");
-            const roomsCollectionRef = collection(db, `artifacts/${appId}/public/data/video-rooms`);
-            const q = query(roomsCollectionRef);
-            const querySnapshot = await getDocs(q);
-            
-            const documentsToDelete = [];
-            querySnapshot.forEach(doc => {
-                const data = doc.data();
-                const oneHourAgo = Date.now() - (60 * 60 * 1000);
-                const hasParticipants = Object.values(data.participants || {}).some(p => p !== null);
-
-                if (!hasParticipants && data.lastActive.toDate().getTime() < oneHourAgo) {
-                    documentsToDelete.push(doc.ref);
+                    whiteboardCanvas.classList.add('hidden');
+                    whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
                 }
             });
+        };
+
+        const initWhiteboard = () => {
+            whiteboardCanvas.width = videoFeeds.offsetWidth;
+            whiteboardCanvas.height = videoFeeds.offsetHeight;
+            whiteboardCtx = whiteboardCanvas.getContext('2d');
+            whiteboardCtx.strokeStyle = currentWhiteboardColor;
+            whiteboardCtx.lineWidth = currentWhiteboardSize;
+            whiteboardCtx.lineCap = 'round';
+            whiteboardCtx.lineJoin = 'round';
             
-            if (documentsToDelete.length > 0) {
-                const deletePromises = documentsToDelete.map(docRef => deleteDoc(docRef));
-                await Promise.all(deletePromises);
-                showStatus(`Deleted ${documentsToDelete.length} inactive room(s).`);
-            } else {
-                showStatus("No inactive rooms found.", false);
-            }
-        };
-        
-        const calculateTimeAgo = (date) => {
-            if (!date) return 'Just now';
-            const seconds = Math.floor((new Date() - date) / 1000);
-            let interval = seconds / 31536000;
-            if (interval > 1) {
-                return Math.floor(interval) + " years ago";
-            }
-            interval = seconds / 2592000;
-            if (interval > 1) {
-                return Math.floor(interval) + " months ago";
-            }
-            interval = seconds / 86400;
-            if (interval > 1) {
-                return Math.floor(interval) + " days ago";
-            }
-            interval = seconds / 3600;
-            if (interval > 1) {
-                return Math.floor(interval) + " hours ago";
-            }
-            interval = seconds / 60;
-            if (interval > 1) {
-                return Math.floor(interval) + " minutes ago";
-            }
-            return Math.floor(seconds) + " seconds ago";
+            whiteboardCanvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                [lastX, lastY] = [e.offsetX, e.offsetY];
+                drawAndSend([lastX, lastY], false, currentWhiteboardColor, currentWhiteboardSize);
+            });
+            whiteboardCanvas.addEventListener('mousemove', (e) => {
+                if (!isDrawing) return;
+                drawAndSend([e.offsetX, e.offsetY], true, currentWhiteboardColor, currentWhiteboardSize);
+                [lastX, lastY] = [e.offsetX, e.offsetY];
+            });
+            whiteboardCanvas.addEventListener('mouseup', () => isDrawing = false);
+            whiteboardCanvas.addEventListener('mouseout', () => isDrawing = false);
+            whiteboardTools.classList.remove('hidden');
         };
 
-        const toggleTheatreMode = async () => {
-            if (!isCreator || !roomRef) return;
-
-            const roomDoc = await getDoc(roomRef);
-            const data = roomDoc.data();
-            const newTheatreModeState = !data.theatreMode;
-
-            await updateDoc(roomRef, { theatreMode: newTheatreModeState });
-            showStatus(newTheatreModeState ? "Theatre Mode Activated!" : "Theatre Mode Deactivated.");
-        };
-
-        const updateTheatreMode = (data) => {
-            if (!data || data.theatreMode === undefined) return;
-
-            const isTheatreMode = data.theatreMode;
-            if (isTheatreMode) {
-                document.body.classList.add('theater-mode');
-            } else {
-                document.body.classList.remove('theater-mode');
-            }
-
-            if (isCreator) {
-                if (isTheatreMode) {
-                    toggleTheatreBtn.innerHTML = '<i class="fas fa-undo"></i> <span class="text-sm">End Performance</span>';
-                } else {
-                    toggleTheatreBtn.innerHTML = '<i class="fas fa-guitar"></i> <span class="text-sm">Start Performance</span>';
-                }
-            }
-        };
-
-        const toggleScreenShare = async () => {
-            if (!isCreator || !roomRef) return;
-
-            if (!isScreenSharing) {
-                try {
-                    screenShareStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                    const videoTrack = screenShareStream.getVideoTracks()[0];
-                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                    if (sender) {
-                        sender.replaceTrack(videoTrack);
-                    }
-                    isScreenSharing = true;
-                    await updateDoc(roomRef, { isScreenSharing: true });
-
-                    videoTrack.onended = async () => {
-                        await stopScreenShare();
-                    };
-
-                    toggleScreenShareBtn.innerHTML = '<i class="fas fa-stop-circle"></i> Stop Screen Share';
-                    showStatus("Screen sharing started.");
-
-                } catch (error) {
-                    console.error("Error starting screen share:", error);
-                    showStatus("Could not start screen share. Please check permissions.", true);
-                }
-            } else {
-                await stopScreenShare();
-            }
-        };
-
-        const stopScreenShare = async () => {
-            if (screenShareStream) {
-                screenShareStream.getTracks().forEach(track => track.stop());
-                screenShareStream = null;
-            }
-            if (localStream) {
-                const videoTrack = localStream.getVideoTracks()[0];
-                const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                if (sender) {
-                    sender.replaceTrack(videoTrack);
-                }
-            }
-            isScreenSharing = false;
-            await updateDoc(roomRef, { isScreenSharing: false });
-            toggleScreenShareBtn.innerHTML = '<i class="fas fa-desktop"></i> Start Screen Share';
-            showStatus("Screen sharing stopped.");
-        };
-
-        const updateScreenShareMode = (data) => {
-            if (!data) return;
-            const isRemoteScreenSharing = data.isScreenSharing;
-            if (isRemoteScreenSharing) {
-                remoteVideo.style.display = 'none';
-                screenShareVideo.style.display = 'block';
-                localVideo.style.display = 'none';
-            } else {
-                remoteVideo.style.display = 'block';
-                screenShareVideo.style.display = 'none';
-                localVideo.style.display = 'block';
-            }
-        };
-        
-        const toggleHandRaise = async () => {
-            if (!roomRef) return;
-            isHandRaised = !isHandRaised;
-            
-            if (isHandRaised) {
-                await updateDoc(roomRef, { raisedHands: arrayUnion(userId) });
-                raiseHandBtn.innerHTML = '<i class="fas fa-hand-paper"></i> <span class="text-sm">Lower Hand</span>';
-                raiseHandBtn.classList.add('raise-hand-active');
-                showStatus("You have raised your hand.");
-            } else {
-                await updateDoc(roomRef, { raisedHands: arrayRemove(userId) });
-                raiseHandBtn.innerHTML = '<i class="fas fa-hand-paper"></i> <span class="text-sm">Raise Hand</span>';
-                raiseHandBtn.classList.remove('raise-hand-active');
-                showStatus("You have lowered your hand.");
-            }
-        };
-        
-        const updateRaisedHands = (raisedHands) => {
-            if (!isCreator) return;
-            const hasRaisedHands = raisedHands && raisedHands.length > 0;
-            raisedHandsContainer.style.display = hasRaisedHands ? 'block' : 'none';
-            raisedHandsList.innerHTML = '';
-            
-            if (hasRaisedHands) {
-                raisedHands.forEach(participantId => {
-                    const participantName = document.querySelector(`#participantsContainer .list-item span[data-id="${participantId}"]`)?.textContent;
-                    if (participantName) {
-                        const li = document.createElement('li');
-                        li.textContent = `${participantName} has raised their hand.`;
-                        raisedHandsList.appendChild(li);
-                    }
+        const drawAndSend = async (coords, isDrawing, color, size) => {
+            if (roomRef) {
+                const whiteboardRef = doc(roomRef, 'whiteboard', 'data');
+                const docSnap = await getDoc(whiteboardRef);
+                const whiteboardData = docSnap.data().data || [];
+                await updateDoc(whiteboardRef, {
+                    data: [...whiteboardData, { coords, isDrawing, color, size }]
                 });
             }
         };
 
+        const drawWhiteboard = (data) => {
+            whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            whiteboardCtx.beginPath();
+            data.forEach((point, i) => {
+                whiteboardCtx.strokeStyle = point.color;
+                whiteboardCtx.lineWidth = point.size;
+                if (point.isDrawing && data[i-1]) {
+                    whiteboardCtx.moveTo(data[i-1].coords[0], data[i-1].coords[1]);
+                    whiteboardCtx.lineTo(point.coords[0], point.coords[1]);
+                    whiteboardCtx.stroke();
+                } else {
+                    whiteboardCtx.moveTo(point.coords[0], point.coords[1]);
+                }
+            });
+        };
 
+        const toggleWhiteboard = async () => {
+            isWhiteboardActive = !isWhiteboardActive;
+            const whiteboardRef = doc(roomRef, 'whiteboard', 'data');
+            await setDoc(whiteboardRef, { isActive: isWhiteboardActive, data: [] });
+            toggleWhiteboardBtn.textContent = isWhiteboardActive ? "Stop Whiteboard" : "Start Whiteboard";
+        };
+        
+        const clearWhiteboard = async () => {
+            if (isCreator && roomRef) {
+                const whiteboardRef = doc(roomRef, 'whiteboard', 'data');
+                await updateDoc(whiteboardRef, { data: [] });
+            }
+        };
+        
+        const uploadAndShareFile = async (file) => {
+            if (!file) return;
+            showMessage(`Uploading ${file.name}...`);
+            const fileRef = ref(storage, `artifacts/${appId}/public/shared-files/${roomRef.id}/${file.name}`);
+            try {
+                await uploadBytes(fileRef, file);
+                const downloadUrl = await getDownloadURL(fileRef);
+                await setDoc(doc(roomRef, 'sharedFiles', Date.now().toString()), { 
+                    url: downloadUrl,
+                    name: file.name,
+                    sender: username,
+                    timestamp: serverTimestamp()
+                });
+                showMessage("File shared successfully!", false);
+            } catch (error) {
+                console.error("File upload failed:", error);
+                showMessage("File upload failed.", true);
+            }
+        };
+
+        const listenForDocumentShares = () => {
+            if (documentShareListener) documentShareListener();
+            const sharedFilesRef = collection(roomRef, 'sharedFiles');
+            documentShareListener = onSnapshot(sharedFilesRef, (snapshot) => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') {
+                        const fileData = change.doc.data();
+                        showDocumentViewer(fileData);
+                    }
+                });
+            });
+        };
+
+        const showDocumentViewer = (fileData) => {
+            documentViewerContent.innerHTML = '';
+            
+            const fileLink = document.createElement('a');
+            fileLink.href = fileData.url;
+            fileLink.target = '_blank';
+            fileLink.textContent = `Shared by ${fileData.sender}: ${fileData.name}`;
+            fileLink.className = 'text-blue-400 hover:text-blue-300 underline';
+            documentViewerContent.appendChild(fileLink);
+
+            documentViewer.classList.remove('hidden');
+        };
+
+        const displayMessage = (messageData) => {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${messageData.senderId === userId ? 'my-message' : 'other-message'}`;
+            messageDiv.innerHTML = `<span class="font-bold">${messageData.senderUsername}:</span> ${messageData.text}`;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        };
+
+        const setUsername = async () => {
+            const user = usernameInput.value.trim();
+            if (user) {
+                username = user;
+                usernamePrompt.style.display = 'none';
+                deviceSelection.style.display = 'flex';
+                await getDevices();
+                
+                await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                await getDevices();
+            } else {
+                showMessage("Please enter a username.", true);
+            }
+        };
+
+        const deleteAllRooms = async () => {
+            confirmationModal.classList.remove('hidden');
+        };
+        
+        const confirmDelete = async () => {
+            confirmationModal.classList.add('hidden');
+            showMessage("Deleting all rooms...");
+            const roomCollectionRef = collection(db, `artifacts/${appId}/public/data/video-rooms`);
+            const roomDocs = await getDocs(roomCollectionRef);
+            const deletePromises = roomDocs.docs.map(roomDoc => deleteDoc(roomDoc.ref));
+            await Promise.all(deletePromises);
+            showMessage("All rooms have been deleted.");
+        };
+
+        const cancelDelete = () => {
+            confirmationModal.classList.add('hidden');
+        };
+        
         // Event Listeners
-        window.onload = initFirebase;
+        window.onload = () => {
+            initFirebase();
+        };
+
         submitUsernameBtn.addEventListener('click', setUsername);
-        usernameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') setUsername(); });
+        usernameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') setUsername();
+        });
+
+        startCallBtn.addEventListener('click', async () => {
+            localStream = await getLocalStream();
+            if (!localStream) {
+                showMessage("Failed to get media stream. Please check permissions and try again.", true);
+                return;
+            }
+            deviceSelection.style.display = 'none';
+            mainApp.style.display = 'grid';
+            updateButtonState();
+        });
+
         createRoomBtn.addEventListener('click', createRoom);
         joinRoomBtn.addEventListener('click', joinRoom);
         hangupBtn.addEventListener('click', hangup);
         toggleAudioBtn.addEventListener('click', toggleAudio);
         toggleVideoBtn.addEventListener('click', toggleVideo);
+        screenShareBtn.addEventListener('click', toggleScreenShare);
         startRecordingBtn.addEventListener('click', startRecording);
-        stopRecordingBtn.addEventListener('click', stopRecording);
         sendChatBtn.addEventListener('click', sendMessage);
-        chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
-        cleanupBtn.addEventListener('click', cleanupInactiveRooms);
-        toggleTheatreBtn.addEventListener('click', toggleTheatreMode);
-        toggleScreenShareBtn.addEventListener('click', toggleScreenShare);
-        muteAllBtn.addEventListener('click', muteAllParticipants);
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        toggleWhiteboardBtn.addEventListener('click', toggleWhiteboard);
+        whiteboardClearBtn.addEventListener('click', clearWhiteboard);
+        whiteboardColorPicker.addEventListener('change', (e) => {
+            currentWhiteboardColor = e.target.value;
+            whiteboardCtx.strokeStyle = currentWhiteboardColor;
+        });
+        whiteboardLineSize.addEventListener('change', (e) => {
+            currentWhiteboardSize = parseInt(e.target.value);
+            whiteboardCtx.lineWidth = currentWhiteboardSize;
+        });
         raiseHandBtn.addEventListener('click', toggleHandRaise);
+        uploadFileBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileNameDisplay.textContent = `Selected: ${file.name}`;
+                uploadAndShareFile(file);
+            }
+        });
+        closeDocumentViewerBtn.addEventListener('click', () => {
+            documentViewer.classList.add('hidden');
+        });
+        deleteAllRoomsBtn.addEventListener('click', deleteAllRooms);
+        confirmDeleteBtn.addEventListener('click', confirmDelete);
+        cancelDeleteBtn.addEventListener('click', cancelDelete);
     </script>
 </body>
 </html>
