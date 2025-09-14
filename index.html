@@ -661,12 +661,12 @@
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
         // Use a more robust way to handle both audio and video tracks
-        remoteStream = new MediaStream();
-        remoteVideo.srcObject = remoteStream;
+        remoteVideo.srcObject = new MediaStream();
 
         peerConnection.ontrack = (event) => {
-            console.log("Received remote track.");
-            remoteStream.addTrack(event.track);
+            console.log("Received remote track. Kind:", event.track.kind);
+            // Add the new track to the remote video stream
+            remoteVideo.srcObject.addTrack(event.track);
         };
 
         const callerCandidatesRef = collection(roomRef, `iceCandidatesCaller`);
@@ -719,8 +719,9 @@
             localStream.getTracks().forEach(track => track.stop());
             localStream = null;
         }
-        if (remoteStream) {
-            remoteStream = null;
+        if (remoteVideo.srcObject) {
+            remoteVideo.srcObject.getTracks().forEach(track => track.stop());
+            remoteVideo.srcObject = null;
         }
         localVideo.srcObject = null;
         remoteVideo.srcObject = null;
