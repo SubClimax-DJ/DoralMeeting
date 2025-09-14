@@ -176,9 +176,10 @@ Doral Video Conference
 </header>
 
 <!-- Main App Content (hidden initially) -->
-<main id="mainApp" class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 hidden">
+<main id="mainApp" class="w-full max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-[1fr_2fr_1fr] md:gap-8 hidden">
+
 <!-- Left Sidebar for Chat -->
-<div class="md:col-span-1 space-y-8">
+<div class="space-y-8">
 <div class="container-card">
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
 <div class="chat-container mb-4" id="chatContainer"></div>
@@ -190,7 +191,7 @@ Doral Video Conference
 </div>
 
 <!-- Video and Controls -->
-<div class="md:col-span-2 container-card">
+<div class="container-card">
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feed</h2>
 <div class="video-container mb-4">
 <video id="remoteVideo" class="video-element" autoplay playsinline></video>
@@ -218,7 +219,7 @@ Doral Video Conference
 </div>
 
 <!-- Right Sidebar for Management -->
-<div class="md:col-span-1 space-y-8">
+<div class="space-y-8">
 <div class="container-card">
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Room Management</h2>
 <div class="flex flex-col space-y-4">
@@ -838,7 +839,7 @@ localStream.getTracks().forEach(track => track.stop());
         screenShareBtn.textContent = 'Stop Sharing';
         toggleVideoBtn.disabled = true;
 
-        const displayStream = await getDisplayStream();
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
         if (!displayStream) {
             isScreenSharing = false;
             screenShareBtn.textContent = 'Screen Share';
