@@ -230,7 +230,7 @@
             <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="School Logo" class="h-12 mr-4">
             <div class="flex flex-col items-start">
                 <h1 class="text-3xl sm:text-4xl font-semibold font-['Crimson_Pro']">Doral Video Conference</h1>
-                <p class="text-sm font-light text-gray-400 mt-1">Created by Coach Prebeg</p>
+                <p class="text-sm font-light text-gray-400 mt-1">Created by Coach Prebeg v3.15</p>
             </div>
         </div>
         <div class="text-sm mt-2 sm:mt-0 font-light" id="auth-status">Authenticating...</div>
@@ -807,7 +807,7 @@
 
             // Add local stream tracks to the peer connection
             if (localStream) {
-                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
             } else {
                 console.error("Local stream is not available when setting up peer connection.");
             }
@@ -880,10 +880,13 @@
                 const startMuted = joinMutedCheckbox.checked;
                 const stream = await getLocalStream(startMuted);
                 if (!stream) return;
-
+                
                 setupPeerConnection();
+
+                // Create and set the offer
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
+                
                 const participants = {
                     [userId]: {
                         username,
@@ -902,9 +905,29 @@
                     isLocked: false,
                     lastUpdated: serverTimestamp()
                 });
-                listenForRoomUpdates();
+
+                // Listen for the answer from the joining user
+                roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
+                    const data = snapshot.data();
+                    if (data && data.answer && peerConnection.signalingState === 'have-local-offer') {
+                        console.log("Host received answer, setting remote description.");
+                        const answer = new RTCSessionDescription(data.answer);
+                        await peerConnection.setRemoteDescription(answer);
+                        remoteVideoContainer.classList.add('active-border', 'pulse-border');
+                        remoteVideoContainer.classList.remove('hidden');
+                        
+                        // Clean up this listener after the answer is received
+                        if (roomSnapshotListener) {
+                            roomSnapshotListener();
+                            roomSnapshotListener = null;
+                        }
+                    }
+                });
+                
                 listenForRoomChat(roomRef);
                 listenForParticipants();
+                listenForCandidates();
+
                 showMessage(`Room "${roomName}" created! Share this ID with others.`);
                 updateRoomControls(true);
                 localVideoContainer.classList.add('active-border', 'pulse-border');
@@ -947,6 +970,7 @@
                 setupPeerConnection();
                 const offer = roomSnapshot.data().offer;
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
 
@@ -963,6 +987,8 @@
                 listenForRoomUpdates();
                 listenForRoomChat(roomRef);
                 listenForParticipants();
+                listenForCandidates();
+
                 remoteVideoLabel.textContent = roomData.createdByUsername;
                 showMessage(`Successfully joined room "${roomId}"!`);
                 updateRoomControls(true);
@@ -1093,9 +1119,26 @@
             }
         };
 
+        const listenForCandidates = () => {
+             if (candidatesListener) candidatesListener();
+             candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
+                 snapshot.docChanges().forEach(async (change) => {
+                     if (change.type === "added" && change.doc.data().sender !== userId) {
+                         try {
+                             const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
+                             await peerConnection.addIceCandidate(candidate);
+                             console.log("Added remote ICE candidate.");
+                         } catch (error) {
+                             console.error("Error adding ICE candidate:", error);
+                         }
+                     }
+                 });
+             });
+        }
+
+
         const listenForRoomUpdates = () => {
             if (roomSnapshotListener) roomSnapshotListener();
-            if (candidatesListener) candidatesListener();
             roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
                 const data = snapshot.data();
                 if (!snapshot.exists()) {
@@ -1157,20 +1200,6 @@
                         remoteVideoContainer.classList.remove('pulse-border', 'active-border');
                     }
                 }
-            });
-
-            candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
-                snapshot.docChanges().forEach(async (change) => {
-                    if (change.type === "added" && change.doc.data().sender !== userId) {
-                        try {
-                            const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
-                            await peerConnection.addIceCandidate(candidate);
-                            console.log("Added remote ICE candidate.");
-                        } catch (error) {
-                            console.error("Error adding ICE candidate:", error);
-                        }
-                    }
-                });
             });
         };
 
