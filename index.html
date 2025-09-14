@@ -3,585 +3,708 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gruv Box Conference</title>
+    <title>Gruvbox Video Conference</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'gruvbox-dark-bg': '#282828',
+                        'gruvbox-dark-fg': '#ebdbb2',
+                        'gruvbox-dark-red': '#cc241d',
+                        'gruvbox-dark-navy': '#076678',
+                        'gruvbox-dark-silver': '#a89984',
+                        'gruvbox-dark-crimson': '#dc322f',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        /* Gruvbox Color Palette */
-        :root {
-            --bg-dark: #282828;
-            --bg-light: #3c3836;
-            --fg: #ebdbb2;
-            --gray: #928374;
-            --red: #cc241d;
-            --green: #98971a;
-            --yellow: #d79921;
-            --blue: #458588;
-            --purple: #b16286;
-            --aqua: #689d6a;
-            --orange: #d65d0e;
-        }
-
-        /* Base Styles */
         body {
-            font-family: 'monospace', 'Courier New', monospace;
-            background-color: var(--bg-dark);
-            color: var(--fg);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 1rem;
+            font-family: 'Inter', sans-serif;
+            background-color: #282828;
+            color: #ebdbb2;
         }
-
         .container {
-            width: 100%;
-            max-width: 900px;
+            max-width: 960px;
+            margin: auto;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
-            border: 2px solid var(--fg);
-            border-radius: 8px;
-            padding: 2rem;
-            background-color: var(--bg-light);
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            justify-content: center;
         }
-
-        h1, h2, h3 {
-            color: var(--yellow);
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-            text-transform: uppercase;
-            text-align: center;
+        .btn {
+            @apply px-6 py-3 rounded-lg font-bold transition-transform transform hover:scale-105 shadow-md;
         }
-
-        /* Screen Sections */
-        .screen {
-            display: none;
-            flex-direction: column;
-            gap: 1.5rem;
+        .btn-primary {
+            @apply bg-gruvbox-dark-navy text-gruvbox-dark-fg hover:bg-opacity-80;
         }
-        .screen.active {
-            display: flex;
+        .btn-secondary {
+            @apply bg-gruvbox-dark-red text-white hover:bg-opacity-80;
         }
-
-        /* Form & Input Styles */
-        input[type="text"], button {
-            background-color: var(--bg-dark);
-            border: 1px solid var(--gray);
-            color: var(--fg);
-            padding: 0.75rem;
-            border-radius: 4px;
-            font-size: 1rem;
-            transition: all 0.2s ease-in-out;
+        .input-field {
+            @apply bg-gruvbox-dark-bg border border-gruvbox-dark-silver text-gruvbox-dark-fg rounded-lg p-4 w-full focus:outline-none focus:border-gruvbox-dark-navy transition-colors;
         }
-        input[type="text"]:focus {
-            outline: none;
-            border-color: var(--orange);
-        }
-        button {
-            cursor: pointer;
-            border-color: var(--blue);
-            text-transform: uppercase;
-        }
-        button:hover {
-            background-color: var(--blue);
-            color: var(--bg-dark);
-        }
-
-        /* Login Screen */
-        .login-screen {
-            align-items: center;
-            text-align: center;
-        }
-        .login-screen input {
-            width: 100%;
-            max-width: 300px;
-        }
-
-        /* Lobby & Chat */
-        .lobby-screen {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 1.5rem;
-        }
-        .users-list {
-            padding: 1rem;
-            border: 1px solid var(--gray);
-            border-radius: 4px;
-            background-color: var(--bg-dark);
-            height: 300px;
-            overflow-y: auto;
-        }
-        .user-item {
-            padding: 0.5rem;
-            border-bottom: 1px solid var(--bg-light);
-            cursor: pointer;
-        }
-        .user-item:last-child {
-            border-bottom: none;
-        }
-        .user-item:hover {
-            background-color: var(--bg-light);
-        }
-
-        .chat-section {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-        .chat-box {
-            border: 1px solid var(--gray);
-            border-radius: 4px;
-            background-color: var(--bg-dark);
-            height: 250px;
-            overflow-y: auto;
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        .chat-message {
-            word-wrap: break-word;
-        }
-        .chat-message .username {
-            color: var(--green);
-            font-weight: bold;
-        }
-
-        .chat-input {
-            display: flex;
-            gap: 0.5rem;
-        }
-        .chat-input input {
-            flex-grow: 1;
-        }
-
-        /* Video Room */
-        .room-screen {
-            align-items: center;
-            text-align: center;
+        .card {
+            @apply bg-gruvbox-dark-bg border border-gruvbox-dark-silver p-8 rounded-2xl shadow-lg;
         }
         .video-container {
-            display: flex;
-            justify-content: center;
+            position: relative;
+            background-color: black;
+            border-radius: 1rem;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 1fr;
+            min-height: 400px;
             gap: 1rem;
-            flex-wrap: wrap;
-        }
-        video {
-            width: 100%;
-            max-width: 400px;
-            border: 2px solid var(--gray);
-            background-color: var(--bg-dark);
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
-        }
-        #local-video {
-            transform: scaleX(-1); /* Mirror local video */
-        }
-        .room-controls {
-            display: flex;
+            align-items: center;
             justify-content: center;
-            gap: 1rem;
-            margin-top: 1rem;
         }
-
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
+        @media (min-width: 640px) {
+            .video-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        .video-feed {
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            justify-content: center;
+            object-fit: cover;
+            border-radius: 0.5rem;
+            background-color: #000;
+        }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
             align-items: center;
+            justify-content: center;
+            z-index: 50;
         }
         .modal-content {
-            background-color: var(--bg-light);
-            border: 2px solid var(--orange);
-            border-radius: 8px;
-            padding: 2rem;
-            width: 90%;
-            max-width: 400px;
-            text-align: center;
-        }
-        .modal-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .lobby-screen {
-                grid-template-columns: 1fr;
-            }
+            @apply card p-6 w-11/12 max-w-lg;
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <!-- Login Screen -->
-        <div id="login-screen" class="screen active">
-            <h1>Gruv Box</h1>
-            <p style="text-align: center;">Welcome to the terminal. Please enter your handle to proceed.</p>
-            <input type="text" id="username-input" placeholder="Enter username...">
-            <button id="join-lobby-btn">Connect</button>
+<div id="app" class="container p-4">
+    <!-- Main content area -->
+    <div id="login-screen" class="card space-y-6">
+        <h1 class="text-4xl font-bold text-center mb-4">Welcome</h1>
+        <form id="login-form" class="space-y-4">
+            <input id="username-input" type="text" placeholder="Enter your username" class="input-field" required>
+            <button type="submit" class="btn btn-primary w-full">Go to Lobby</button>
+        </form>
+        <button id="admin-login-btn" type="button" class="btn btn-secondary w-full">Admin Login</button>
+    </div>
+
+    <div id="admin-login-screen" class="hidden card space-y-6">
+        <h1 class="text-4xl font-bold text-center mb-4">Admin Login</h1>
+        <form id="admin-login-form" class="space-y-4">
+            <input id="admin-username-input" type="text" placeholder="Username" class="input-field" required>
+            <input id="admin-password-input" type="password" placeholder="Password" class="input-field" required>
+            <button type="submit" class="btn btn-primary w-full">Login</button>
+        </form>
+        <button id="admin-login-back-btn" type="button" class="btn btn-secondary w-full">Back to User Login</button>
+    </div>
+
+    <div id="lobby-screen" class="hidden">
+        <div class="card mb-6 flex flex-col sm:flex-row justify-between items-center">
+            <h1 class="text-3xl font-bold">Lobby</h1>
+            <div class="text-sm text-gruvbox-dark-silver text-right">
+                <p>User: <span id="username-display"></span></p>
+                <p>User ID: <span id="user-id"></span></p>
+            </div>
         </div>
 
-        <!-- Lobby Screen -->
-        <div id="lobby-screen" class="screen">
-            <h2>Lobby</h2>
-            <div class="lobby-screen">
-                <div class="users-section">
-                    <h3>Online Users</h3>
-                    <div id="users-list" class="users-list">
-                        <p style="color: var(--gray);">Loading users...</p>
-                    </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold">Active Rooms <span id="room-count" class="text-gruvbox-dark-navy"></span></h2>
+                    <button id="create-room-btn" class="btn btn-primary">Create New Room</button>
                 </div>
-                <div class="chat-section">
-                    <h3>Public Chat</h3>
-                    <div id="chat-box" class="chat-box"></div>
-                    <div class="chat-input">
-                        <input type="text" id="chat-input" placeholder="Message...">
-                        <button id="send-chat-btn">Send</button>
-                    </div>
-                    <button id="create-room-btn" style="background-color: var(--green); border-color: var(--green); color: var(--bg-dark);">Create 1-on-1 Room</button>
-                </div>
+                <ul id="rooms-list" class="space-y-2 max-h-64 overflow-y-auto"></ul>
             </div>
-            <p id="user-id-display" style="text-align: center; color: var(--gray); font-size: 0.8em;"></p>
-        </div>
 
-        <!-- Video Room Screen -->
-        <div id="room-screen" class="screen">
-            <h2 id="room-header"></h2>
-            <div class="video-container">
-                <video id="local-video" autoplay muted></video>
-                <video id="remote-video" autoplay></video>
-            </div>
-            <div class="room-controls">
-                <button id="end-call-btn" style="background-color: var(--red); border-color: var(--red); color: var(--bg-dark);">Hang Up</button>
+            <div class="card">
+                <h2 class="text-2xl font-bold mb-4">Chat <span id="chat-count" class="text-gruvbox-dark-navy"></span></h2>
+                <div id="chat-messages" class="h-64 overflow-y-auto mb-4 p-2 bg-gruvbox-dark-bg border border-gruvbox-dark-silver rounded-lg"></div>
+                <form id="chat-form" class="flex gap-2">
+                    <input id="chat-input" type="text" placeholder="Send a message..." class="input-field flex-grow">
+                    <button type="submit" class="btn btn-primary">Send</button>
+                </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal for notifications -->
-    <div id="alert-modal" class="modal">
-        <div class="modal-content">
-            <p id="modal-message"></p>
-            <div class="modal-buttons">
-                <button id="modal-ok-btn" style="background-color: var(--blue); border-color: var(--blue); color: var(--bg-dark);">OK</button>
+    <div id="admin-console-screen" class="hidden">
+        <div class="card mb-6 flex justify-between items-center">
+            <h1 class="text-3xl font-bold">Admin Console</h1>
+            <button id="admin-logout-btn" class="btn btn-secondary">Logout</button>
+        </div>
+
+        <div class="card mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Manage Rooms</h2>
+                <button id="delete-all-rooms-btn" class="btn btn-secondary">Delete All Rooms</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full table-auto">
+                    <thead>
+                        <tr class="text-left border-b border-gruvbox-dark-silver">
+                            <th class="py-2 px-4">Room ID</th>
+                            <th class="py-2 px-4">Creator</th>
+                            <th class="py-2 px-4">Members</th>
+                            <th class="py-2 px-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-rooms-list"></tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
-        import Peer from 'https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js';
+    <div id="video-room-screen" class="hidden">
+        <div class="card mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-3xl font-bold">Video Room: <span id="room-id"></span></h1>
+                <p id="connection-status" class="text-sm italic"></p>
+                <button id="hang-up-btn" class="btn btn-secondary">Hang Up</button>
+            </div>
+            <div class="video-container relative mb-4">
+                <video id="local-video" autoplay muted class="video-feed"></video>
+                <video id="remote-video" autoplay class="video-feed"></video>
+            </div>
+            <div class="flex justify-center gap-4 flex-wrap">
+                <button id="toggle-audio-btn" class="btn btn-primary">Mute Audio</button>
+                <button id="toggle-video-btn" class="btn btn-primary">Hide Video</button>
+            </div>
+        </div>
+    </div>
+</div>
 
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
-            authDomain: "video-meeting-e73eb.firebaseapp.com",
-            projectId: "video-meeting-e73eb",
-            storageBucket: "video-meeting-e73eb.firebasestorage.app",
-            messagingSenderId: "80496795033",
-            appId: "1:80496795033:web:3ac35c631d76301f77c708",
-            measurementId: "G-SFPQ0PJRPG"
-        };
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, addDoc, onSnapshot, collection, query, serverTimestamp, deleteDoc, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Initialization
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+    // --- Firebase and App-specific variables ---
+    const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : 'null';
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        // UI Elements
-        const screens = {
-            login: document.getElementById('login-screen'),
-            lobby: document.getElementById('lobby-screen'),
-            room: document.getElementById('room-screen')
-        };
-        const usernameInput = document.getElementById('username-input');
-        const joinLobbyBtn = document.getElementById('join-lobby-btn');
-        const usersList = document.getElementById('users-list');
-        const chatBox = document.getElementById('chat-box');
-        const chatInput = document.getElementById('chat-input');
-        const sendChatBtn = document.getElementById('send-chat-btn');
-        const createRoomBtn = document.getElementById('create-room-btn');
-        const localVideo = document.getElementById('local-video');
-        const remoteVideo = document.getElementById('remote-video');
-        const endCallBtn = document.getElementById('end-call-btn');
-        const userIdDisplay = document.getElementById('user-id-display');
-        const roomHeader = document.getElementById('room-header');
+    const firebaseConfig = firebaseConfigString !== 'null' ? JSON.parse(firebaseConfigString) : {
+        apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
+        authDomain: "video-meeting-e73eb.firebaseapp.com",
+        projectId: "video-meeting-e73eb",
+        storageBucket: "video-meeting-e73eb.firebasestorage.app",
+        messagingSenderId: "80496795033",
+        appId: "1:80496795033:web:3ac35c631d76301f77c708",
+        measurementId: "G-SFPQ0PJRPG"
+    };
 
-        // Modal Elements
-        const alertModal = document.getElementById('alert-modal');
-        const modalMessage = document.getElementById('modal-message');
-        const modalOkBtn = document.getElementById('modal-ok-btn');
+    let app;
+    let auth;
+    let db;
+    let userId = null;
+    let username = null;
+    let isAdmin = false;
 
-        // Global State
-        let userId;
-        let username;
-        let peer;
-        let localStream;
-        let currentCall;
+    // --- DOM Elements ---
+    const loginScreen = document.getElementById('login-screen');
+    const adminLoginScreen = document.getElementById('admin-login-screen');
+    const lobbyScreen = document.getElementById('lobby-screen');
+    const videoRoomScreen = document.getElementById('video-room-screen');
+    const adminConsoleScreen = document.getElementById('admin-console-screen');
 
-        // --- Utility Functions ---
+    const usernameInput = document.getElementById('username-input');
+    const loginForm = document.getElementById('login-form');
+    const adminLoginBtn = document.getElementById('admin-login-btn');
+    const adminLoginBackBtn = document.getElementById('admin-login-back-btn');
+    const adminLoginForm = document.getElementById('admin-login-form');
+    const adminUsernameInput = document.getElementById('admin-username-input');
+    const adminPasswordInput = document.getElementById('admin-password-input');
+    const adminLogoutBtn = document.getElementById('admin-logout-btn');
 
-        // Custom modal function instead of alert()
-        const showModal = (message) => {
-            modalMessage.textContent = message;
-            alertModal.style.display = 'flex';
-        };
+    const usernameDisplay = document.getElementById('username-display');
+    const userIdDisplay = document.getElementById('user-id');
+    const createRoomBtn = document.getElementById('create-room-btn');
+    const roomsList = document.getElementById('rooms-list');
+    const roomCount = document.getElementById('room-count');
+    const chatMessages = document.getElementById('chat-messages');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatCount = document.getElementById('chat-count');
+    const adminRoomsList = document.getElementById('admin-rooms-list');
+    const deleteAllRoomsBtn = document.getElementById('delete-all-rooms-btn');
 
-        modalOkBtn.addEventListener('click', () => {
-            alertModal.style.display = 'none';
-        });
+    const roomIdDisplay = document.getElementById('room-id');
+    const localVideo = document.getElementById('local-video');
+    const remoteVideo = document.getElementById('remote-video');
+    const hangUpBtn = document.getElementById('hang-up-btn');
+    const toggleAudioBtn = document.getElementById('toggle-audio-btn');
+    const toggleVideoBtn = document.getElementById('toggle-video-btn');
+    const connectionStatus = document.getElementById('connection-status');
 
-        const showScreen = (screenName) => {
-            Object.values(screens).forEach(screen => screen.classList.remove('active'));
-            screens[screenName].classList.add('active');
-        };
+    // --- WebRTC Variables ---
+    const servers = {
+        iceServers: [
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+        ],
+        iceCandidatePoolSize: 10,
+    };
+    let localStream = null;
+    let peerConnection = null;
+    let currentRoomId = null;
 
-        const getPublicCollectionPath = (name) => `/artifacts/${appId}/public/data/${name}`;
-
-        // --- Firebase Logic ---
-
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                userId = user.uid;
-                // Check if user has a username
-                const userDocRef = doc(db, getPublicCollectionPath('users'), userId);
-                const userDoc = await getDoc(userDocRef);
-
-                if (userDoc.exists()) {
-                    username = userDoc.data().username;
-                    setupLobby();
+    // --- Firebase Initialization ---
+    function initializeFirebase() {
+        if (!app) {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    userIdDisplay.textContent = userId;
+                    if (username && !isAdmin) {
+                        showScreen('lobby-screen');
+                    } else if (username && isAdmin) {
+                        showScreen('admin-console-screen');
+                    }
                 } else {
-                    showScreen('login');
+                    userId = null;
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken).catch(e => console.error(e));
+                    } else {
+                        await signInAnonymously(auth).catch(e => console.error(e));
+                    }
                 }
+            });
+        }
+    }
+
+    // --- UI State Management ---
+    function showScreen(screenId) {
+        const screens = [loginScreen, adminLoginScreen, lobbyScreen, videoRoomScreen, adminConsoleScreen];
+        screens.forEach(screen => {
+            if (screen.id === screenId) {
+                screen.classList.remove('hidden');
             } else {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                screen.classList.add('hidden');
             }
         });
+    }
 
-        joinLobbyBtn.addEventListener('click', async () => {
-            const newUsername = usernameInput.value.trim();
-            if (!newUsername) {
-                showModal("Please enter a username.");
+    // --- Login & Authentication ---
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        username = usernameInput.value.trim();
+        usernameDisplay.textContent = username;
+        if (username.toLowerCase() === 'admin') {
+            showCustomMessage('Please use the "Admin Login" button to log in as an administrator.');
+            username = null;
+        } else if (username) {
+            showScreen('lobby-screen');
+            setupLobbyListeners();
+        }
+    });
+
+    adminLoginBtn.addEventListener('click', () => showScreen('admin-login-screen'));
+    adminLoginBackBtn.addEventListener('click', () => showScreen('login-screen'));
+
+    adminLoginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const inputUsername = adminUsernameInput.value.trim().toLowerCase();
+        const password = adminPasswordInput.value.trim();
+        if (inputUsername === 'admin' && password === 'max') {
+            username = 'admin';
+            isAdmin = true;
+            usernameDisplay.textContent = username;
+            showScreen('admin-console-screen');
+            setupAdminListeners();
+        } else {
+            showCustomMessage('Incorrect credentials. Please use username "admin" and password "max".');
+        }
+    });
+
+    adminLogoutBtn.addEventListener('click', async () => {
+        await signOut(auth);
+        username = null;
+        isAdmin = false;
+        showScreen('login-screen');
+    });
+
+    // --- Lobby & Chat Logic ---
+    function setupLobbyListeners() {
+        const roomsRef = collection(db, `artifacts/${appId}/public/data/rooms`);
+        const chatRef = collection(db, `artifacts/${appId}/public/data/chat_messages`);
+
+        onSnapshot(roomsRef, (snapshot) => {
+            roomsList.innerHTML = '';
+            roomCount.textContent = `(${snapshot.size})`;
+            if (snapshot.empty) {
+                roomsList.innerHTML = '<p class="text-center italic text-gruvbox-dark-silver">No active rooms. Create one to get started!</p>';
                 return;
             }
-            username = newUsername;
-
-            // Save username to Firestore
-            await setDoc(doc(db, getPublicCollectionPath('users'), userId), {
-                username: username
-            });
-
-            setupLobby();
-        });
-
-        const setupLobby = () => {
-            showScreen('lobby');
-            userIdDisplay.textContent = `Your User ID: ${userId}`;
-            
-            // Add user to online users list
-            const onlineUsersRef = doc(db, getPublicCollectionPath('onlineUsers'), userId);
-            setDoc(onlineUsersRef, {
-                username: username,
-                timestamp: Date.now()
-            });
-
-            // Listen for online users
-            onSnapshot(collection(db, getPublicCollectionPath('onlineUsers')), (snapshot) => {
-                usersList.innerHTML = '';
-                if (snapshot.empty) {
-                    usersList.innerHTML = '<p style="color: var(--gray);">No users online.</p>';
-                    return;
-                }
-                snapshot.forEach(doc => {
-                    const user = doc.data();
-                    const userItem = document.createElement('div');
-                    userItem.className = 'user-item';
-                    userItem.textContent = user.username;
-                    if (doc.id === userId) {
-                         userItem.textContent += ' (You)';
-                         userItem.style.color = var(--aqua);
-                    }
-                    userItem.addEventListener('click', () => {
-                        // In a real app, this could initiate a call
-                        // For this demo, we'll just log
-                        console.log(`Clicked on user: ${user.username}`);
-                    });
-                    usersList.appendChild(userItem);
-                });
-            });
-
-            // Listen for chat messages
-            onSnapshot(collection(db, getPublicCollectionPath('lobbyChat')), (snapshot) => {
-                chatBox.innerHTML = '';
-                snapshot.docs.sort((a,b) => a.data().timestamp - b.data().timestamp).forEach(doc => {
-                    const msg = doc.data();
-                    const chatMessage = document.createElement('div');
-                    chatMessage.className = 'chat-message';
-                    chatMessage.innerHTML = `<span class="username">${msg.username}:</span> ${msg.message}`;
-                    chatBox.appendChild(chatMessage);
-                });
-                chatBox.scrollTop = chatBox.scrollHeight;
-            });
-
-            // Send chat message
-            const sendMessage = async () => {
-                const message = chatInput.value.trim();
-                if (message) {
-                    await addDoc(collection(db, getPublicCollectionPath('lobbyChat')), {
-                        username: username,
-                        message: message,
-                        timestamp: Date.now()
-                    });
-                    chatInput.value = '';
-                }
-            };
-            sendChatBtn.addEventListener('click', sendMessage);
-            chatInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    sendMessage();
-                }
-            });
-        };
-
-        // --- Video Call Logic ---
-
-        createRoomBtn.addEventListener('click', async () => {
-            showModal("Creating a room...");
-            try {
-                // Create a room document in Firestore
-                const roomDoc = await addDoc(collection(db, getPublicCollectionPath('videoRooms')), {
-                    creatorId: userId,
-                    createdAt: Date.now()
-                });
+            snapshot.forEach(async (roomDoc) => {
+                const roomData = roomDoc.data();
                 const roomId = roomDoc.id;
+                const membersRef = collection(doc(roomsRef, roomId), 'members');
 
-                // Get local media stream
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                localVideo.srcObject = localStream;
+                // Check for empty rooms and delete them proactively
+                const membersSnapshot = await getDocs(membersRef);
+                if (membersSnapshot.empty) {
+                    await deleteRoom(roomId);
+                    return; // Skip rendering this room, it's being deleted
+                }
 
-                // Initialize PeerJS
-                peer = new Peer(userId); // Use userId as Peer ID for easy lookup
-
-                peer.on('open', (id) => {
-                    console.log('My Peer ID is:', id);
-                    updateDoc(roomDoc, { peerId: id });
-                    showModal(`Room created! Share this Room ID with a friend: ${roomId}`);
-                    setupRoom(roomId);
+                const li = document.createElement('li');
+                li.className = 'p-3 bg-gruvbox-dark-bg rounded-lg flex justify-between items-center border border-gruvbox-dark-silver';
+                li.innerHTML = `
+                    <span>Room: <strong>${roomData.creatorUsername}</strong> (<span id="member-count-${roomDoc.id}">0</span>/2)</span>
+                    <button class="btn btn-primary join-room-btn" data-room-id="${roomDoc.id}">Join</button>
+                `;
+                roomsList.appendChild(li);
+                // Listen for members in each room
+                onSnapshot(membersRef, (membersSnapshot) => {
+                    const memberCountElement = document.getElementById(`member-count-${roomDoc.id}`);
+                    if (memberCountElement) {
+                        memberCountElement.textContent = membersSnapshot.size;
+                        const joinBtn = memberCountElement.closest('li').querySelector('.join-room-btn');
+                        if (membersSnapshot.size >= 2) {
+                            joinBtn.disabled = true;
+                            joinBtn.textContent = 'Full';
+                            joinBtn.classList.add('bg-gray-500', 'cursor-not-allowed', 'opacity-50');
+                        } else {
+                             joinBtn.disabled = false;
+                             joinBtn.textContent = 'Join';
+                             joinBtn.classList.remove('bg-gray-500', 'cursor-not-allowed', 'opacity-50');
+                        }
+                    }
                 });
-
-                peer.on('call', (call) => {
-                    console.log("Incoming call:", call);
-                    showModal("Answering incoming call...");
-                    call.answer(localStream); // Answer the call with our local stream
-                    call.on('stream', (remoteStream) => {
-                        remoteVideo.srcObject = remoteStream;
-                    });
-                    currentCall = call;
-                });
-
-                peer.on('close', () => console.log('Peer connection closed.'));
-                peer.on('error', (err) => console.error('Peer error:', err));
-
-            } catch (error) {
-                console.error("Error creating room or getting media:", error);
-                showModal("Failed to create room. Please check camera/mic permissions.");
-            }
+            });
         });
 
-        // Simplified join logic: user needs to manually paste a room ID
-        const setupRoom = async (roomId) => {
-            showScreen('room');
-            roomHeader.textContent = `Room: ${roomId}`;
-            endCallBtn.style.display = 'block';
+        onSnapshot(chatRef, (snapshot) => {
+            chatMessages.innerHTML = '';
+            chatCount.textContent = `(${snapshot.size})`;
+            snapshot.forEach((chatDoc) => {
+                const message = chatDoc.data();
+                const p = document.createElement('p');
+                p.className = 'mb-1 flex items-center justify-between';
+                p.innerHTML = `
+                    <span><strong class="text-gruvbox-dark-navy">${message.username}:</strong> ${message.text}</span>
+                    ${isAdmin ? `<button class="text-gruvbox-dark-red ml-2 delete-chat-btn" data-message-id="${chatDoc.id}">x</button>` : ''}
+                `;
+                chatMessages.appendChild(p);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
+    }
 
-            // Check if this is the second person joining the room
-            const roomDocRef = doc(db, getPublicCollectionPath('videoRooms'), roomId);
-            const roomSnapshot = await getDoc(roomDocRef);
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const text = chatInput.value.trim();
+        if (text && userId) {
+            await addDoc(collection(db, `artifacts/${appId}/public/data/chat_messages`), {
+                username: username,
+                text: text,
+                createdAt: serverTimestamp(),
+            });
+            chatInput.value = '';
+        }
+    });
 
-            if (roomSnapshot.exists() && roomSnapshot.data().peerId) {
-                const remotePeerId = roomSnapshot.data().peerId;
-                if (remotePeerId !== userId) {
-                    // This is the second user, initiate a call
-                    showModal("Joining room...");
-                    // Ensure peer is initialized
-                    if (!peer) {
-                         peer = new Peer(userId);
-                         peer.on('open', (id) => console.log('My Peer ID is:', id));
-                         peer.on('close', () => console.log('Peer connection closed.'));
-                         peer.on('error', (err) => console.error('Peer error:', err));
+    // --- Admin Console Logic ---
+    function setupAdminListeners() {
+        const roomsRef = collection(db, `artifacts/${appId}/public/data/rooms`);
+        onSnapshot(roomsRef, (snapshot) => {
+            adminRoomsList.innerHTML = '';
+            if (snapshot.empty) {
+                adminRoomsList.innerHTML = '<tr><td colspan="4" class="text-center italic text-gruvbox-dark-silver py-4">No active rooms.</td></tr>';
+                return;
+            }
+            snapshot.forEach(async (roomDoc) => {
+                const roomData = roomDoc.data();
+                const roomId = roomDoc.id;
+                const membersRef = collection(doc(roomsRef, roomId), 'members');
+                const membersSnapshot = await getDocs(membersRef);
+                const memberIds = membersSnapshot.docs.map(m => m.data().userId);
+
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gruvbox-dark-silver';
+                tr.innerHTML = `
+                    <td class="py-2 px-4">${roomId.substring(0, 8)}...</td>
+                    <td class="py-2 px-4">${roomData.creatorUsername}</td>
+                    <td class="py-2 px-4">${memberIds.length}</td>
+                    <td class="py-2 px-4 flex gap-2">
+                        <button class="btn btn-primary view-members-btn" data-room-id="${roomId}">View Members</button>
+                        <button class="btn btn-secondary delete-room-btn" data-room-id="${roomId}">Delete Room</button>
+                    </td>
+                `;
+                adminRoomsList.appendChild(tr);
+            });
+        });
+
+        deleteAllRoomsBtn.addEventListener('click', () => {
+            showCustomModal('Are you sure you want to delete ALL rooms and their data?', async () => {
+                const roomsSnapshot = await getDocs(collection(db, `artifacts/${appId}/public/data/rooms`));
+                const deletePromises = roomsSnapshot.docs.map(doc => deleteRoom(doc.id));
+                await Promise.all(deletePromises);
+                showCustomMessage('All rooms have been deleted.');
+            });
+        });
+    }
+
+    // --- WebRTC Room Logic ---
+    createRoomBtn.addEventListener('click', async () => {
+        await getUserMedia();
+        if (!localStream) return;
+        showScreen('video-room-screen');
+        roomIdDisplay.textContent = 'Creating...';
+        connectionStatus.textContent = 'Status: Connecting...';
+        const roomRef = doc(collection(db, `artifacts/${appId}/public/data/rooms`));
+        currentRoomId = roomRef.id;
+
+        await setDoc(roomRef, { creatorId: userId, creatorUsername: username, createdAt: serverTimestamp() });
+        await setDoc(doc(roomRef, `members/${userId}`), { userId, username });
+
+        await setupPeerConnection(roomRef);
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+
+        await setDoc(doc(roomRef, `offers/${userId}`), { sdp: offer.sdp, type: offer.type });
+
+        onSnapshot(collection(roomRef, 'answers'), (snapshot) => {
+            snapshot.docChanges().forEach(async (change) => {
+                if (change.type === 'added') {
+                    const answer = change.doc.data();
+                    if (!peerConnection.currentRemoteDescription) {
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
                     }
-                    
-                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    localVideo.srcObject = localStream;
-
-                    const call = peer.call(remotePeerId, localStream);
-                    currentCall = call;
-                    
-                    call.on('stream', (remoteStream) => {
-                        console.log("Got remote stream from call.");
-                        remoteVideo.srcObject = remoteStream;
-                    });
-                    
-                    call.on('close', () => {
-                         console.log("Call ended by remote peer.");
-                         endCall();
-                    });
                 }
+            });
+        });
+
+        roomIdDisplay.textContent = currentRoomId;
+        connectionStatus.textContent = 'Status: Waiting for partner...';
+    });
+
+    document.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('join-room-btn')) {
+            const roomId = e.target.dataset.roomId;
+            const roomRef = doc(db, `artifacts/${appId}/public/data/rooms/${roomId}`);
+            const memberDocRef = doc(roomRef, `members/${userId}`);
+            const memberDoc = await getDoc(memberDocRef);
+
+            if (memberDoc.exists()) {
+                showCustomMessage('You are already in this room.');
+                return;
+            }
+
+            const membersSnapshot = await getDocs(collection(roomRef, 'members'));
+            if (membersSnapshot.size >= 2) {
+                showCustomMessage('This room is full. Please try another room.');
+                return;
+            }
+
+            await getUserMedia();
+            if (!localStream) return;
+
+            currentRoomId = roomId;
+            showScreen('video-room-screen');
+            roomIdDisplay.textContent = currentRoomId;
+            connectionStatus.textContent = 'Status: Connecting...';
+
+            await setDoc(memberDocRef, { userId, username });
+            await setupPeerConnection(roomRef);
+
+            const offersRef = collection(roomRef, 'offers');
+            const offersSnapshot = await getDocs(offersRef);
+            if (!offersSnapshot.empty) {
+                const offer = offersSnapshot.docs[0].data();
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                await setDoc(doc(roomRef, `answers/${userId}`), { sdp: answer.sdp, type: answer.type });
+            }
+        }
+    });
+
+    async function getUserMedia() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localVideo.srcObject = localStream;
+            localVideo.muted = true;
+        } catch (e) {
+            console.error("Error getting user media:", e);
+            showCustomMessage("Could not access your camera or microphone. Please check your permissions.");
+        }
+    }
+
+    async function setupPeerConnection(roomRef) {
+        peerConnection = new RTCPeerConnection(servers);
+
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+        peerConnection.ontrack = (event) => {
+            const remoteStream = new MediaStream();
+            event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+            remoteVideo.srcObject = remoteStream;
+            connectionStatus.textContent = 'Status: Connected';
+        };
+
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                const candidatesRef = collection(roomRef, 'iceCandidates');
+                addDoc(candidatesRef, event.candidate.toJSON());
             }
         };
 
-        endCallBtn.addEventListener('click', endCall);
+        onSnapshot(collection(roomRef, 'iceCandidates'), (snapshot) => {
+            snapshot.docChanges().forEach(async (change) => {
+                if (change.type === 'added') {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                }
+            });
+        });
 
-        const endCall = () => {
-            if (currentCall) {
-                currentCall.close();
-                currentCall = null;
+        peerConnection.onconnectionstatechange = () => {
+            if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
+                handleHangUp();
+                connectionStatus.textContent = 'Status: Disconnected';
+            } else if (peerConnection.connectionState === 'connected') {
+                connectionStatus.textContent = 'Status: Connected';
             }
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-            if (peer) {
-                peer.destroy();
-                peer = null;
-            }
-            localVideo.srcObject = null;
+        };
+    }
+
+    hangUpBtn.addEventListener('click', () => handleHangUp());
+
+    async function handleHangUp() {
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        if (remoteVideo.srcObject) {
+            remoteVideo.srcObject.getTracks().forEach(track => track.stop());
             remoteVideo.srcObject = null;
-            showScreen('lobby');
-            showModal("Call has ended.");
-        };
+        }
+        localVideo.srcObject = null;
+        remoteVideo.srcObject = null;
 
-        // --- Instructions for use ---
+        if (currentRoomId) {
+            const roomRef = doc(db, `artifacts/${appId}/public/data/rooms/${currentRoomId}`);
+            await deleteDoc(doc(roomRef, `members/${userId}`));
+            const membersSnapshot = await getDocs(collection(roomRef, 'members'));
+            if (membersSnapshot.empty) {
+                await deleteRoom(currentRoomId);
+            }
+            currentRoomId = null;
+        }
+        showScreen('lobby-screen');
+    }
 
-        // In a production app, the "Join" logic would be more robust.
-        // For this demo:
-        // 1. The first user logs in and clicks "Create 1-on-1 Room".
-        // 2. The app will generate a Room ID. The user needs to copy this ID.
-        // 3. The second user needs to open the app and manually paste the ID somewhere
-        //    to connect. As this app is simplified, the second user will just need to
-        //    be logged in and the app will auto-join if a room is available.
-        //    In a real app, you would have a "Join Room" button with an input field.
-        //    I've added a basic check to auto-join if the `peerId` is available.
+    toggleAudioBtn.addEventListener('click', () => {
+        if (localStream) {
+            const audioTrack = localStream.getAudioTracks()[0];
+            audioTrack.enabled = !audioTrack.enabled;
+            toggleAudioBtn.textContent = audioTrack.enabled ? 'Mute Audio' : 'Unmute Audio';
+        }
+    });
 
-    </script>
+    toggleVideoBtn.addEventListener('click', () => {
+        if (localStream) {
+            const videoTrack = localStream.getVideoTracks()[0];
+            videoTrack.enabled = !videoTrack.enabled;
+            toggleVideoBtn.textContent = videoTrack.enabled ? 'Hide Video' : 'Show Video';
+        }
+    });
+
+    // --- Utility Functions ---
+    async function deleteRoom(roomId) {
+        try {
+            const roomRef = doc(db, `artifacts/${appId}/public/data/rooms/${roomId}`);
+            const subcollections = ['members', 'offers', 'answers', 'iceCandidates'];
+            for (const sub of subcollections) {
+                const subSnapshot = await getDocs(collection(roomRef, sub));
+                subSnapshot.forEach(doc => deleteDoc(doc.ref));
+            }
+            await deleteDoc(roomRef);
+        } catch (e) {
+            console.error('Error deleting room:', e);
+        }
+    }
+
+    function showCustomMessage(message, duration = 3000) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content text-center">
+                <p class="text-xl mb-4">${message}</p>
+                <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">OK</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        if (duration > 0) {
+            setTimeout(() => modal.remove(), duration);
+        }
+    }
+
+    function showCustomModal(message, onConfirm) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content text-center">
+                <p class="text-xl mb-4">${message}</p>
+                <div class="flex justify-center gap-4">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                    <button id="confirm-btn" class="btn btn-primary">Confirm</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        document.getElementById('confirm-btn').addEventListener('click', () => {
+            onConfirm();
+            modal.remove();
+        });
+    }
+
+    document.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('delete-chat-btn')) {
+            const messageId = e.target.dataset.messageId;
+            showCustomModal('Are you sure you want to delete this message?', async () => {
+                await deleteDoc(doc(db, `artifacts/${appId}/public/data/chat_messages/${messageId}`));
+                showCustomMessage('Message deleted.');
+            });
+        }
+        if (e.target.classList.contains('delete-room-btn')) {
+            const roomId = e.target.dataset.roomId;
+            showCustomModal('Are you sure you want to delete this room?', async () => {
+                await deleteRoom(roomId);
+                showCustomMessage('Room deleted.');
+            });
+        }
+    });
+
+    window.onload = initializeFirebase;
+</script>
+
 </body>
 </html>
