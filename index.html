@@ -19,7 +19,7 @@
             --color-danger: #fb4934;
             --color-toggle: #504945;
             --color-toggle-active: #b8bb26;
-            --color-black: #1d2020;
+            --color-black: #1d2021;
         }
 
         body {
@@ -226,7 +226,7 @@
             <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="School Logo" class="h-12 mr-4">
             <div class="flex flex-col items-start">
                 <h1 class="text-3xl sm:text-4xl font-semibold font-['Crimson_Pro']">Doral Video Conference</h1>
-                <p class="text-sm font-light text-gray-400 mt-1">Created by Coach Prebeg</p>
+                <p class="text-sm font-light text-gray-400 mt-1">Created by Coach Prebeg v3.45</p>
             </div>
         </div>
         <div class="text-sm mt-2 sm:mt-0 font-light" id="auth-status">Authenticating...</div>
@@ -293,7 +293,7 @@
 
         <div class="space-y-8 mt-8 md:mt-0">
             <div class="container-card">
-                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Room Management</h2>
+                <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Room Management </h2>
                 <div class="flex flex-col space-y-4">
                     <div class="flex space-x-2">
                         <input type="text" id="roomIdInput" placeholder="Enter Room ID to Join" class="input-field flex-1" />
@@ -427,6 +427,7 @@
     </div>
 
     <div id="status-message" class="fixed bottom-4 left-1/2 -translate-x-1/2 p-4 rounded-lg text-sm text-center text-gray-700 bg-gray-100 hidden"></div>
+    <div class="sakura-container" id="sakuraEffect"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -450,13 +451,10 @@
         let userId, username, isAdmin = false;
         let localStream = null;
         let roomRef = null;
-        let peerConnections = {}; // Store peer connections for each remote user
+        let peerConnections = {}; // Stores RTCPeerConnection for each remote user
         let roomSnapshotListener, publicChatListener, roomChatListener, participantsListener, activeUsersListener, adminRoomsListener, adminUsersListener;
         let isScreenSharing = false;
         let mediaRecorder, recordedChunks = [];
-        let speakingInterval = null;
-        const speakingThreshold = -45; // Audio level threshold to detect speaking
-
         const videoQualities = {
             '480p': { width: { ideal: 640 }, height: { ideal: 480 } },
             '720p': { width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -532,9 +530,11 @@
         const roomFileInput = document.getElementById('roomFileInput');
         const roomFileUploadBtn = document.getElementById('roomFileUploadBtn');
         const sakuraEffect = document.getElementById('sakuraEffect');
-        const maxFileSize = 1048576; // Reverted to 1MB file size limit for stability
+        const maxFileSize = 1048576; 
         const clearPublicChatBtn = document.getElementById('clearPublicChatBtn');
         const refreshAdminDataBtn = document.getElementById('refreshAdminDataBtn');
+        
+        const remoteStreams = {};
 
         // === 3. UTILITY FUNCTIONS ===
 
@@ -581,7 +581,6 @@
                 auth = getAuth(app);
                 storage = getStorage(app);
                 
-                // The onAuthStateChanged listener is the single source of truth for auth state
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
@@ -589,13 +588,11 @@
                         if (isAdmin) {
                             switchToAdminView();
                         } else {
-                            // Only switch to user view if a username has been set
                             if (username) {
                                 switchToUserView();
                             }
                         }
                     } else {
-                        // This block will run on initial load and after sign-out
                         authStatus.textContent = 'Authenticating...';
                         try {
                             if (initialAuthToken) {
@@ -609,11 +606,9 @@
                             }
                         } catch (error) {
                             console.error("Firebase Authentication Error:", error);
-                            // Only show an error if it's not the custom-token-mismatch, which is expected in some environments
                             if (error.code !== 'auth/custom-token-mismatch') {
                                 showMessage("Authentication failed. Check the console for details.", true);
                             }
-                            // The anonymous sign-in should handle the case where the custom token is invalid
                             if (error.code === 'auth/custom-token-mismatch' && !auth.currentUser) {
                                 await signInAnonymously(auth);
                             }
@@ -644,7 +639,6 @@
             listenForActiveUsers();
             listenForPublicChat();
             
-            // Get IP address and user agent and set the active user document
             const activeUsersRef = doc(db, `artifacts/${appId}/public/data/active-users`, userId);
             await setDoc(activeUsersRef, {
                 username,
@@ -680,7 +674,6 @@
                 username = input;
                 isAdmin = false;
                 
-                // Add local video element to the container
                 addLocalVideoElement();
                 
                 loginPrompt.style.display = 'none';
@@ -690,14 +683,13 @@
             }
         };
         
-        // Dynamic video element creation
         const addLocalVideoElement = () => {
             const localVideoContainer = document.createElement('div');
             localVideoContainer.id = 'localVideoContainer';
             localVideoContainer.className = 'video-box';
             localVideoContainer.innerHTML = `
                 <video id="localVideo" class="video-element" autoplay playsinline muted></video>
-                <div id="localVideoLabel" class="absolute bottom-2 left-2 bg-gray-800 text-white text-xs px-2 py-1 rounded-md bg-opacity70"></div>
+                <div id="localVideoLabel" class="absolute bottom-2 left-2 bg-gray-800 text-white text-xs px-2 py-1 rounded-md bg-opacity-70"></div>
                 <div class="absolute top-2 right-2 flex space-x-2">
                     <i id="localAudioIcon" class="fas fa-microphone text-green-500"></i>
                     <i id="localVideoIcon" class="fas fa-video text-green-500"></i>
@@ -745,7 +737,6 @@
             usernameModal.classList.add('hidden');
             switchUsernameInput.value = '';
             
-            // Re-add local video element
             const existingLocalVideo = document.getElementById('localVideoContainer');
             if (existingLocalVideo) existingLocalVideo.remove();
             addLocalVideoElement();
@@ -770,8 +761,6 @@
                     localStream.getVideoTracks()[0].enabled = false;
                 }
                 updateMediaButtonStates(!localStream.getAudioTracks()[0].enabled, !localStream.getVideoTracks()[0].enabled);
-                // Start tracking audio level for local video
-                startAudioLevelTracking(localStream, 'localVideoContainer');
                 return localStream;
             } catch (error) {
                 console.error("Error getting user media:", error);
@@ -784,50 +773,22 @@
             }
         };
 
-        // New function to start audio level tracking
-        const startAudioLevelTracking = (stream, elementId) => {
-            if (speakingInterval) {
-                clearInterval(speakingInterval);
-            }
-            const audioContext = new AudioContext();
-            const source = audioContext.createMediaStreamSource(stream);
-            const analyser = audioContext.createAnalyser();
-            analyser.smoothingTimeConstant = 0.8;
-            analyser.fftSize = 256;
-            source.connect(analyser);
-
-            const dataArray = new Uint8Array(analyser.frequencyBinCount);
-            const videoElement = document.getElementById(elementId);
-
-            speakingInterval = setInterval(() => {
-                analyser.getByteFrequencyData(dataArray);
-                let sum = 0;
-                for (let i = 0; i < dataArray.length; i++) {
-                    sum += dataArray[i];
-                }
-                const average = sum / dataArray.length;
-                const volume = 20 * Math.log10(average / 255); // Convert to dB
-
-                if (videoElement) {
-                    if (volume > speakingThreshold) {
-                        videoElement.classList.add('pulse-border');
-                    } else {
-                        videoElement.classList.remove('pulse-border');
-                    }
-                }
-            }, 100);
-        };
-
-        const setupPeerConnection = (remoteUserId) => {
+        /** Creates a new RTCPeerConnection and sets up event listeners. */
+        const createPeerConnection = (remoteUserId) => {
             const pc = new RTCPeerConnection(configuration);
             peerConnections[remoteUserId] = pc;
             
+            localStream.getTracks().forEach(track => {
+                pc.addTrack(track, localStream);
+            });
+
             pc.onicecandidate = (event) => {
                 if (event.candidate) {
-                    const candidatesCollection = collection(roomRef, `participants/${remoteUserId}/candidates`);
-                    addDoc(candidatesCollection, {
-                        candidate: event.candidate.toJSON(),
-                        sender: userId
+                    addDoc(collection(roomRef, 'candidates'), {
+                        senderId: userId,
+                        receiverId: remoteUserId,
+                        candidate: JSON.stringify(event.candidate.toJSON()),
+                        timestamp: serverTimestamp()
                     });
                 }
             };
@@ -836,16 +797,97 @@
                 const remoteVideo = document.getElementById(`remoteVideo-${remoteUserId}`);
                 if (remoteVideo) {
                     remoteVideo.srcObject = event.streams[0];
+                    remoteStreams[remoteUserId] = event.streams[0];
                     startRecordingBtn.disabled = false;
-                    startAudioLevelTracking(event.streams[0], `remoteVideoContainer-${remoteUserId}`);
                 }
             };
             
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            pc.onconnectionstatechange = (event) => {
+                console.log(`Peer connection to ${remoteUserId} state: ${pc.connectionState}`);
+                if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+                    console.log(`Peer ${remoteUserId} disconnected.`);
+                    // Clean up the peer connection and UI element
+                    if (peerConnections[remoteUserId]) {
+                        peerConnections[remoteUserId].close();
+                        delete peerConnections[remoteUserId];
+                    }
+                    removeParticipantVideo(remoteUserId);
+                }
+            };
             
             return pc;
         };
 
+        /** Initiates the WebRTC offer to a remote user. */
+        const createOffer = async (remoteUserId) => {
+            const pc = createPeerConnection(remoteUserId);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            
+            await setDoc(doc(roomRef, 'offers', remoteUserId), {
+                senderId: userId,
+                offer: JSON.stringify(offer.toJSON()),
+                timestamp: serverTimestamp()
+            });
+        };
+
+        /** Handles a received WebRTC offer from a remote user. */
+        const handleOffer = async (offerDoc) => {
+            const remoteUserId = offerDoc.id;
+            const offerData = JSON.parse(offerDoc.data().offer);
+            
+            const pc = createPeerConnection(remoteUserId);
+            await pc.setRemoteDescription(new RTCSessionDescription(offerData));
+            
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            
+            await setDoc(doc(roomRef, 'answers', remoteUserId), {
+                senderId: userId,
+                answer: JSON.stringify(answer.toJSON()),
+                timestamp: serverTimestamp()
+            });
+        };
+
+        /** Listens for an answer from the remote user and sets it. */
+        const listenForAnswers = () => {
+            const answersCollectionRef = collection(roomRef, 'answers');
+            onSnapshot(answersCollectionRef, (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    const answerDoc = change.doc;
+                    const answerData = answerDoc.data();
+                    if (change.type === 'added' && answerData.senderId !== userId) {
+                        const pc = peerConnections[answerData.senderId];
+                        if (pc && pc.remoteDescription === null) {
+                            await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(answerData.answer)));
+                            console.log("Received and set answer from peer.");
+                        }
+                    }
+                });
+            });
+        };
+
+        /** Listens for WebRTC ICE candidates. */
+        const listenForCandidates = () => {
+            const candidatesCollectionRef = collection(roomRef, 'candidates');
+            onSnapshot(candidatesCollectionRef, (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    const data = change.doc.data();
+                    if (change.type === 'added' && data.senderId !== userId) {
+                        const pc = peerConnections[data.senderId];
+                        if (pc) {
+                            try {
+                                const candidate = new RTCIceCandidate(JSON.parse(data.candidate));
+                                await pc.addIceCandidate(candidate);
+                            } catch (error) {
+                                console.error("Error adding remote ICE candidate:", error);
+                            }
+                        }
+                    }
+                });
+            });
+        };
+        
         const createRoom = async () => {
             if (!username) {
                 showMessage("Please enter a username first.", true);
@@ -875,25 +917,24 @@
                     [userId]: {
                         username,
                         isMuted: startMuted,
-                        isVideoOff: startMuted,
-                        lastActive: serverTimestamp()
+                        isVideoOff: startMuted
                     }
                 };
 
                 await setDoc(roomRef, {
-                    createdOn: serverTimestamp(),
                     createdBy: userId,
                     createdByUsername: username,
                     participants: participants,
                     isLocked: false,
+                    lastUpdated: serverTimestamp()
                 });
 
-                // Listen for new participants and for incoming offers from them
                 listenForRoomUpdates();
                 listenForRoomChat(roomRef);
                 listenForParticipants();
-                listenForIncomingOffers();
-
+                listenForOffers();
+                listenForAnswers();
+                listenForCandidates();
                 showMessage(`Room "${roomName}" created! Share this ID with others.`);
                 updateRoomControls(true);
                 document.getElementById('localVideoContainer').classList.add('active-border');
@@ -930,51 +971,31 @@
                 const startMuted = joinMutedCheckbox.checked;
                 const stream = await getLocalStream(startMuted);
                 if (!stream) return;
-
-                // Create a peer connection for each existing participant
-                const existingParticipants = Object.keys(roomData.participants);
-                for (const remoteUserId of existingParticipants) {
-                    const pc = setupPeerConnection(remoteUserId);
-                    const offer = await pc.createOffer();
-                    await pc.setLocalDescription(offer);
-                    const offersRef = collection(roomRef, `participants/${remoteUserId}/offers`);
-                    await addDoc(offersRef, {
-                        from: userId,
-                        offer: offer.toJSON(),
-                        timestamp: serverTimestamp()
-                    });
-                    
-                    // Listen for the answer to our offer
-                    const answersRef = collection(roomRef, `participants/${userId}/answers`);
-                    onSnapshot(answersRef, (snapshot) => {
-                        snapshot.docChanges().forEach(async (change) => {
-                            if (change.type === 'added') {
-                                const answerData = change.doc.data();
-                                if (answerData.from === remoteUserId) {
-                                    await pc.setRemoteDescription(new RTCSessionDescription(answerData.answer));
-                                    console.log(`Answer received and set for ${remoteUserId}`);
-                                    await deleteDoc(change.doc.ref); // Clean up the answer
-                                }
-                            }
-                        });
-                    });
-                }
                 
                 await updateDoc(roomRef, {
                     [`participants.${userId}`]: {
                         username,
                         isMuted: startMuted,
-                        isVideoOff: startMuted,
-                        lastActive: serverTimestamp()
+                        isVideoOff: startMuted
                     }
                 });
                 
-                // Listen for new participants and for incoming offers from them
                 listenForRoomUpdates();
                 listenForRoomChat(roomRef);
                 listenForParticipants();
-                listenForIncomingOffers();
-
+                listenForOffers();
+                listenForAnswers();
+                listenForCandidates();
+                
+                // Initiate offers to all existing participants
+                const existingParticipants = Object.keys(roomData.participants);
+                for (const remoteId of existingParticipants) {
+                    if (remoteId !== userId) {
+                         addRemoteVideoElement(remoteId, roomData.participants[remoteId].username);
+                         await createOffer(remoteId);
+                    }
+                }
+                
                 showMessage(`Successfully joined room "${roomId}"!`);
                 updateRoomControls(true);
                 document.getElementById('localVideoContainer').classList.add('active-border');
@@ -984,48 +1005,19 @@
             }
         };
 
-        const listenForIncomingOffers = () => {
-            const offersRef = collection(roomRef, `participants/${userId}/offers`);
-            onSnapshot(offersRef, (snapshot) => {
-                snapshot.docChanges().forEach(async (change) => {
-                    if (change.type === "added") {
-                        const offerData = change.doc.data();
-                        const remoteUserId = offerData.from;
-                        const pc = setupPeerConnection(remoteUserId);
-                        await pc.setRemoteDescription(new RTCSessionDescription(offerData.offer));
-                        const answer = await pc.createAnswer();
-                        await pc.setLocalDescription(answer);
-
-                        const answersRef = collection(roomRef, `participants/${remoteUserId}/answers`);
-                        await addDoc(answersRef, {
-                            from: userId,
-                            answer: answer.toJSON(),
-                            timestamp: serverTimestamp()
-                        });
-                        console.log(`Answer sent to ${remoteUserId}`);
-                        await deleteDoc(change.doc.ref); // Clean up the offer
-                    }
-                });
-            });
-        };
-
         const hangup = async () => {
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
             }
-            if (speakingInterval) {
-                clearInterval(speakingInterval);
+            for (const pc in peerConnections) {
+                peerConnections[pc].close();
+                delete peerConnections[pc];
             }
-            for (const pcId in peerConnections) {
-                peerConnections[pcId].close();
-            }
-            peerConnections = {};
-
+            
             videoFeedContainer.innerHTML = '';
             addLocalVideoElement();
             isScreenSharing = false;
             screenShareBtn.textContent = 'Screen Share';
-            sakuraEffect.classList.add('hidden');
             if (document.fullscreenElement) {
                 document.exitFullscreen();
             }
@@ -1035,18 +1027,15 @@
                 const participants = roomSnapshot.data()?.participants || {};
                 
                 if (participants[userId]) {
-                    // Update participants list by removing self
-                    const newParticipants = { ...participants };
-                    delete newParticipants[userId];
-                    await updateDoc(roomRef, { participants: newParticipants });
+                    delete participants[userId];
+                    await updateDoc(roomRef, { participants });
+                }
 
-                    // Check if room is empty and delete it
-                    if (Object.keys(newParticipants).length === 0) {
-                        await deleteDoc(roomRef);
-                        showMessage('Room has been automatically closed.', false);
-                    } else {
-                        showMessage(`${username} has left the room.`, false);
-                    }
+                if (Object.keys(participants).length === 0) {
+                    await deleteDoc(roomRef);
+                    showMessage('Room has been automatically closed.', false);
+                } else {
+                    showMessage(`${username} has left the room.`, false);
                 }
             }
 
@@ -1061,16 +1050,13 @@
 
         const cleanUpListeners = () => {
             if (roomSnapshotListener) roomSnapshotListener();
-            for (const pc in peerConnections) {
-                const candidatesListener = peerConnections[pc].candidatesListener;
-                if (candidatesListener) candidatesListener();
-            }
+            if (publicChatListener) publicChatListener();
             if (roomChatListener) roomChatListener();
             if (participantsListener) participantsListener();
             if (activeUsersListener) activeUsersListener();
             if (adminRoomsListener) adminRoomsListener();
             if (adminUsersListener) adminUsersListener();
-            roomSnapshotListener = roomChatListener = participantsListener = activeUsersListener = adminRoomsListener = adminUsersListener = null;
+            roomSnapshotListener = publicChatListener = roomChatListener = participantsListener = activeUsersListener = adminRoomsListener = adminUsersListener = null;
         };
 
         const resetUI = () => {
@@ -1112,7 +1098,6 @@
             toggleVideoBtn.textContent = videoMuted ? "Turn On Video" : "Mute Video";
             toggleVideoBtn.classList.toggle('btn-toggle-active', !videoMuted);
 
-            // Update icons based on state for local user
             const localAudioIcon = document.getElementById('localAudioIcon');
             const localVideoIcon = document.getElementById('localVideoIcon');
             if (localAudioIcon && localVideoIcon) {
@@ -1133,6 +1118,7 @@
             }
         };
 
+        /** A simplified listener that just handles participant updates and UI changes. */
         const listenForRoomUpdates = () => {
             if (roomSnapshotListener) roomSnapshotListener();
             roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
@@ -1143,43 +1129,38 @@
                     return;
                 }
                 
-                // Host logic: listen for new participants and create peer connections
-                if (data && data.participants) {
-                    const participantIds = Object.keys(data.participants);
-                    const remoteParticipantIds = participantIds.filter(id => id !== userId);
-                    
-                    // Add/update remote peer connections
-                    for (const remoteId of remoteParticipantIds) {
-                        if (!peerConnections[remoteId]) {
-                            const pc = setupPeerConnection(remoteId);
-                            const remoteCandidatesCollection = collection(roomRef, `participants/${remoteId}/candidates`);
-                            
-                            pc.candidatesListener = onSnapshot(remoteCandidatesCollection, (snapshot) => {
-                                snapshot.docChanges().forEach(async (change) => {
-                                    if (change.type === "added" && change.doc.data().sender === remoteId) {
-                                        try {
-                                            const candidate = new RTCIceCandidate(change.doc.data().candidate);
-                                            await pc.addIceCandidate(candidate);
-                                        } catch (error) {
-                                            console.error("Error adding remote ICE candidate:", error);
-                                        }
-                                    }
-                                });
-                            });
-                            
-                            addRemoteVideoElement(remoteId, data.participants[remoteId].username);
-                        }
-                    }
-                    
-                    // Remove peer connections for users who have left
-                    for (const remoteId in peerConnections) {
-                        if (!remoteParticipantIds.includes(remoteId)) {
-                            peerConnections[remoteId].close();
-                            delete peerConnections[remoteId];
-                            removeParticipantVideo(remoteId);
-                        }
+                const participantIds = Object.keys(data.participants || {});
+                const remoteParticipantIds = participantIds.filter(id => id !== userId);
+                
+                // Create offers for new participants joining the room
+                for (const remoteId of remoteParticipantIds) {
+                    if (!peerConnections[remoteId]) {
+                        addRemoteVideoElement(remoteId, data.participants[remoteId].username);
+                        await createOffer(remoteId);
                     }
                 }
+                
+                // Remove peer connections for users who have left
+                for (const remoteId in peerConnections) {
+                    if (!remoteParticipantIds.includes(remoteId)) {
+                        peerConnections[remoteId].close();
+                        delete peerConnections[remoteId];
+                        removeParticipantVideo(remoteId);
+                    }
+                }
+            });
+        };
+
+        /** Listens for WebRTC offers from other users. */
+        const listenForOffers = () => {
+            const offersCollectionRef = collection(roomRef, 'offers');
+            onSnapshot(offersCollectionRef, (offersSnapshot) => {
+                offersSnapshot.docChanges().forEach(change => {
+                    const offerData = change.doc.data();
+                    if (change.type === 'added' && offerData.senderId !== userId) {
+                        handleOffer(change.doc);
+                    }
+                });
             });
         };
         
@@ -1256,14 +1237,13 @@
         };
         
         const startRecording = () => {
-            const remoteStreams = Object.values(peerConnections).map(pc => pc.getRemoteStreams()[0]).filter(Boolean);
-            if (remoteStreams.length === 0) {
+            if (Object.keys(remoteStreams).length === 0) {
                 showMessage("No remote stream to record.", true);
                 return;
             }
             
             const combinedStream = new MediaStream();
-            remoteStreams.forEach(stream => {
+            Object.values(remoteStreams).forEach(stream => {
                 stream.getTracks().forEach(track => combinedStream.addTrack(track));
             });
 
@@ -1372,7 +1352,6 @@
                 timestamp: serverTimestamp(),
                 type: 'text'
             });
-            // Update last active time
             await updateDoc(doc(db, `artifacts/${appId}/public/data/active-users`, userId), { lastActive: serverTimestamp() });
             publicChatInput.value = '';
         };
@@ -1389,7 +1368,6 @@
                 timestamp: serverTimestamp(),
                 type: 'text'
             });
-            // Update last active time
             await updateDoc(doc(db, `artifacts/${appId}/public/data/active-users`, userId), { lastActive: serverTimestamp() });
             roomChatInput.value = '';
         };
@@ -1462,7 +1440,6 @@
                         displayMessage(messageData, publicChatContainer);
                     }
                     if (change.type === 'removed') {
-                        // This handles the "Clear Waiting Room Chat" feature
                         const allMessages = document.querySelectorAll('#publicChatContainer .message');
                         if (allMessages.length > 0) {
                              publicChatContainer.innerHTML = '';
@@ -1482,11 +1459,10 @@
                         displayMessage(messageData, roomChatContainer);
                     }
                     if (change.type === 'removed') {
-                        // This handles the "Clear Room Chat" feature
                         const allMessages = document.querySelectorAll('#roomChatContainer .message');
-                         if (allMessages.length > 0) {
-                              roomChatContainer.innerHTML = '';
-                          }
+                        if (allMessages.length > 0) {
+                             roomChatContainer.innerHTML = '';
+                         }
                     }
                 });
             });
@@ -1521,7 +1497,6 @@
                         <span class="text-xs text-gray-400 space-x-2">${audioIcon} ${videoIcon}</span>
                     `;
 
-                    // Update video icons dynamically for remote users
                     const remoteAudioIcon = document.getElementById(`remoteAudioIcon-${id}`);
                     const remoteVideoIcon = document.getElementById(`remoteVideoIcon-${id}`);
                     if (remoteAudioIcon) {
@@ -1543,38 +1518,44 @@
                         }
                     }
 
-                    // Handle video container borders
                     const localVideoContainer = document.getElementById('localVideoContainer');
                     const remoteVideoContainer = document.getElementById(`remoteVideoContainer-${id}`);
                     if (localStream && localVideoContainer) {
                         localVideoContainer.classList.add('active-border');
                     }
                     if (remoteVideoContainer) {
-                         remoteVideoContainer.classList.add('active-border');
+                         remoteVideoContainer.classList.add('active-border', 'pulse-border');
                     }
                 });
             });
         };
 
-        // FIX: The user-facing active users list was broken. I've fixed it to correctly display users.
         const listenForActiveUsers = () => {
             if (activeUsersListener) activeUsersListener();
             const activeUsersRef = collection(db, `artifacts/${appId}/public/data/active-users`);
             activeUsersListener = onSnapshot(activeUsersRef, (snapshot) => {
                 adminActiveUsersList.innerHTML = '';
-                const users = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).filter(user => user.isOnline);
+                totalUsers.textContent = snapshot.size;
+                const users = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
                 if (users.length > 0) {
                     users.forEach(user => {
+                        const onlineStatus = user.isOnline ? '<span class="text-green-500">&#9679;</span> Online' : '<span class="text-red-500">&#9679;</span> Offline';
                         const userDiv = document.createElement('div');
-                        userDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded-sm';
+                        userDiv.className = 'flex items-center justify-between p-2 bg-[#3c3836] rounded-sm';
                         userDiv.innerHTML = `
-                            <i class="fas fa-user-circle text-lg"></i>
-                            <span class="text-sm flex-1">${user.username}</span>
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-user-circle text-lg"></i>
+                                <div class="flex flex-col">
+                                    <span class="text-sm flex-1">${user.username}</span>
+                                    <span class="text-xs text-gray-400">${onlineStatus}</span>
+                                </div>
+                            </div>
+                            <button data-user-id="${user.id}" data-user-name="${user.username}" class="kick-user-btn btn-danger text-xs px-2 py-1">Kick</button>
                         `;
-                        activeUsersList.appendChild(userDiv);
+                        adminActiveUsersList.appendChild(userDiv);
                     });
                 } else {
-                    activeUsersList.innerHTML = '<p class="text-gray-500 text-sm">No active users.</p>';
+                    adminActiveUsersList.innerHTML = '<p class="text-gray-500 text-sm">No active users.</p>';
                 }
             });
         };
@@ -1650,14 +1631,13 @@
             });
         };
 
-        // FIX: The admin active users list was broken. I've fixed it to correctly display IP addresses.
         const listenForAdminUsers = () => {
             if (adminUsersListener) adminUsersListener();
             const activeUsersRef = collection(db, `artifacts/${appId}/public/data/active-users`);
             adminUsersListener = onSnapshot(activeUsersRef, (snapshot) => {
                 adminActiveUsersList.innerHTML = '';
                 totalUsers.textContent = snapshot.size;
-                const users = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })); // Removed the filter to show all users
+                const users = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
                 if (users.length > 0) {
                     users.forEach(user => {
                         const onlineStatus = user.isOnline ? '<span class="text-green-500">&#9679;</span> Online' : '<span class="text-red-500">&#9679;</span> Offline';
@@ -1668,7 +1648,6 @@
                                 <i class="fas fa-user-circle text-lg"></i>
                                 <div class="flex flex-col">
                                     <span class="text-sm flex-1">${user.username}</span>
-                                    <span class="text-xs text-gray-400">ID: ${user.id}</span>
                                     <span class="text-xs text-gray-400">${onlineStatus}</span>
                                 </div>
                             </div>
@@ -1729,7 +1708,6 @@
                     </button>
                     <button data-room-id="${roomId}" data-action="mute-all" class="btn-danger px-4 py-2 font-semibold rounded-sm">Mute All</button>
                     <button data-room-id="${roomId}" data-action="video-off-all" class="btn-danger px-4 py-2 font-semibold rounded-sm">Video Off All</button>
-                    <button data-room-id="${roomId}" data-action="unmute-and-video-on-all" class="btn-primary px-4 py-2 font-semibold rounded-sm">Unmute All & Turn On Video</button>
                     <button data-room-id="${roomId}" data-action="clear-room-chat" class="btn-danger px-4 py-2 font-semibold rounded-sm">Clear Room Chat</button>
                 </div>
                 <h4 class="text-md font-semibold mt-4 mb-2">Participants:</h4>
@@ -1834,29 +1812,6 @@
             } catch(error) {
                 console.error('Error with mass video off:', error);
                 showMessage('Failed to turn off all videos.', true);
-            }
-        };
-        
-        const massUnmuteAndVideoOnParticipants = async (roomId) => {
-            try {
-                const roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomId);
-                await runTransaction(db, async (transaction) => {
-                    const roomDoc = await transaction.get(roomRef);
-                    if (!roomDoc.exists()) {
-                        throw new Error("Room does not exist!");
-                    }
-                    const participants = roomDoc.data()?.participants || {};
-                    const updates = {};
-                    for (const pId in participants) {
-                        updates[`participants.${pId}.isMuted`] = false;
-                        updates[`participants.${pId}.isVideoOff`] = false;
-                    }
-                    transaction.update(roomRef, updates);
-                });
-                showMessage(`All participants in room ${roomId} have been unmuted and their videos turned on.`, false);
-            } catch(error) {
-                console.error('Error with mass unmute and video on:', error);
-                showMessage('Failed to perform action.', true);
             }
         };
 
@@ -1985,7 +1940,6 @@
             toggleVideoBtn.addEventListener('click', toggleVideo);
             screenShareBtn.addEventListener('click', startScreenShare);
             fullScreenBtn.addEventListener('click', () => {
-                // Find the first non-local video element and make it fullscreen
                 const remoteVideos = document.querySelectorAll('#video-feed-container .video-box:not(#localVideoContainer)');
                 if (remoteVideos.length > 0) {
                     remoteVideos[0].requestFullscreen().catch(err => console.error("Error attempting full-screen:", err));
@@ -1996,7 +1950,6 @@
                 }
             });
             volumeControl.addEventListener('input', (e) => {
-                // Find the remote video element and set volume
                 const remoteVideo = document.querySelector('#video-feed-container video:not(#localVideo)');
                 if (remoteVideo) {
                     remoteVideo.volume = e.target.value / 100;
@@ -2027,7 +1980,6 @@
                 if (file && roomRef) uploadFile(file, collection(roomRef, 'chat-messages'));
             });
 
-            // Room and User List Clicks (using event delegation for dynamic buttons)
             document.addEventListener('click', (e) => {
                 if (e.target.classList.contains('join-room-btn')) {
                     roomIdInput.value = e.target.dataset.roomId;
@@ -2073,13 +2025,6 @@
                 if (e.target.dataset.action === 'video-off-all') {
                     const roomId = e.target.dataset.roomId;
                     massVideoOffParticipants(roomId, true);
-                }
-                if (e.target.dataset.action === 'unmute-and-video-on-all') {
-                    const roomId = e.target.dataset.roomId;
-                    massUnmuteAndVideoOnParticipants(roomId);
-                }
-                if (e.target.dataset.action === 'clear-public-chat') {
-                    clearPublicChat();
                 }
                 if (e.target.dataset.action === 'clear-room-chat') {
                     const roomId = e.target.dataset.roomId;
@@ -2133,7 +2078,6 @@
                  passwordModal.classList.remove('hidden');
             });
         });
-
     </script>
 </body>
 </html>
