@@ -172,9 +172,21 @@ Doral Video Conference
 </header>
 
 <!-- Main App Content (hidden initially) -->
-<main id="mainApp" class="w-full space-y-8 hidden">
-<!-- Video and Controls -->
+<main id="mainApp" class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 hidden">
+<!-- Left Sidebar for Chat -->
+<div class="md:col-span-1 space-y-8">
 <div class="container-card">
+<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
+<div class="chat-container mb-4" id="chatContainer"></div>
+<div class="flex space-x-2">
+<input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" />
+<button id="sendChatBtn" class="btn-primary" disabled>Send</button>
+</div>
+</div>
+</div>
+
+<!-- Video and Controls -->
+<div class="md:col-span-2 container-card">
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feed</h2>
 <div class="video-container mb-4">
 <video id="remoteVideo" class="video-element" autoplay playsinline></video>
@@ -186,6 +198,7 @@ Doral Video Conference
 <button id="toggleVideoBtn" class="btn-toggle" disabled><i class="fas fa-video"></i> Mute Video</button>
 <button id="screenShareBtn" class="btn-toggle" disabled><i class="fas fa-desktop"></i> Screen Share</button>
 <button id="fullScreenBtn" class="btn-toggle" disabled><i class="fas fa-expand"></i> Fullscreen</button>
+<button id="sideBySideBtn" class="btn-toggle" disabled><i class="fas fa-columns"></i> Side-by-Side</button>
 <button id="hangupBtn" class="btn-danger flex-1" disabled>Leave Room</button>
 </div>
 <div class="flex mt-4 space-x-4 items-center justify-center">
@@ -200,18 +213,8 @@ Doral Video Conference
 <a id="downloadRecording" style="display: none;"></a>
 </div>
 
-<!-- All Hub/Management sections -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-<!-- Chat Section -->
-<div class="container-card">
-<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
-<div class="chat-container mb-4" id="chatContainer"></div>
-<div class="flex space-x-2">
-<input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" />
-<button id="sendChatBtn" class="btn-primary" disabled>Send</button>
-</div>
-</div>
-<!-- Room Management Section -->
+<!-- Right Sidebar for Management -->
+<div class="md:col-span-1 space-y-8">
 <div class="container-card">
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Room Management</h2>
 <div class="flex flex-col space-y-4">
@@ -236,25 +239,25 @@ Doral Video Conference
 <button id="lockRoomBtn" class="btn-toggle" disabled>Lock Room</button>
 </div>
 </div>
-<!-- Right-hand side lists (active rooms, participants, etc.) -->
-<div class="space-y-8">
+
 <div class="container-card">
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Active Rooms</h2>
 <div id="activeRoomsList" class="space-y-2">
 <p class="text-gray-500 text-sm">Loading rooms...</p>
 </div>
 </div>
+
 <div class="container-card">
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Participants</h2>
 <div id="participantsList" class="space-y-2 text-gray-400 text-sm">
 No participants in this room.
 </div>
 </div>
+
 <div class="container-card">
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Active Users</h2>
 <div id="activeUsersList" class="space-y-2 text-gray-400 text-sm">
 Loading users...
-</div>
 </div>
 </div>
 </div>
