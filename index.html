@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -95,8 +94,8 @@
         }
 
         .video-feed-container {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 1rem;
             width: 100%;
         }
@@ -270,28 +269,9 @@
         </div>
 
         <div class="container-card mt-8 md:mt-0">
-            <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feed</h2>
-            <div class="video-feed-container">
-                <!-- Local video feed with name and icons overlay -->
-                <div id="localVideoContainer" class="video-box">
-                    <video id="localVideo" class="video-element" autoplay playsinline muted></video>
-                    <div id="localVideoLabel" class="absolute bottom-2 left-2 bg-gray-800 text-white text-xs px-2 py-1 rounded-md bg-opacity-70"></div>
-                    <div class="absolute top-2 right-2 flex space-x-2">
-                        <i id="localAudioIcon" class="fas fa-microphone text-green-500"></i>
-                        <i id="localVideoIcon" class="fas fa-video text-green-500"></i>
-                    </div>
+            <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feeds</h2>
+            <div class="video-feed-container" id="video-feed-container">
                 </div>
-                <!-- Remote video feed with name and icons overlay, initially hidden -->
-                <div id="remoteVideoContainer" class="video-box hidden">
-                    <video id="remoteVideo" class="video-element" autoplay playsinline></video>
-                    <div id="remoteVideoLabel" class="absolute bottom-2 left-2 bg-gray-800 text-white text-xs px-2 py-1 rounded-md bg-opacity-70"></div>
-                    <div class="absolute top-2 right-2 flex space-x-2">
-                        <i id="remoteAudioIcon" class="fas fa-microphone-slash text-red-500"></i>
-                        <i id="remoteVideoIcon" class="fas fa-video-slash text-red-500"></i>
-                    </div>
-                </div>
-                <div id="sakuraEffect" class="sakura-container hidden"></div>
-            </div>
             <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 items-center justify-center mt-4">
                 <button id="toggleAudioBtn" class="btn-toggle px-4 py-2 font-semibold rounded-sm focus:outline-none" disabled><i class="fas fa-microphone"></i> Mute Audio</button>
                 <button id="toggleVideoBtn" class="btn-toggle px-4 py-2 font-semibold rounded-sm focus:outline-none" disabled><i class="fas fa-video"></i> Mute Video</button>
@@ -468,8 +448,10 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         let app, db, auth, storage;
         let userId, username, isAdmin = false;
-        let peerConnection = null, localStream = null, roomRef = null;
-        let roomSnapshotListener, candidatesListener, roomsListener, publicChatListener, roomChatListener, participantsListener, activeUsersListener, adminRoomsListener, adminUsersListener;
+        let localStream = null;
+        let roomRef = null;
+        let peerConnections = {}; // Store peer connections for each remote user
+        let roomSnapshotListener, publicChatListener, roomChatListener, participantsListener, activeUsersListener, adminRoomsListener, adminUsersListener;
         let isScreenSharing = false;
         let mediaRecorder, recordedChunks = [];
         const videoQualities = {
@@ -492,16 +474,7 @@
         const usernameInput = document.getElementById('usernameInput');
         const adminLoginCheckbox = document.getElementById('adminLoginCheckbox');
         const submitLoginBtn = document.getElementById('submitLoginBtn');
-        const localVideo = document.getElementById('localVideo');
-        const remoteVideo = document.getElementById('remoteVideo');
-        const localVideoContainer = document.getElementById('localVideoContainer');
-        const remoteVideoContainer = document.getElementById('remoteVideoContainer');
-        const localVideoLabel = document.getElementById('localVideoLabel');
-        const remoteVideoLabel = document.getElementById('remoteVideoLabel');
-        const localAudioIcon = document.getElementById('localAudioIcon');
-        const localVideoIcon = document.getElementById('localVideoIcon');
-        const remoteAudioIcon = document.getElementById('remoteAudioIcon');
-        const remoteVideoIcon = document.getElementById('remoteVideoIcon');
+        const videoFeedContainer = document.getElementById('video-feed-container');
         const roomIdInput = document.getElementById('roomIdInput');
         const newRoomNameInput = document.getElementById('newRoomNameInput');
         const createRoomBtn = document.getElementById('createRoomBtn');
@@ -559,7 +532,6 @@
         const maxFileSize = 1048576; // Reverted to 1MB file size limit for stability
         const clearPublicChatBtn = document.getElementById('clearPublicChatBtn');
         const refreshAdminDataBtn = document.getElementById('refreshAdminDataBtn');
-
 
         // === 3. UTILITY FUNCTIONS ===
 
@@ -704,11 +676,54 @@
             } else {
                 username = input;
                 isAdmin = false;
-                localVideoLabel.textContent = username;
+                
+                // Add local video element to the container
+                addLocalVideoElement();
+                
                 loginPrompt.style.display = 'none';
                 if (auth.currentUser) {
                     switchToUserView();
                 }
+            }
+        };
+        
+        // Dynamic video element creation
+        const addLocalVideoElement = () => {
+            const localVideoContainer = document.createElement('div');
+            localVideoContainer.id = 'localVideoContainer';
+            localVideoContainer.className = 'video-box';
+            localVideoContainer.innerHTML = `
+                <video id="localVideo" class="video-element" autoplay playsinline muted></video>
+                <div id="localVideoLabel" class="absolute bottom-2 left-2 bg-gray-800 text-white text-xs px-2 py-1 rounded-md bg-opacity-70"></div>
+                <div class="absolute top-2 right-2 flex space-x-2">
+                    <i id="localAudioIcon" class="fas fa-microphone text-green-500"></i>
+                    <i id="localVideoIcon" class="fas fa-video text-green-500"></i>
+                </div>
+            `;
+            videoFeedContainer.appendChild(localVideoContainer);
+            document.getElementById('localVideoLabel').textContent = username;
+        };
+
+        const addRemoteVideoElement = (id, name) => {
+            if (document.getElementById(`remoteVideoContainer-${id}`)) return;
+            const remoteVideoContainer = document.createElement('div');
+            remoteVideoContainer.id = `remoteVideoContainer-${id}`;
+            remoteVideoContainer.className = 'video-box';
+            remoteVideoContainer.innerHTML = `
+                <video id="remoteVideo-${id}" class="video-element" autoplay playsinline></video>
+                <div class="absolute bottom-2 left-2 bg-gray-800 text-white text-xs px-2 py-1 rounded-md bg-opacity-70">${name}</div>
+                <div class="absolute top-2 right-2 flex space-x-2">
+                    <i id="remoteAudioIcon-${id}" class="fas fa-microphone text-green-500"></i>
+                    <i id="remoteVideoIcon-${id}" class="fas fa-video text-green-500"></i>
+                </div>
+            `;
+            videoFeedContainer.appendChild(remoteVideoContainer);
+        };
+
+        const removeParticipantVideo = (id) => {
+            const videoElement = document.getElementById(`remoteVideoContainer-${id}`);
+            if (videoElement) {
+                videoElement.remove();
             }
         };
 
@@ -726,7 +741,12 @@
             isAdmin = false;
             usernameModal.classList.add('hidden');
             switchUsernameInput.value = '';
-            localVideoLabel.textContent = username;
+            
+            // Re-add local video element
+            const existingLocalVideo = document.getElementById('localVideoContainer');
+            if (existingLocalVideo) existingLocalVideo.remove();
+            addLocalVideoElement();
+            
             switchToUserView();
             showMessage(`Switched to user mode as ${username}.`, false);
         };
@@ -741,8 +761,7 @@
                     video: videoQualities[selectedQuality]
                 };
                 localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                localVideo.srcObject = localStream;
-                localVideo.muted = true;
+                document.getElementById('localVideo').srcObject = localStream;
                 if (startMuted) {
                     localStream.getAudioTracks()[0].enabled = false;
                     localStream.getVideoTracks()[0].enabled = false;
@@ -760,25 +779,31 @@
             }
         };
 
-        const setupPeerConnection = () => {
-            peerConnection = new RTCPeerConnection(configuration);
-            peerConnection.onicecandidate = (event) => {
+        const setupPeerConnection = (remoteUserId) => {
+            const pc = new RTCPeerConnection(configuration);
+            peerConnections[remoteUserId] = pc;
+            
+            pc.onicecandidate = (event) => {
                 if (event.candidate) {
-                    const candidatesCollection = collection(roomRef, 'candidates');
+                    const candidatesCollection = collection(roomRef, `candidates/${remoteUserId}/connection`);
                     addDoc(candidatesCollection, {
                         candidate: JSON.stringify(event.candidate.toJSON()),
                         sender: userId
                     });
                 }
             };
-            peerConnection.ontrack = (event) => {
-                if (event.streams && event.streams[0]) {
+            
+            pc.ontrack = (event) => {
+                const remoteVideo = document.getElementById(`remoteVideo-${remoteUserId}`);
+                if (remoteVideo) {
                     remoteVideo.srcObject = event.streams[0];
                     startRecordingBtn.disabled = false;
-                    remoteVideoContainer.classList.add('pulse-border', 'active-border');
-                    remoteVideoContainer.classList.remove('hidden');
                 }
             };
+            
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            
+            return pc;
         };
 
         const createRoom = async () => {
@@ -795,7 +820,6 @@
             roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomName);
             showMessage("Creating room...");
 
-            // Check if room name already exists
             const roomSnapshot = await getDoc(roomRef);
             if (roomSnapshot.exists()) {
                 showMessage("A room with that name already exists. Please choose a different name.", true);
@@ -806,10 +830,7 @@
                 const startMuted = joinMutedCheckbox.checked;
                 const stream = await getLocalStream(startMuted);
                 if (!stream) return;
-                setupPeerConnection();
-                stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
+                
                 const participants = {
                     [userId]: {
                         username,
@@ -817,25 +838,21 @@
                         isVideoOff: startMuted
                     }
                 };
+
                 await setDoc(roomRef, {
-                    offer: {
-                        sdp: offer.sdp,
-                        type: offer.type
-                    },
                     createdBy: userId,
                     createdByUsername: username,
                     participants: participants,
                     isLocked: false,
                     lastUpdated: serverTimestamp()
                 });
+
                 listenForRoomUpdates();
                 listenForRoomChat(roomRef);
                 listenForParticipants();
                 showMessage(`Room "${roomName}" created! Share this ID with others.`);
                 updateRoomControls(true);
-                localVideoContainer.classList.add('active-border', 'pulse-border');
-                localVideoContainer.classList.remove('hidden');
-                localVideoLabel.textContent = username;
+                document.getElementById('localVideoContainer').classList.add('active-border');
                 for (let i = 0; i < 50; i++) addSakuraPetal();
             } catch (error) {
                 console.error("Error creating room:", error);
@@ -865,34 +882,26 @@
                 return;
             }
             showMessage(`Joining room: ${roomId}`);
+            
             try {
                 const startMuted = joinMutedCheckbox.checked;
                 const stream = await getLocalStream(startMuted);
                 if (!stream) return;
-                setupPeerConnection();
-                stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
-                const offer = roomSnapshot.data().offer;
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
+                
                 await updateDoc(roomRef, {
-                    answer,
                     [`participants.${userId}`]: {
                         username,
                         isMuted: startMuted,
                         isVideoOff: startMuted
                     }
                 });
+                
                 listenForRoomUpdates();
                 listenForRoomChat(roomRef);
                 listenForParticipants();
-                remoteVideoLabel.textContent = roomData.createdByUsername;
                 showMessage(`Successfully joined room "${roomId}"!`);
                 updateRoomControls(true);
-                localVideoContainer.classList.add('active-border');
-                localVideoContainer.classList.remove('hidden');
-                localVideoLabel.textContent = username;
-                remoteVideoContainer.classList.remove('hidden');
+                document.getElementById('localVideoContainer').classList.add('active-border');
                 for (let i = 0; i < 50; i++) addSakuraPetal();
             } catch (error) {
                 console.error("Error joining room:", error);
@@ -901,46 +910,44 @@
         };
 
         const hangup = async () => {
-            if (peerConnection) peerConnection.close();
-            if (localStream) localStream.getTracks().forEach(track => track.stop());
-            localVideo.srcObject = null;
-            remoteVideo.srcObject = null;
-            peerConnection = null;
-            localStream = null;
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            for (const pc in peerConnections) {
+                peerConnections[pc].close();
+            }
+            peerConnections = {};
+
+            videoFeedContainer.innerHTML = '';
+            addLocalVideoElement();
             isScreenSharing = false;
             screenShareBtn.textContent = 'Screen Share';
             sakuraEffect.classList.add('hidden');
             if (document.fullscreenElement) {
                 document.exitFullscreen();
             }
-            localVideoContainer.classList.remove('pulse-border', 'active-border');
-            remoteVideoContainer.classList.remove('pulse-border', 'active-border');
-            localVideoContainer.classList.add('hidden');
-            remoteVideoContainer.classList.add('hidden');
 
-            if (userId) {
-                if (roomRef) {
-                    const roomSnapshot = await getDoc(roomRef);
-                    const participants = roomSnapshot.data()?.participants || {};
-                    if(participants[userId]){
-                        delete participants[userId];
-                        await updateDoc(roomRef, { participants });
-                    }
-
-                    if (Object.keys(participants).length === 0) {
-                        await deleteDoc(roomRef);
-                        showMessage('Room has been automatically closed.', false);
-                    } else {
-                        showMessage(`${username} has left the room.`, false);
-                    }
+            if (userId && roomRef) {
+                const roomSnapshot = await getDoc(roomRef);
+                const participants = roomSnapshot.data()?.participants || {};
+                
+                if (participants[userId]) {
+                    delete participants[userId];
+                    await updateDoc(roomRef, { participants });
                 }
 
-                const activeUserRef = doc(db, `artifacts/${appId}/public/data/active-users`, userId);
-                await updateDoc(activeUserRef, {
-                    isOnline: false
-                }).catch(console.error);
-
+                if (Object.keys(participants).length === 0) {
+                    await deleteDoc(roomRef);
+                    showMessage('Room has been automatically closed.', false);
+                } else {
+                    showMessage(`${username} has left the room.`, false);
+                }
             }
+
+            const activeUserRef = doc(db, `artifacts/${appId}/public/data/active-users`, userId);
+            await updateDoc(activeUserRef, {
+                isOnline: false
+            }).catch(console.error);
 
             cleanUpListeners();
             resetUI();
@@ -948,13 +955,16 @@
 
         const cleanUpListeners = () => {
             if (roomSnapshotListener) roomSnapshotListener();
-            if (candidatesListener) candidatesListener();
+            for (const pc in peerConnections) {
+                const candidatesListener = peerConnections[pc].candidatesListener;
+                if (candidatesListener) candidatesListener();
+            }
             if (roomChatListener) roomChatListener();
             if (participantsListener) participantsListener();
             if (activeUsersListener) activeUsersListener();
             if (adminRoomsListener) adminRoomsListener();
             if (adminUsersListener) adminUsersListener();
-            roomSnapshotListener = candidatesListener = roomChatListener = participantsListener = activeUsersListener = adminRoomsListener = adminUsersListener = null;
+            roomSnapshotListener = roomChatListener = participantsListener = activeUsersListener = adminRoomsListener = adminUsersListener = null;
         };
 
         const resetUI = () => {
@@ -965,8 +975,7 @@
             roomChatCard.classList.add('hidden');
             roomChatContainer.innerHTML = '';
             participantsList.innerHTML = 'No participants in this room.';
-            localVideoLabel.textContent = '';
-            remoteVideoLabel.textContent = '';
+            document.getElementById('localVideoLabel').textContent = '';
             updateMediaButtonStates(true, true);
         };
 
@@ -997,26 +1006,29 @@
             toggleVideoBtn.textContent = videoMuted ? "Turn On Video" : "Mute Video";
             toggleVideoBtn.classList.toggle('btn-toggle-active', !videoMuted);
 
-            // Update icons based on state
-            if (audioMuted) {
-                localAudioIcon.classList.remove('fa-microphone', 'text-green-500');
-                localAudioIcon.classList.add('fa-microphone-slash', 'text-red-500');
-            } else {
-                localAudioIcon.classList.remove('fa-microphone-slash', 'text-red-500');
-                localAudioIcon.classList.add('fa-microphone', 'text-green-500');
-            }
-            if (videoMuted) {
-                localVideoIcon.classList.remove('fa-video', 'text-green-500');
-                localVideoIcon.classList.add('fa-video-slash', 'text-red-500');
-            } else {
-                localVideoIcon.classList.remove('fa-video-slash', 'text-red-500');
-                localVideoIcon.classList.add('fa-video', 'text-green-500');
+            // Update icons based on state for local user
+            const localAudioIcon = document.getElementById('localAudioIcon');
+            const localVideoIcon = document.getElementById('localVideoIcon');
+            if (localAudioIcon && localVideoIcon) {
+                if (audioMuted) {
+                    localAudioIcon.classList.remove('fa-microphone', 'text-green-500');
+                    localAudioIcon.classList.add('fa-microphone-slash', 'text-red-500');
+                } else {
+                    localAudioIcon.classList.remove('fa-microphone-slash', 'text-red-500');
+                    localAudioIcon.classList.add('fa-microphone', 'text-green-500');
+                }
+                if (videoMuted) {
+                    localVideoIcon.classList.remove('fa-video', 'text-green-500');
+                    localVideoIcon.classList.add('fa-video-slash', 'text-red-500');
+                } else {
+                    localVideoIcon.classList.remove('fa-video-slash', 'text-red-500');
+                    localVideoIcon.classList.add('fa-video', 'text-green-500');
+                }
             }
         };
 
         const listenForRoomUpdates = () => {
             if (roomSnapshotListener) roomSnapshotListener();
-            if (candidatesListener) candidatesListener();
             roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
                 const data = snapshot.data();
                 if (!snapshot.exists()) {
@@ -1025,78 +1037,59 @@
                     return;
                 }
                 
-                // Host logic: listen for answer and set remote description
-                if (data && data.answer && peerConnection.signalingState === 'have-local-offer') {
-                    console.log("Host received answer, setting remote description.");
-                    const answer = new RTCSessionDescription(data.answer);
-                    await peerConnection.setRemoteDescription(answer);
-                    remoteVideoContainer.classList.add('active-border');
-                    remoteVideoContainer.classList.add('pulse-border');
-                }
-
-                // Update local audio/video state if changed by admin
-                const myParticipantData = data.participants[userId];
-                if (myParticipantData) {
-                    // Mute/unmute local stream if the admin changes the state
-                    if (localStream.getAudioTracks()[0].enabled !== !myParticipantData.isMuted) {
-                        localStream.getAudioTracks()[0].enabled = !myParticipantData.isMuted;
-                        updateMediaButtonStates(myParticipantData.isMuted, myParticipantData.isVideoOff);
-                        showMessage(myParticipantData.isMuted ? "You have been muted by the admin." : "You have been unmuted by the admin.");
-                    }
-                    if (localStream.getVideoTracks()[0].enabled !== !myParticipantData.isVideoOff) {
-                         localStream.getVideoTracks()[0].enabled = !myParticipantData.isVideoOff;
-                         updateMediaButtonStates(myParticipantData.isMuted, myParticipantData.isVideoOff);
-                         showMessage(myParticipantData.isVideoOff ? "Your video has been turned off by the admin." : "Your video has been turned on by the admin.");
-                    }
-                }
-
-                // Update remote video label if a new user joins
+                // Host logic: listen for new participants and create peer connections
                 if (data && data.participants) {
-                    const remoteParticipantId = Object.keys(data.participants).find(id => id !== userId);
-                    if (remoteParticipantId) {
-                        remoteVideoLabel.textContent = data.participants[remoteParticipantId].username;
-                        remoteVideoContainer.classList.remove('hidden');
-
-                        const remoteParticipantData = data.participants[remoteParticipantId];
-                        if (remoteParticipantData.isMuted) {
-                            remoteAudioIcon.classList.remove('fa-microphone', 'text-green-500');
-                            remoteAudioIcon.classList.add('fa-microphone-slash', 'text-red-500');
-                        } else {
-                            remoteAudioIcon.classList.remove('fa-microphone-slash', 'text-red-500');
-                            remoteAudioIcon.classList.add('fa-microphone', 'text-green-500');
+                    const participantIds = Object.keys(data.participants);
+                    const remoteParticipantIds = participantIds.filter(id => id !== userId);
+                    
+                    // Add/update remote peer connections
+                    for (const remoteId of remoteParticipantIds) {
+                        if (!peerConnections[remoteId]) {
+                            const pc = setupPeerConnection(remoteId);
+                            const remoteCandidatesCollection = collection(roomRef, `candidates/${userId}/connection`);
+                            
+                            pc.candidatesListener = onSnapshot(remoteCandidatesCollection, (snapshot) => {
+                                snapshot.docChanges().forEach(async (change) => {
+                                    if (change.type === "added" && change.doc.data().sender === remoteId) {
+                                        try {
+                                            const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
+                                            await pc.addIceCandidate(candidate);
+                                        } catch (error) {
+                                            console.error("Error adding remote ICE candidate:", error);
+                                        }
+                                    }
+                                });
+                            });
+                            
+                            if (data.participants[remoteId].offer) {
+                                await pc.setRemoteDescription(new RTCSessionDescription(data.participants[remoteId].offer));
+                                const answer = await pc.createAnswer();
+                                await pc.setLocalDescription(answer);
+                                await updateDoc(doc(roomRef, 'participants', remoteId), { answer });
+                            } else {
+                                const offer = await pc.createOffer();
+                                await pc.setLocalDescription(offer);
+                                await updateDoc(doc(roomRef, 'participants', userId), { [`offer-${remoteId}`]: offer });
+                            }
+                            
+                            addRemoteVideoElement(remoteId, data.participants[remoteId].username);
                         }
-                        if (remoteParticipantData.isVideoOff) {
-                            remoteVideoIcon.classList.remove('fa-video', 'text-green-500');
-                            remoteVideoIcon.classList.add('fa-video-slash', 'text-red-500');
-                        } else {
-                            remoteVideoIcon.classList.remove('fa-video-slash', 'text-red-500');
-                            remoteVideoIcon.classList.add('fa-video', 'text-green-500');
+                    }
+                    
+                    // Remove peer connections for users who have left
+                    for (const remoteId in peerConnections) {
+                        if (!remoteParticipantIds.includes(remoteId)) {
+                            peerConnections[remoteId].close();
+                            delete peerConnections[remoteId];
+                            removeParticipantVideo(remoteId);
                         }
-                    } else {
-                        // Hide remote video if no other participant exists
-                        remoteVideoContainer.classList.add('hidden');
-                        remoteVideoContainer.classList.remove('pulse-border', 'active-border');
                     }
                 }
-            });
-
-            candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
-                snapshot.docChanges().forEach(async (change) => {
-                    if (change.type === "added" && change.doc.data().sender !== userId) {
-                        try {
-                            const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
-                            await peerConnection.addIceCandidate(candidate);
-                            console.log("Added remote ICE candidate.");
-                        } catch (error) {
-                            console.error("Error adding ICE candidate:", error);
-                        }
-                    }
-                });
             });
         };
-
+        
         const startScreenShare = async () => {
-            if (!peerConnection) {
+            if (!roomRef) {
                 showMessage("Please join a room before sharing your screen.", true);
                 return;
             }
@@ -1105,8 +1098,11 @@
                 screenShareBtn.textContent = 'Screen Share';
                 const stream = await getLocalStream(false);
                 if (!stream) return;
-                const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
-                if (videoSender) videoSender.replaceTrack(stream.getVideoTracks()[0]);
+                for (const remoteId in peerConnections) {
+                    const pc = peerConnections[remoteId];
+                    const videoSender = pc.getSenders().find(sender => sender.track.kind === 'video');
+                    if (videoSender) videoSender.replaceTrack(stream.getVideoTracks()[0]);
+                }
             } else {
                 try {
                     const displayStream = await navigator.mediaDevices.getDisplayMedia({
@@ -1118,15 +1114,18 @@
                     screenShareBtn.textContent = 'Stop Sharing';
                     if (localStream) localStream.getTracks().forEach(track => track.stop());
                     localStream = displayStream;
-                    const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
-                    const audioSender = peerConnection.getSenders().find(sender => sender.track.kind === 'audio');
-                    if (videoSender) videoSender.replaceTrack(localStream.getVideoTracks()[0]);
-                    if (audioSender && localStream.getAudioTracks().length > 0) {
-                        audioSender.replaceTrack(localStream.getAudioTracks()[0]);
-                    } else if (audioSender) {
-                        audioSender.replaceTrack(null);
+                    for (const remoteId in peerConnections) {
+                        const pc = peerConnections[remoteId];
+                        const videoSender = pc.getSenders().find(sender => sender.track.kind === 'video');
+                        const audioSender = pc.getSenders().find(sender => sender.track.kind === 'audio');
+                        if (videoSender) videoSender.replaceTrack(localStream.getVideoTracks()[0]);
+                        if (audioSender && localStream.getAudioTracks().length > 0) {
+                            audioSender.replaceTrack(localStream.getAudioTracks()[0]);
+                        } else if (audioSender) {
+                            audioSender.replaceTrack(null);
+                        }
                     }
-                    localVideo.srcObject = localStream;
+                    document.getElementById('localVideo').srcObject = localStream;
                 } catch (error) {
                     console.error('Error starting screen share:', error);
                     showMessage('Failed to start screen sharing. Permission denied or operation cancelled.', true);
@@ -1137,21 +1136,21 @@
         };
 
         const toggleAudio = async () => {
-            if (!localStream || !roomRef) return;
             const audioTrack = localStream.getAudioTracks()[0];
+            if (!audioTrack || !roomRef) return;
             audioTrack.enabled = !audioTrack.enabled;
             updateMediaButtonStates(!audioTrack.enabled, !localStream.getVideoTracks()[0].enabled);
             await updateDoc(doc(roomRef, 'participants', userId), { isMuted: !audioTrack.enabled });
         };
 
         const toggleVideo = async () => {
-            if (!localStream || !roomRef) return;
             const videoTrack = localStream.getVideoTracks()[0];
+            if (!videoTrack || !roomRef) return;
             videoTrack.enabled = !videoTrack.enabled;
             updateMediaButtonStates(!localStream.getAudioTracks()[0].enabled, !videoTrack.enabled);
             await updateDoc(doc(roomRef, 'participants', userId), { isVideoOff: !videoTrack.enabled });
         };
-
+        
         const toggleRoomLock = async () => {
             if (!roomRef) return;
             const roomSnapshot = await getDoc(roomRef);
@@ -1160,18 +1159,26 @@
             lockRoomBtn.textContent = isLocked ? "Lock Room" : "Unlock Room";
             showMessage(isLocked ? "Room is now unlocked." : "Room is now locked.", false);
         };
-
+        
         const startRecording = () => {
-            if (!remoteVideo.srcObject) {
+            const remoteStreams = Object.values(peerConnections).map(pc => pc.getRemoteStreams()[0]).filter(Boolean);
+            if (remoteStreams.length === 0) {
                 showMessage("No remote stream to record.", true);
                 return;
             }
+            
+            const combinedStream = new MediaStream();
+            remoteStreams.forEach(stream => {
+                stream.getTracks().forEach(track => combinedStream.addTrack(track));
+            });
+
             recordedChunks = [];
-            const stream = remoteVideo.srcObject;
-            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+            mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm; codecs=vp9' });
+            
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data.size > 0) recordedChunks.push(e.data);
             };
+            
             mediaRecorder.onstop = () => {
                 const blob = new Blob(recordedChunks, { type: 'video/webm' });
                 const url = URL.createObjectURL(blob);
@@ -1184,12 +1191,13 @@
                 URL.revokeObjectURL(url);
                 showMessage("Recording downloaded successfully!");
             };
+            
             mediaRecorder.start();
             showMessage("Recording started...");
             startRecordingBtn.disabled = true;
             stopRecordingBtn.disabled = false;
         };
-
+        
         const stopRecording = () => {
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
@@ -1290,7 +1298,7 @@
             await updateDoc(doc(db, `artifacts/${appId}/public/data/active-users`, userId), { lastActive: serverTimestamp() });
             roomChatInput.value = '';
         };
-
+        
         const handleFileUpload = (file, sendFunction) => {
             if (file.size > maxFileSize) {
                 showMessage(`File is too large. Max size is ${maxFileSize / 1024 / 1024}MB.`, true);
@@ -1382,8 +1390,8 @@
                         // This handles the "Clear Room Chat" feature
                         const allMessages = document.querySelectorAll('#roomChatContainer .message');
                          if (allMessages.length > 0) {
-                             roomChatContainer.innerHTML = '';
-                         }
+                              roomChatContainer.innerHTML = '';
+                          }
                     }
                 });
             });
@@ -1403,14 +1411,52 @@
                     const participantName = participantData.username === username ? `${participantData.username} (You)` : participantData.username;
                     const audioIcon = participantData.isMuted ? '<i class="fas fa-microphone-slash text-red-500"></i>' : '<i class="fas fa-microphone text-green-500"></i>';
                     const videoIcon = participantData.isVideoOff ? '<i class="fas fa-video-slash text-red-500"></i>' : '<i class="fas fa-video text-green-500"></i>';
-                    const participantDiv = document.createElement('div');
-                    participantDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded-sm';
+                    
+                    let participantDiv = document.getElementById(`participant-item-${id}`);
+                    if (!participantDiv) {
+                        participantDiv = document.createElement('div');
+                        participantDiv.id = `participant-item-${id}`;
+                        participantDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded-sm';
+                        participantsList.appendChild(participantDiv);
+                    }
+                    
                     participantDiv.innerHTML = `
                         <i class="fas fa-user-circle text-lg"></i>
                         <span class="text-sm flex-1">${participantName}</span>
                         <span class="text-xs text-gray-400 space-x-2">${audioIcon} ${videoIcon}</span>
                     `;
-                    participantsList.appendChild(participantDiv);
+
+                    // Update video icons dynamically for remote users
+                    const remoteAudioIcon = document.getElementById(`remoteAudioIcon-${id}`);
+                    const remoteVideoIcon = document.getElementById(`remoteVideoIcon-${id}`);
+                    if (remoteAudioIcon) {
+                        if (participantData.isMuted) {
+                            remoteAudioIcon.classList.remove('fa-microphone', 'text-green-500');
+                            remoteAudioIcon.classList.add('fa-microphone-slash', 'text-red-500');
+                        } else {
+                            remoteAudioIcon.classList.remove('fa-microphone-slash', 'text-red-500');
+                            remoteAudioIcon.classList.add('fa-microphone', 'text-green-500');
+                        }
+                    }
+                    if (remoteVideoIcon) {
+                        if (participantData.isVideoOff) {
+                            remoteVideoIcon.classList.remove('fa-video', 'text-green-500');
+                            remoteVideoIcon.classList.add('fa-video-slash', 'text-red-500');
+                        } else {
+                            remoteVideoIcon.classList.remove('fa-video-slash', 'text-red-500');
+                            remoteVideoIcon.classList.add('fa-video', 'text-green-500');
+                        }
+                    }
+
+                    // Handle video container borders
+                    const localVideoContainer = document.getElementById('localVideoContainer');
+                    const remoteVideoContainer = document.getElementById(`remoteVideoContainer-${id}`);
+                    if (localStream && localVideoContainer) {
+                        localVideoContainer.classList.add('active-border');
+                    }
+                    if (remoteVideoContainer) {
+                         remoteVideoContainer.classList.add('active-border', 'pulse-border');
+                    }
                 });
             });
         };
@@ -1819,19 +1865,23 @@
             toggleVideoBtn.addEventListener('click', toggleVideo);
             screenShareBtn.addEventListener('click', startScreenShare);
             fullScreenBtn.addEventListener('click', () => {
-                if (document.fullscreenElement) {
+                // Find the first non-local video element and make it fullscreen
+                const remoteVideos = document.querySelectorAll('#video-feed-container .video-box:not(#localVideoContainer)');
+                if (remoteVideos.length > 0) {
+                    remoteVideos[0].requestFullscreen().catch(err => console.error("Error attempting full-screen:", err));
+                } else if (document.fullscreenElement) {
                     document.exitFullscreen();
-                } else if (remoteVideo.srcObject) {
-                    remoteVideoContainer.requestFullscreen().catch(err => {
-                        console.error("Error attempting to enable full-screen mode:", err);
-                    });
-                } else if (localVideo.srcObject) {
-                    localVideoContainer.requestFullscreen().catch(err => {
-                        console.error("Error attempting to enable full-screen mode:", err);
-                    });
+                } else {
+                    document.getElementById('localVideoContainer').requestFullscreen().catch(err => console.error("Error attempting full-screen:", err));
                 }
             });
-            volumeControl.addEventListener('input', (e) => remoteVideo.volume = e.target.value / 100);
+            volumeControl.addEventListener('input', (e) => {
+                // Find the remote video element and set volume
+                const remoteVideo = document.querySelector('#video-feed-container video:not(#localVideo)');
+                if (remoteVideo) {
+                    remoteVideo.volume = e.target.value / 100;
+                }
+            });
             startRecordingBtn.addEventListener('click', startRecording);
             stopRecordingBtn.addEventListener('click', stopRecording);
             lockRoomBtn.addEventListener('click', toggleRoomLock);
@@ -1907,7 +1957,7 @@
                 if (e.target.dataset.action === 'clear-public-chat') {
                     clearPublicChat();
                 }
-                 if (e.target.dataset.action === 'clear-room-chat') {
+                if (e.target.dataset.action === 'clear-room-chat') {
                     const roomId = e.target.dataset.roomId;
                     passwordModalTitle.textContent = 'Clear Room Chat';
                     passwordModalText.textContent = `Enter the admin password to clear the chat for room ${roomId}.`;
