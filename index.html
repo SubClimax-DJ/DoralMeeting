@@ -113,7 +113,7 @@
         .video-box.active-border {
             border: 2px solid var(--color-primary);
         }
-        
+
         .video-box.active-border.pulse-border {
             animation: pulse-border 2s infinite;
         }
@@ -207,13 +207,16 @@
                 opacity: 0;
             }
         }
+
         @keyframes pulse-border {
             0% {
                 box-shadow: 0 0 0 0 var(--color-primary);
             }
+
             50% {
                 box-shadow: 0 0 0 10px rgba(69, 133, 136, 0.2);
             }
+
             100% {
                 box-shadow: 0 0 0 0 var(--color-primary);
             }
@@ -263,7 +266,7 @@
                 <div class="flex space-x-2 items-center">
                     <input type="file" id="roomFileInput" class="hidden" />
                     <button id="roomFileUploadBtn" class="btn-toggle px-4 py-2 font-semibold rounded-sm focus:outline-none transition-colors" disabled><i class="fas fa-paperclip"></i></button>
-                    <input type="text" id="roomChatInput" placeholder="Send a message..." class="input-field flex-1 px-4 py-3 rounded-sm" disabled/>
+                    <input type="text" id="roomChatInput" placeholder="Send a message..." class="input-field flex-1 px-4 py-3 rounded-sm" disabled />
                     <button id="sendRoomChatBtn" class="btn-primary px-6 py-3 font-semibold rounded-sm" disabled>Send</button>
                 </div>
             </div>
@@ -468,21 +471,45 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         let app, db, auth, storage;
         let userId, username, isAdmin = false;
-        let peerConnection = null, localStream = null, roomRef = null;
+        let peerConnection = null,
+            localStream = null,
+            roomRef = null;
         let roomSnapshotListener, candidatesListener, roomsListener, publicChatListener, roomChatListener, participantsListener, activeUsersListener, adminRoomsListener, adminUsersListener;
         let isScreenSharing = false;
         let mediaRecorder, recordedChunks = [];
         const videoQualities = {
-            '480p': { width: { ideal: 640 }, height: { ideal: 480 } },
-            '720p': { width: { ideal: 1280 }, height: { ideal: 720 } },
-            '1080p': { width: { ideal: 1920 }, height: { ideal: 1080 } }
+            '480p': {
+                width: {
+                    ideal: 640
+                },
+                height: {
+                    ideal: 480
+                }
+            },
+            '720p': {
+                width: {
+                    ideal: 1280
+                },
+                height: {
+                    ideal: 720
+                }
+            },
+            '1080p': {
+                width: {
+                    ideal: 1920
+                },
+                height: {
+                    ideal: 1080
+                }
+            }
         };
 
         const configuration = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-            ]
+            iceServers: [{
+                urls: 'stun:stun.l.google.com:19302'
+            }, {
+                urls: 'stun:stun1.l.google.com:19302'
+            }, ]
         };
 
         // === 2. UI ELEMENTS (Cached DOM references) ===
@@ -605,7 +632,7 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 storage = getStorage(app);
-                
+
                 // The onAuthStateChanged listener is the single source of truth for auth state
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
@@ -668,7 +695,7 @@
             listenForRooms();
             listenForActiveUsers();
             listenForPublicChat();
-            
+
             // Get IP address and set the active user document
             const ipAddress = await getPublicIpAddress();
             const activeUsersRef = doc(db, `artifacts/${appId}/public/data/active-users`, userId);
@@ -686,7 +713,7 @@
             adminDashboard.style.display = 'grid';
             refreshAdminData();
         };
-        
+
         /** Fetches the public IP address of the user. */
         const getPublicIpAddress = async () => {
             try {
@@ -806,7 +833,7 @@
                 showMessage("Please enter a name for the new room.", true);
                 return;
             }
-            
+
             roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomName);
             showMessage("Creating room...");
 
@@ -937,9 +964,11 @@
                 if (roomRef) {
                     const roomSnapshot = await getDoc(roomRef);
                     const participants = roomSnapshot.data()?.participants || {};
-                    if(participants[userId]){
+                    if (participants[userId]) {
                         delete participants[userId];
-                        await updateDoc(roomRef, { participants });
+                        await updateDoc(roomRef, {
+                            participants
+                        });
                     }
 
                     if (Object.keys(participants).length === 0) {
@@ -1039,7 +1068,7 @@
                     showMessage("Room closed by host.", false);
                     return;
                 }
-                
+
                 // Host logic: listen for answer and set remote description
                 if (data && data.answer && peerConnection.signalingState === 'have-local-offer') {
                     console.log("Host received answer, setting remote description.");
@@ -1059,9 +1088,9 @@
                         showMessage(myParticipantData.isMuted ? "You have been muted by the admin." : "You have been unmuted by the admin.");
                     }
                     if (localStream.getVideoTracks()[0].enabled !== !myParticipantData.isVideoOff) {
-                         localStream.getVideoTracks()[0].enabled = !myParticipantData.isVideoOff;
-                         updateMediaButtonStates(myParticipantData.isMuted, myParticipantData.isVideoOff);
-                         showMessage(myParticipantData.isVideoOff ? "Your video has been turned off by the admin." : "Your video has been turned on by the admin.");
+                        localStream.getVideoTracks()[0].enabled = !myParticipantData.isVideoOff;
+                        updateMediaButtonStates(myParticipantData.isMuted, myParticipantData.isVideoOff);
+                        showMessage(myParticipantData.isVideoOff ? "Your video has been turned off by the admin." : "Your video has been turned on by the admin.");
                     }
                 }
 
@@ -1156,7 +1185,9 @@
             const audioTrack = localStream.getAudioTracks()[0];
             audioTrack.enabled = !audioTrack.enabled;
             updateMediaButtonStates(!audioTrack.enabled, !localStream.getVideoTracks()[0].enabled);
-            await updateDoc(doc(roomRef, 'participants', userId), { isMuted: !audioTrack.enabled });
+            await updateDoc(doc(roomRef, 'participants', userId), {
+                isMuted: !audioTrack.enabled
+            });
         };
 
         const toggleVideo = async () => {
@@ -1164,14 +1195,18 @@
             const videoTrack = localStream.getVideoTracks()[0];
             videoTrack.enabled = !videoTrack.enabled;
             updateMediaButtonStates(!localStream.getAudioTracks()[0].enabled, !videoTrack.enabled);
-            await updateDoc(doc(roomRef, 'participants', userId), { isVideoOff: !videoTrack.enabled });
+            await updateDoc(doc(roomRef, 'participants', userId), {
+                isVideoOff: !videoTrack.enabled
+            });
         };
 
         const toggleRoomLock = async () => {
             if (!roomRef) return;
             const roomSnapshot = await getDoc(roomRef);
             const isLocked = roomSnapshot.data()?.isLocked || false;
-            await updateDoc(roomRef, { isLocked: !isLocked });
+            await updateDoc(roomRef, {
+                isLocked: !isLocked
+            });
             lockRoomBtn.textContent = isLocked ? "Lock Room" : "Unlock Room";
             showMessage(isLocked ? "Room is now unlocked." : "Room is now locked.", false);
         };
@@ -1183,12 +1218,16 @@
             }
             recordedChunks = [];
             const stream = remoteVideo.srcObject;
-            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+            mediaRecorder = new MediaRecorder(stream, {
+                mimeType: 'video/webm; codecs=vp9'
+            });
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data.size > 0) recordedChunks.push(e.data);
             };
             mediaRecorder.onstop = () => {
-                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const blob = new Blob(recordedChunks, {
+                    type: 'video/webm'
+                });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -1236,7 +1275,7 @@
             container.appendChild(messageDiv);
             container.scrollTop = container.scrollHeight;
         };
-        
+
         const uploadFile = async (file, collectionRef) => {
             if (file.size > oneMB) {
                 showMessage('File is too large. Max size is 1MB.', true);
@@ -1373,7 +1412,7 @@
                         // This handles the "Clear Waiting Room Chat" feature
                         const allMessages = document.querySelectorAll('#publicChatContainer .message');
                         if (allMessages.length > 0) {
-                             publicChatContainer.innerHTML = '';
+                            publicChatContainer.innerHTML = '';
                         }
                     }
                 });
@@ -1392,9 +1431,9 @@
                     if (change.type === 'removed') {
                         // This handles the "Clear Room Chat" feature
                         const allMessages = document.querySelectorAll('#roomChatContainer .message');
-                         if (allMessages.length > 0) {
-                             roomChatContainer.innerHTML = '';
-                         }
+                        if (allMessages.length > 0) {
+                            roomChatContainer.innerHTML = '';
+                        }
                     }
                 });
             });
@@ -1454,7 +1493,7 @@
         const clearPublicChat = async () => {
             const chatMessagesRef = collection(db, `artifacts/${appId}/public/data/public-chat`);
             const snapshot = await getDocs(chatMessagesRef);
-            if(snapshot.empty) {
+            if (snapshot.empty) {
                 showMessage("Public chat is already empty.", false);
                 return;
             }
@@ -1549,7 +1588,7 @@
                 }
             });
         };
-        
+
         const kickUserFromWaitingRoom = async (userIdToKick, usernameToKick) => {
             try {
                 const userDocRef = doc(db, `artifacts/${appId}/public/data/active-users`, userIdToKick);
@@ -1605,12 +1644,12 @@
                 </div>
             `;
         };
-        
+
         const clearRoomChat = async (roomId) => {
             const roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomId);
             const chatMessagesRef = collection(roomRef, 'chat-messages');
             const snapshot = await getDocs(chatMessagesRef);
-            if(snapshot.empty) {
+            if (snapshot.empty) {
                 showMessage(`Chat for room "${roomId}" is already empty.`, false);
                 return;
             }
@@ -1631,9 +1670,12 @@
                     if (!participants[participantId]) {
                         throw new Error("Participant not found!");
                     }
-                    const newParticipants = { ...participants };
+                    const newParticipants = { ...participants
+                    };
                     delete newParticipants[participantId];
-                    transaction.update(roomRef, { participants: newParticipants });
+                    transaction.update(roomRef, {
+                        participants: newParticipants
+                    });
                 });
                 showMessage(`User has been kicked from room ${roomId}.`, false);
             } catch (error) {
@@ -1651,7 +1693,9 @@
                         throw new Error("Room does not exist!");
                     }
                     const currentMuteStatus = roomDoc.data()?.participants[participantId]?.isMuted || false;
-                    transaction.update(roomRef, { [`participants.${participantId}.isMuted`]: !currentMuteStatus });
+                    transaction.update(roomRef, {
+                        [`participants.${participantId}.isMuted`]: !currentMuteStatus
+                    });
                 });
                 showMessage(`Toggled audio for user in room ${roomId}.`, false);
             } catch (error) {
@@ -1659,7 +1703,7 @@
                 showMessage('Failed to toggle audio.', true);
             }
         };
-        
+
         const massMuteParticipants = async (roomId, muteStatus) => {
             try {
                 const roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomId);
@@ -1676,12 +1720,12 @@
                     transaction.update(roomRef, updates);
                 });
                 showMessage(muteStatus ? `All participants in room ${roomId} have been muted.` : `All participants in room ${roomId} have been unmuted.`);
-            } catch(error) {
+            } catch (error) {
                 console.error('Error with mass mute:', error);
                 showMessage('Failed to mass mute participants.', true);
             }
         };
-        
+
         const massVideoOffParticipants = async (roomId, videoOffStatus) => {
             try {
                 const roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomId);
@@ -1698,7 +1742,7 @@
                     transaction.update(roomRef, updates);
                 });
                 showMessage(videoOffStatus ? `All participants' video in room ${roomId} have been turned off.` : `All participants' video in room ${roomId} have been turned on.`);
-            } catch(error) {
+            } catch (error) {
                 console.error('Error with mass video off:', error);
                 showMessage('Failed to turn off all videos.', true);
             }
@@ -1713,7 +1757,9 @@
                         throw new Error("Room does not exist!");
                     }
                     const currentVideoStatus = roomDoc.data()?.participants[participantId]?.isVideoOff || false;
-                    transaction.update(roomRef, { [`participants.${participantId}.isVideoOff`]: !currentVideoStatus });
+                    transaction.update(roomRef, {
+                        [`participants.${participantId}.isVideoOff`]: !currentVideoStatus
+                    });
                 });
                 showMessage(`Toggled video for user in room ${roomId}.`, false);
             } catch (error) {
@@ -1727,7 +1773,9 @@
                 const roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomId);
                 const roomSnapshot = await getDoc(roomRef);
                 const isLocked = roomSnapshot.data()?.isLocked || false;
-                await updateDoc(roomRef, { isLocked: !isLocked });
+                await updateDoc(roomRef, {
+                    isLocked: !isLocked
+                });
                 showMessage(isLocked ? `Room ${roomId} is now unlocked.` : `Room ${roomId} is now locked.`, false);
             } catch (error) {
                 console.error('Error toggling room lock:', error);
@@ -1893,7 +1941,7 @@
                     kickUser(roomId, participantId);
                 }
                 if (e.target.dataset.action === 'toggle-audio') {
-                    const participantId = e.target.dataset.participantId;
+                    const participantId = e.target.dataset.dataset.participantId;
                     const roomId = e.target.dataset.roomId;
                     toggleParticipantAudio(roomId, participantId);
                 }
@@ -1920,7 +1968,7 @@
                     confirmBtn.dataset.action = 'clear-public-chat';
                     passwordModal.classList.remove('hidden');
                 }
-                 if (e.target.dataset.action === 'clear-room-chat') {
+                if (e.target.dataset.action === 'clear-room-chat') {
                     const roomId = e.target.dataset.roomId;
                     passwordModalTitle.textContent = 'Clear Room Chat';
                     passwordModalText.textContent = `Enter the admin password to clear the chat for room ${roomId}.`;
@@ -1965,7 +2013,7 @@
             });
             sendAnnouncementBtn.addEventListener('click', sendAnnouncement);
         });
-
     </script>
 </body>
+
 </html>
