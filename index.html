@@ -39,7 +39,6 @@
         const loginScreen = document.getElementById('login-screen');
         const lobbyScreen = document.getElementById('lobby-screen');
         const callScreen = document.getElementById('call-screen');
-        const videoChatSection = document.getElementById('video-chat-section');
         const usernameInput = document.getElementById('username-input');
         const usernameDisplay = document.getElementById('username-display');
         const userIdDisplay = document.getElementById('user-id-display');
@@ -69,7 +68,6 @@
             loginScreen.classList.add('hidden');
             lobbyScreen.classList.add('hidden');
             callScreen.classList.add('hidden');
-            videoChatSection.classList.add('hidden');
             document.getElementById('loading-spinner').classList.add('hidden');
 
             switch (view) {
@@ -81,7 +79,6 @@
                     break;
                 case 'call':
                     callScreen.classList.remove('hidden');
-                    videoChatSection.classList.remove('hidden');
                     break;
                 case 'loading':
                     document.getElementById('loading-spinner').classList.remove('hidden');
@@ -502,11 +499,23 @@
             border-radius: 4px;
         }
         
-        #local-video, #remote-video {
+        /* New styling to fix the video display */
+        .video-container {
+            position: relative;
             width: 100%;
-            height: auto;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
             border-radius: 1rem;
             border: 3px solid #d79921;
+            overflow: hidden;
+            background-color: #3c3836;
+        }
+        .video-container video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
     </style>
 </head>
@@ -586,8 +595,14 @@
         <!-- Video Call Screen -->
         <div id="call-screen" class="hidden flex flex-col items-center p-6 bg-gruv-gray rounded-2xl shadow-lg">
             <div id="video-chat-section" class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-                <video id="local-video" muted autoplay playsinline class="shadow-xl"></video>
-                <video id="remote-video" autoplay playsinline class="shadow-xl"></video>
+                <!-- Local Video -->
+                <div class="video-container shadow-xl">
+                    <video id="local-video" muted autoplay playsinline></video>
+                </div>
+                <!-- Remote Video -->
+                <div class="video-container shadow-xl">
+                    <video id="remote-video" autoplay playsinline></video>
+                </div>
             </div>
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6 w-full">
                 <span id="call-status" class="gruv-fg"></span>
