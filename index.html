@@ -226,7 +226,7 @@
             <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="School Logo" class="h-12 mr-4">
             <div class="flex flex-col items-start">
                 <h1 class="text-3xl sm:text-4xl font-semibold font-['Crimson_Pro']">Doral Video Conference</h1>
-                <p class="text-sm font-light text-gray-400 mt-1">Created by Coach Prebeg (v6.47)</p>
+                <p class="text-sm font-light text-gray-400 mt-1">Created by Coach Prebeg (v6.49)</p>
             </div>
         </div>
         <div class="text-sm mt-2 sm:mt-0 font-light" id="auth-status">Authenticating...</div>
@@ -433,6 +433,210 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, getDocs, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+        // === 1. FIREBASE CONFIGURATION & GLOBAL STATE ===
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = {
+            apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
+            authDomain: "video-meeting-e73eb.firebaseapp.com",
+            projectId: "video-meeting-e73eb",
+            storageBucket: "video-meeting-e73eb.firebasestorage.app",
+            messagingSenderId: "80496795033",
+            appId: "1:80496795033:web:3ac35c631d76301f77c708",
+            measurementId: "G-SFPQ0PJRPG"
+        };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        let app, db, auth, storage;
+        let userId, username, isAdmin = false;
+        let localStream = null;
+        let roomRef = null;
+        let peerConnections = {}; // Store peer connections for each remote user
+        let roomsListener, roomSnapshotListener, publicChatListener, roomChatListener, participantsListener, activeUsersListener, adminRoomsListener, adminUsersListener;
+        let isScreenSharing = false;
+        let mediaRecorder, recordedChunks = [];
+        let speakingInterval = null;
+        const speakingThreshold = -45; // Audio level threshold to detect speaking
+
+        const videoQualities = {
+            '480p': { width: { ideal: 640 }, height: { ideal: 480 } },
+            '720p': { width: { ideal: 1280 }, height: { ideal: 720 } },
+            '1080p': { width: { ideal: 1920 }, height: { ideal: 1080 } }
+        };
+
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+            ]
+        };
+
+        // === 2. UI ELEMENTS (Cached DOM references) ===
+        const loginPrompt = document.getElementById('loginPrompt');
+        const mainApp = document.getElementById('mainApp');
+        const adminDashboard = document.getElementById('adminDashboard');
+        const usernameInput = document.getElementById('usernameInput');
+        const adminLoginCheckbox = document.getElementById('adminLoginCheckbox');
+        const submitLoginBtn = document.getElementById('submitLoginBtn');
+        const videoFeedContainer = document.getElementById('video-feed-container');
+        const roomIdInput = document.getElementById('roomIdInput');
+        const newRoomNameInput = document.getElementById('newRoomNameInput');
+        const createRoomBtn = document.getElementById('createRoomBtn');
+        const joinRoomBtn = document.getElementById('joinRoomBtn');
+        const deleteAllRoomsBtn = document.getElementById('deleteAllRoomsBtn');
+        const lockRoomBtn = document.getElementById('lockRoomBtn');
+        const hangupBtn = document.getElementById('hangupBtn');
+        const toggleAudioBtn = document.getElementById('toggleAudioBtn');
+        const toggleVideoBtn = document.getElementById('toggleVideoBtn');
+        const screenShareBtn = document.getElementById('screenShareBtn');
+        const fullScreenBtn = document.getElementById('fullScreenBtn');
+        const volumeControl = document.getElementById('volumeControl');
+        const startRecordingBtn = document.getElementById('startRecordingBtn');
+        const stopRecordingBtn = document.getElementById('stopRecordingBtn');
+        const statusMessage = document.getElementById('status-message');
+        const authStatus = document.getElementById('auth-status');
+        const activeRoomsList = document.getElementById('activeRoomsList');
+        const joinMutedCheckbox = document.getElementById('joinMutedCheckbox');
+        const participantsList = document.getElementById('participantsList');
+        const activeUsersList = document.getElementById('activeUsersList');
+        const passwordModal = document.getElementById('passwordModal');
+        const passwordModalTitle = document.getElementById('passwordModalTitle');
+        const passwordModalText = document.getElementById('passwordModalText');
+        const passwordInput = document.getElementById('passwordInput');
+        const confirmBtn = document.getElementById('confirmBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const adminDeleteAllRoomsBtn = document.getElementById('adminDeleteAllRoomsBtn');
+        const switchToUserModeBtn = document.getElementById('switchToUserModeBtn');
+        const adminActiveRoomsList = document.getElementById('adminActiveRoomsList');
+        const adminActiveUsersList = document.getElementById('adminActiveUsersList');
+        const totalRooms = document.getElementById('totalRooms');
+        const totalUsers = document.getElementById('totalUsers');
+        const serverStatus = document.getElementById('serverStatus');
+        const usernameModal = document.getElementById('usernameModal');
+        const switchUsernameInput = document.getElementById('switchUsernameInput');
+        const confirmSwitchBtn = document.getElementById('confirmSwitchBtn');
+        const cancelSwitchBtn = document.getElementById('cancelSwitchBtn');
+        const roomDetailsContainer = document.getElementById('roomDetailsContainer');
+        const announcementRoomId = document.getElementById('announcementRoomId');
+        const announcementInput = document.getElementById('announcementInput');
+        const sendAnnouncementBtn = document.getElementById('sendAnnouncementBtn');
+        const publicChatCard = document.getElementById('publicChatCard');
+        const publicChatContainer = document.getElementById('publicChatContainer');
+        const publicChatInput = document.getElementById('publicChatInput');
+        const sendPublicChatBtn = document.getElementById('sendPublicChatBtn');
+        const publicFileInput = document.getElementById('publicFileInput');
+        const publicFileUploadBtn = document.getElementById('publicFileUploadBtn');
+        const roomChatCard = document.getElementById('roomChatCard');
+        const roomChatContainer = document.getElementById('roomChatContainer');
+        const roomChatInput = document.getElementById('roomChatInput');
+        const sendRoomChatBtn = document.getElementById('sendRoomChatBtn');
+        const roomFileInput = document.getElementById('roomFileInput');
+        const roomFileUploadBtn = document.getElementById('roomFileUploadBtn');
+        const sakuraEffect = document.getElementById('sakuraEffect');
+        const maxFileSize = 1048576; // Reverted to 1MB file size limit for stability
+        const clearPublicChatBtn = document.getElementById('clearPublicChatBtn');
+        const refreshAdminDataBtn = document.getElementById('refreshAdminDataBtn');
+
+        // === 1. FIREBASE CONFIGURATION & GLOBAL STATE ===
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = {
+            apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
+            authDomain: "video-meeting-e73eb.firebaseapp.com",
+            projectId: "video-meeting-e73eb",
+            storageBucket: "video-meeting-e73eb.firebasestorage.app",
+            messagingSenderId: "80496795033",
+            appId: "1:80496795033:web:3ac35c631d76301f77c708",
+            measurementId: "G-SFPQ0PJRPG"
+        };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        let app, db, auth, storage;
+        let userId, username, isAdmin = false;
+        let localStream = null;
+        let roomRef = null;
+        let peerConnections = {}; // Store peer connections for each remote user
+        let roomsListener, roomSnapshotListener, publicChatListener, roomChatListener, participantsListener, activeUsersListener, adminRoomsListener, adminUsersListener;
+        let isScreenSharing = false;
+        let mediaRecorder, recordedChunks = [];
+        let speakingInterval = null;
+        const speakingThreshold = -45; // Audio level threshold to detect speaking
+
+        const videoQualities = {
+            '480p': { width: { ideal: 640 }, height: { ideal: 480 } },
+            '720p': { width: { ideal: 1280 }, height: { ideal: 720 } },
+            '1080p': { width: { ideal: 1920 }, height: { ideal: 1080 } }
+        };
+
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+            ]
+        };
+
+        // === 2. UI ELEMENTS (Cached DOM references) ===
+        const loginPrompt = document.getElementById('loginPrompt');
+        const mainApp = document.getElementById('mainApp');
+        const adminDashboard = document.getElementById('adminDashboard');
+        const usernameInput = document.getElementById('usernameInput');
+        const adminLoginCheckbox = document.getElementById('adminLoginCheckbox');
+        const submitLoginBtn = document.getElementById('submitLoginBtn');
+        const videoFeedContainer = document.getElementById('video-feed-container');
+        const roomIdInput = document.getElementById('roomIdInput');
+        const newRoomNameInput = document.getElementById('newRoomNameInput');
+        const createRoomBtn = document.getElementById('createRoomBtn');
+        const joinRoomBtn = document.getElementById('joinRoomBtn');
+        const deleteAllRoomsBtn = document.getElementById('deleteAllRoomsBtn');
+        const lockRoomBtn = document.getElementById('lockRoomBtn');
+        const hangupBtn = document.getElementById('hangupBtn');
+        const toggleAudioBtn = document.getElementById('toggleAudioBtn');
+        const toggleVideoBtn = document.getElementById('toggleVideoBtn');
+        const screenShareBtn = document.getElementById('screenShareBtn');
+        const fullScreenBtn = document.getElementById('fullScreenBtn');
+        const volumeControl = document.getElementById('volumeControl');
+        const startRecordingBtn = document.getElementById('startRecordingBtn');
+        const stopRecordingBtn = document.getElementById('stopRecordingBtn');
+        const statusMessage = document.getElementById('status-message');
+        const authStatus = document.getElementById('auth-status');
+        const activeRoomsList = document.getElementById('activeRoomsList');
+        const joinMutedCheckbox = document.getElementById('joinMutedCheckbox');
+        const participantsList = document.getElementById('participantsList');
+        const activeUsersList = document.getElementById('activeUsersList');
+        const passwordModal = document.getElementById('passwordModal');
+        const passwordModalTitle = document.getElementById('passwordModalTitle');
+        const passwordModalText = document.getElementById('passwordModalText');
+        const passwordInput = document.getElementById('passwordInput');
+        const confirmBtn = document.getElementById('confirmBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const adminDeleteAllRoomsBtn = document.getElementById('adminDeleteAllRoomsBtn');
+        const switchToUserModeBtn = document.getElementById('switchToUserModeBtn');
+        const adminActiveRoomsList = document.getElementById('adminActiveRoomsList');
+        const adminActiveUsersList = document.getElementById('adminActiveUsersList');
+        const totalRooms = document.getElementById('totalRooms');
+        const totalUsers = document.getElementById('totalUsers');
+        const serverStatus = document.getElementById('serverStatus');
+        const usernameModal = document.getElementById('usernameModal');
+        const switchUsernameInput = document.getElementById('switchUsernameInput');
+        const confirmSwitchBtn = document.getElementById('confirmSwitchBtn');
+        const cancelSwitchBtn = document.getElementById('cancelSwitchBtn');
+        const roomDetailsContainer = document.getElementById('roomDetailsContainer');
+        const announcementRoomId = document.getElementById('announcementRoomId');
+        const announcementInput = document.getElementById('announcementInput');
+        const sendAnnouncementBtn = document.getElementById('sendAnnouncementBtn');
+        const publicChatCard = document.getElementById('publicChatCard');
+        const publicChatContainer = document.getElementById('publicChatContainer');
+        const publicChatInput = document.getElementById('publicChatInput');
+        const sendPublicChatBtn = document.getElementById('sendPublicChatBtn');
+        const publicFileInput = document.getElementById('publicFileInput');
+        const publicFileUploadBtn = document.getElementById('publicFileUploadBtn');
+        const roomChatCard = document.getElementById('roomChatCard');
+        const roomChatContainer = document.getElementById('roomChatContainer');
+        const roomChatInput = document.getElementById('roomChatInput');
+        const sendRoomChatBtn = document.getElementById('sendRoomChatBtn');
+        const roomFileInput = document.getElementById('roomFileInput');
+        const roomFileUploadBtn = document.getElementById('roomFileUploadBtn');
+        const sakuraEffect = document.getElementById('sakuraEffect');
+        const maxFileSize = 1048576; // Reverted to 1MB file size limit for stability
+        const clearPublicChatBtn = document.getElementById('clearPublicChatBtn');
+        const refreshAdminDataBtn = document.getElementById('refreshAdminDataBtn');
 
         // === 1. FIREBASE CONFIGURATION & GLOBAL STATE ===
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -1305,7 +1509,7 @@
             mediaRecorder.start();
             showMessage("Recording started...");
             startRecordingBtn.disabled = true;
-            stopRecordingBtn.disabled = false;
+            stopRecordingBtn.disabled = true;
         };
         
         const stopRecording = () => {
@@ -1313,7 +1517,7 @@
                 mediaRecorder.stop();
                 showMessage("Recording stopped. Your download should start shortly.");
                 startRecordingBtn.disabled = false;
-                stopRecordingBtn.disabled = true;
+                stopRecordingBtn.disabled = false;
             }
         };
 
