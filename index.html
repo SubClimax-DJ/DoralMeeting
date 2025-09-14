@@ -183,7 +183,9 @@ Doral Video Conference
 <div class="container-card">
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
 <div class="chat-container mb-4" id="chatContainer"></div>
-<div class="flex space-x-2">
+<div class="flex space-x-2 items-center">
+<input type="file" id="fileInput" class="hidden" />
+<button id="fileUploadBtn" class="btn-toggle"><i class="fas fa-paperclip"></i></button>
 <input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" />
 <button id="sendChatBtn" class="btn-primary" disabled>Send</button>
 </div>
@@ -346,6 +348,8 @@ const stopRecordingBtn = document.getElementById('stopRecordingBtn');
 const chatInput = document.getElementById('chatInput');
 const sendChatBtn = document.getElementById('sendChatBtn');
 const chatContainer = document.getElementById('chatContainer');
+const fileInput = document.getElementById('fileInput');
+const fileUploadBtn = document.getElementById('fileUploadBtn');
 const statusMessage = document.getElementById('status-message');
 const authStatus = document.getElementById('auth-status');
 const activeRoomsList = document.getElementById('activeRoomsList');
@@ -957,17 +961,26 @@ showMessage("Recording stopped. Your download should start shortly.");
 };
 
 // Send a chat message
-const sendMessage = async () => {
-const message = chatInput.value.trim();
-if (message === "" || !roomRef) return;
+const sendMessage = async (messageType = 'text', fileData = null) => {
+if (!roomRef) return;
 
-const chatMessagesRef = collection(roomRef, 'chat-messages');
-await addDoc(chatMessagesRef, {
+let messagePayload = {
 senderId: userId,
 senderUsername: username,
-text: message,
-timestamp: serverTimestamp()
-});
+timestamp: serverTimestamp(),
+type: messageType
+};
+
+if (messageType === 'text') {
+const message = chatInput.value.trim();
+if (message === "") return;
+messagePayload.text = message;
+} else if (messageType === 'file') {
+messagePayload.file = fileData;
+}
+
+const chatMessagesRef = collection(roomRef, 'chat-messages');
+await addDoc(chatMessagesRef, messagePayload);
 chatInput.value = '';
 };
 
@@ -991,9 +1004,47 @@ console.error("Error listening to chat messages:", error);
 const displayMessage = (messageData) => {
 const messageDiv = document.createElement('div');
 messageDiv.className = `message ${messageData.senderId === userId ? 'my-message' : 'other-message'}`;
-messageDiv.innerHTML = `<span class="font-bold">${messageData.senderUsername}:</span> ${messageData.text}`;
+const senderName = messageData.senderUsername === username ? 'You' : messageData.senderUsername;
+
+if (messageData.type === 'text') {
+messageDiv.innerHTML = `<span class="font-bold">${senderName}:</span> ${messageData.text}`;
+} else if (messageData.type === 'file' && messageData.file) {
+const file = messageData.file;
+const isImage = file.type.startsWith('image/');
+const fileContent = `
+<div class="flex flex-col">
+<span class="font-bold">${senderName}:</span>
+<a href="${file.data}" download="${file.name}" class="text-blue-400 hover:underline">
+<i class="fas fa-file-download mr-1"></i>${file.name}
+</a>
+</div>
+`;
+messageDiv.innerHTML = isImage
+? `<div class="flex flex-col"><span class="font-bold">${senderName}:</span><img src="${file.data}" alt="${file.name}" class="mt-2 rounded-lg" style="max-width: 100%; max-height: 200px;"></div>`
+: fileContent;
+}
+
 chatContainer.appendChild(messageDiv);
 chatContainer.scrollTop = chatContainer.scrollHeight;
+};
+
+const handleFileUpload = (file) => {
+const reader = new FileReader();
+reader.onload = (event) => {
+const fileData = {
+name: file.name,
+type: file.type,
+size: file.size,
+data: event.target.result,
+};
+const oneMB = 1048576;
+if (file.size > oneMB) {
+showMessage('File is too large. Max size is 1MB.', true);
+return;
+}
+sendMessage('file', fileData);
+};
+reader.readAsDataURL(file);
 };
 
 // Listen for and display participants in the current room
@@ -1165,9 +1216,18 @@ screenShareBtn.addEventListener('click', startScreenShare);
 lockRoomBtn.addEventListener('click', toggleRoomLock);
 startRecordingBtn.addEventListener('click', startRecording);
 stopRecordingBtn.addEventListener('click', stopRecording);
-sendChatBtn.addEventListener('click', sendMessage);
+fileUploadBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => {
+const file = e.target.files[0];
+if (file) {
+handleFileUpload(file);
+}
+});
+sendChatBtn.addEventListener('click', () => {
+sendMessage('text');
+});
 chatInput.addEventListener('keydown', (e) => {
-if (e.key === 'Enter') sendMessage();
+if (e.key === 'Enter') sendMessage('text');
 });
 fullScreenBtn.addEventListener('click', () => {
 if (remoteVideo.requestFullscreen) {
