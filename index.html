@@ -628,7 +628,8 @@ offer: { sdp: offer.sdp, type: offer.type },
 createdBy: userId,
 createdByUsername: username,
 participants: participants,
-isLocked: false
+isLocked: false,
+spotlight: null
 });
 
 roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
@@ -641,6 +642,19 @@ return;
 if (data && data.answer && !peerConnection.currentRemoteDescription) {
 const answer = new RTCSessionDescription(data.answer);
 await peerConnection.setRemoteDescription(answer);
+}
+// Listen for spotlight changes
+if (data?.spotlight) {
+if (data.spotlight === userId) {
+// I am the host, do nothing
+} else {
+// A remote user is spotlit. Go fullscreen.
+if (remoteVideo.requestFullscreen) {
+remoteVideo.requestFullscreen();
+}
+}
+} else if (document.fullscreenElement) {
+document.exitFullscreen();
 }
 });
 
@@ -722,6 +736,22 @@ await peerConnection.addIceCandidate(candidate);
 
 listenForChat(roomRef);
 listenForParticipants();
+// Listen for spotlight changes
+roomSnapshotListener = onSnapshot(roomRef, (snapshot) => {
+const data = snapshot.data();
+if (data?.spotlight) {
+if (data.spotlight === userId) {
+// I am the host, do nothing
+} else {
+// A remote user is spotlit. Go fullscreen.
+if (remoteVideo.requestFullscreen) {
+remoteVideo.requestFullscreen();
+}
+}
+} else if (document.fullscreenElement) {
+document.exitFullscreen();
+}
+});
 
 showMessage(`Successfully joined room ${roomId}!`);
 createRoomBtn.disabled = true;
@@ -1060,17 +1090,56 @@ participantsList.innerHTML = ''; // Clear previous list
 participantIds.forEach(id => {
 const participantData = participants[id];
 const participantDiv = document.createElement('div');
-participantDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded-sm';
+participantDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded-sm justify-between';
 const participantName = participantData.username === username ? `${participantData.username} (You)` : participantData.username;
 const audioIcon = participantData.isMuted ? '<i class="fas fa-microphone-slash"></i>' : '<i class="fas fa-microphone"></i>';
 const videoIcon = participantData.isVideoOff ? '<i class="fas fa-video-slash"></i>' : '<i class="fas fa-video"></i>';
 participantDiv.innerHTML = `
+<div class="flex items-center space-x-2">
 <i class="fas fa-user-circle text-lg"></i>
 <span class="text-sm flex-1">${participantName}</span>
 <span class="text-xs text-gray-400 space-x-2">${audioIcon} ${videoIcon}</span>
+</div>
+${isCreator && id !== userId ? `<button class="spotlight-btn btn-toggle text-xs" data-user-id="${id}">Spotlight</button>` : ''}
 `;
 participantsList.appendChild(participantDiv);
 });
+
+// Add event listeners for new spotlight buttons
+document.querySelectorAll('.spotlight-btn').forEach(btn => {
+btn.addEventListener('click', async (e) => {
+const targetUserId = e.target.dataset.userId;
+const roomDoc = await getDoc(roomRef);
+const currentSpotlight = roomDoc.data()?.spotlight;
+const newSpotlight = currentSpotlight === targetUserId ? null : targetUserId;
+
+if (newSpotlight) {
+const sakuraContainer = document.getElementById('sakuraEffect');
+sakuraContainer.classList.remove('hidden');
+for (let i = 0; i < 50; i++) {
+const petal = document.createElement('div');
+petal.classList.add('sakura-petal');
+petal.style.left = `${Math.random() * 100}vw`;
+petal.style.animationDuration = `${Math.random() * 5 + 10}s`;
+petal.style.opacity = `${Math.random() * 0.5 + 0.5}`;
+sakuraContainer.appendChild(petal);
+}
+setTimeout(() => {
+sakuraContainer.classList.add('hidden');
+sakuraContainer.innerHTML = '';
+}, 15000);
+}
+
+await updateDoc(roomRef, { spotlight: newSpotlight });
+
+if (newSpotlight) {
+showMessage(`${participants[targetUserId].username} is now in the spotlight!`);
+} else {
+showMessage("Spotlight has ended.");
+}
+});
+});
+
 } else {
 participantsList.innerHTML = 'No participants in this room.';
 }
