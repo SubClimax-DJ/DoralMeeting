@@ -56,6 +56,9 @@ border-radius: 0.5rem;
 overflow: hidden;
 }
 .video-element {
+position: absolute;
+top: 0;
+left: 0;
 width: 100%;
 height: 100%;
 object-fit: cover;
@@ -150,13 +153,6 @@ animation: falling 15s linear infinite;
 0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
 100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
 }
-.video-grid {
-display: grid;
-grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-gap: 1rem;
-width: 100%;
-height: 100%;
-}
 </style>
 </head>
 <body class="flex flex-col items-center min-h-screen p-4">
@@ -193,7 +189,9 @@ Doral Video Conference
 <div class="md:col-span-2 container-card">
 <h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Video Feed</h2>
 <div class="video-container mb-4">
-<div class="video-grid" id="videoGrid"></div>
+<video id="remoteVideo" class="video-element" autoplay playsinline></video>
+<video id="localVideo" class="video-element" autoplay playsinline muted></video>
+<div id="sakuraEffect" class="sakura-container hidden"></div>
 </div>
 <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 items-center justify-center">
 <button id="toggleAudioBtn" class="btn-toggle" disabled><i class="fas fa-microphone"></i> Mute Audio</button>
@@ -300,19 +298,19 @@ import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnap
 
 // Hardcoded Firebase configuration
 const hardcodedFirebaseConfig = {
-  apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
-  authDomain: "video-meeting-e73eb.firebaseapp.com",
-  projectId: "video-meeting-e73eb",
-  storageBucket: "video-meeting-e73eb.firebasestorage.app",
-  messagingSenderId: "80496795033",
-  appId: "1:80496795033:web:3ac35c631d76301f77c708",
-  measurementId: "G-SFPQ0PJRPG"
+apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
+authDomain: "video-meeting-e73eb.firebaseapp.com",
+projectId: "video-meeting-e73eb",
+storageBucket: "video-meeting-e73eb.firebasestorage.app",
+messagingSenderId: "80496795033",
+appId: "1:80496795033:web:3ac35c631d76301f77c708",
+measurementId: "G-SFPQ0PJRPG"
 };
 
 // Use the environment's config if available, otherwise use the hardcoded one
 const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config !== '{}'
-    ? JSON.parse(__firebase_config)
-    : hardcodedFirebaseConfig;
+? JSON.parse(__firebase_config)
+: hardcodedFirebaseConfig;
 
 // Global variables provided by the environment
 const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.appId;
@@ -350,7 +348,7 @@ const joinMutedCheckbox = document.getElementById('joinMutedCheckbox');
 const participantsList = document.getElementById('participantsList');
 const activeUsersList = document.getElementById('activeUsersList');
 const sakuraEffect = document.getElementById('sakuraEffect');
-const videoGrid = document.getElementById('videoGrid');
+
 
 // Password Modal Elements
 const passwordModal = document.getElementById('passwordModal');
@@ -369,11 +367,11 @@ let username;
 let isCreator = false;
 
 // WebRTC variables
-let peerConnections = {};
+let peerConnection = null;
 let localStream = null;
 let roomRef = null;
 let roomSnapshotListener = null;
-let candidatesListeners = {};
+let candidatesListener = null;
 let chatListener = null;
 let roomsListener = null;
 let participantsListener = null;
@@ -386,9 +384,9 @@ let recordedChunks = [];
 
 // Video quality options
 const videoQualities = {
-  '480p': { width: 640, height: 480 },
-  '720p': { width: 1280, height: 720 },
-  '1080p': { width: 1920, height: 1080 }
+'480p': { width: 640, height: 480 },
+'720p': { width: 1280, height: 720 },
+'1080p': { width: 1920, height: 1080 }
 };
 
 // WebRTC STUN servers
@@ -449,19 +447,29 @@ showMessage(`Firebase initialization failed: ${error.message}`, true);
 };
 
 // Get the user's local video and audio stream
-const getLocalStream = async () => {
+const getLocalStream = async (startMuted) => {
 try {
-  const selectedQuality = videoQualitySelect.value;
-  const constraints = {
-    audio: true,
-    video: videoQualities[selectedQuality]
-  };
+const selectedQuality = videoQualitySelect.value;
+const constraints = {
+audio: true,
+video: videoQualities[selectedQuality]
+};
 
 localStream = await navigator.mediaDevices.getUserMedia(constraints);
 localVideo.srcObject = localStream;
 localVideo.muted = true;
-addLocalVideoToGrid();
 
+if (startMuted) {
+localStream.getAudioTracks()[0].enabled = false;
+localStream.getVideoTracks()[0].enabled = false;
+toggleAudioBtn.textContent = "Unmute Audio";
+toggleVideoBtn.textContent = "Turn On Video";
+} else {
+toggleAudioBtn.textContent = "Mute Audio";
+toggleVideoBtn.textContent = "Mute Video";
+}
+toggleAudioBtn.classList.toggle('btn-toggle-active', !startMuted);
+toggleVideoBtn.classList.toggle('btn-toggle-active', !startMuted);
 toggleAudioBtn.disabled = false;
 toggleVideoBtn.disabled = false;
 fullScreenBtn.disabled = false;
@@ -487,92 +495,46 @@ hideMessage();
 };
 
 const getDisplayStream = async () => {
-    try {
-        const constraints = { video: true, audio: true };
-        const displayStream = await navigator.mediaDevices.getDisplayMedia(constraints);
-        localVideo.srcObject = displayStream;
+try {
+const constraints = { video: true, audio: true };
+const displayStream = await navigator.mediaDevices.getDisplayMedia(constraints);
+localVideo.srcObject = displayStream;
 
-        localVideo.muted = true;
-        toggleAudioBtn.disabled = false;
-        toggleVideoBtn.disabled = false;
+localVideo.muted = true;
+toggleAudioBtn.disabled = false;
+toggleVideoBtn.disabled = false;
 
-        // Listen for the end of screen share
-        displayStream.getVideoTracks()[0].onended = () => {
-            hangup();
-        };
-
-        return displayStream;
-    } catch (error) {
-        console.error("Error getting display media:", error);
-        showMessage("Screen sharing was cancelled or failed.", true);
-        return null;
-    }
+// Listen for the end of screen share
+displayStream.getVideoTracks()[0].onended = () => {
+hangup();
 };
 
-// Set up the WebRTC peer connection for a new user
-const setupPeerConnection = (remoteUserId) => {
-const peerConnection = new RTCPeerConnection(configuration);
-peerConnections[remoteUserId] = peerConnection;
+return displayStream;
+} catch (error) {
+console.error("Error getting display media:", error);
+showMessage("Screen sharing was cancelled or failed.", true);
+return null;
+}
+};
 
-localStream.getTracks().forEach(track => {
-  peerConnection.addTrack(track, localStream);
-});
+// Set up the WebRTC peer connection
+const setupPeerConnection = () => {
+peerConnection = new RTCPeerConnection(configuration);
 
 peerConnection.onicecandidate = (event) => {
-  if (event.candidate) {
-    const candidatesCollection = collection(roomRef, `candidates/${remoteUserId}/user-candidates`);
-    addDoc(candidatesCollection, { candidate: JSON.stringify(event.candidate.toJSON()), sender: userId });
-  }
+if (event.candidate) {
+const candidatesCollection = collection(roomRef, 'candidates');
+addDoc(candidatesCollection, { candidate: JSON.stringify(event.candidate.toJSON()), sender: userId });
+}
 };
 
 peerConnection.ontrack = (event) => {
-  if (event.streams && event.streams[0]) {
-    addRemoteVideoToGrid(remoteUserId, event.streams[0]);
-  }
+if (event.streams && event.streams[0]) {
+remoteVideo.srcObject = event.streams[0];
+startRecordingBtn.disabled = false;
+}
 };
-
-return peerConnection;
 };
-
-// Add a video element for the local user
-const addLocalVideoToGrid = () => {
-  const localVideoContainer = document.getElementById('localVideoContainer');
-  if (localVideoContainer) {
-    localVideoContainer.remove();
-  }
-  const videoWrapper = document.createElement('div');
-  videoWrapper.id = 'localVideoContainer';
-  videoWrapper.classList.add('video-element');
-  videoWrapper.appendChild(localVideo);
-  videoGrid.appendChild(videoWrapper);
-}
-
-// Add a video element for a remote user
-const addRemoteVideoToGrid = (remoteUserId, stream) => {
-  const existingVideo = document.getElementById(`video-${remoteUserId}`);
-  if (existingVideo) {
-    existingVideo.srcObject = stream;
-    return;
-  }
-  const videoWrapper = document.createElement('div');
-  videoWrapper.id = `video-${remoteUserId}`;
-  videoWrapper.classList.add('video-element');
-  const video = document.createElement('video');
-  video.srcObject = stream;
-  video.autoplay = true;
-  video.playsinline = true;
-  video.classList.add('w-full', 'h-full', 'object-cover');
-  videoWrapper.appendChild(video);
-  videoGrid.appendChild(videoWrapper);
-}
-
-// Remove a video element when a user leaves
-const removeVideoFromGrid = (remoteUserId) => {
-  const videoElement = document.getElementById(`video-${remoteUserId}`);
-  if (videoElement) {
-    videoElement.remove();
-  }
-}
 
 // Listen for and display active rooms
 const listenForRooms = () => {
@@ -633,32 +595,31 @@ roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomName);
 showMessage("Creating room...");
 
 const startMuted = joinMutedCheckbox.checked;
-if (startMuted) {
-  localStream.getAudioTracks()[0].enabled = false;
-  localStream.getVideoTracks()[0].enabled = false;
-  toggleAudioBtn.textContent = "Unmute Audio";
-  toggleVideoBtn.textContent = "Turn On Video";
-} else {
-  localStream.getAudioTracks()[0].enabled = true;
-  localStream.getVideoTracks()[0].enabled = true;
-  toggleAudioBtn.textContent = "Mute Audio";
-  toggleVideoBtn.textContent = "Mute Video";
+const stream = await getLocalStream(startMuted);
+if (!stream) {
+return;
 }
 
+setupPeerConnection();
+stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+const offer = await peerConnection.createOffer();
+await peerConnection.setLocalDescription(offer);
+
 const participants = { 
-  [userId]: {
-    username: username,
-    isMuted: !localStream.getAudioTracks()[0].enabled,
-    isVideoOff: !localStream.getVideoTracks()[0].enabled
-  }
+[userId]: {
+username: username,
+isMuted: joinMutedCheckbox.checked,
+isVideoOff: joinMutedCheckbox.checked
+}
 };
 
 await setDoc(roomRef, {
+offer: { sdp: offer.sdp, type: offer.type },
 createdBy: userId,
 createdByUsername: username,
 participants: participants,
-isLocked: false,
-createdAt: serverTimestamp()
+isLocked: false
 });
 
 roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
@@ -668,21 +629,19 @@ hangup();
 showMessage("Room closed by host.", false);
 return;
 }
-const remoteParticipantIds = Object.keys(data.participants).filter(id => id !== userId);
-for (const remoteId of remoteParticipantIds) {
-  if (!peerConnections[remoteId]) {
-    const pc = setupPeerConnection(remoteId);
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    const offersCollection = collection(roomRef, `offers/${remoteId}/user-offers`);
-    await addDoc(offersCollection, {
-      offer: JSON.stringify({ sdp: offer.sdp, type: offer.type }),
-      sender: userId
-    });
-    listenForAnswers(pc, remoteId);
-    listenForCandidates(pc, remoteId);
-  }
+if (data && data.answer && !peerConnection.currentRemoteDescription) {
+const answer = new RTCSessionDescription(data.answer);
+await peerConnection.setRemoteDescription(answer);
 }
+});
+
+candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
+snapshot.docChanges().forEach(async (change) => {
+if (change.type === "added") {
+const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
+await peerConnection.addIceCandidate(candidate);
+}
+});
 });
 
 listenForChat(roomRef);
@@ -717,47 +676,39 @@ return;
 
 const roomData = roomSnapshot.data();
 if (roomData.isLocked) {
-  showMessage("This room is locked by the host.", true);
-  return;
+showMessage("This room is locked by the host.", true);
+return;
 }
 
 showMessage(`Joining room: ${roomId}`);
 
 const startMuted = joinMutedCheckbox.checked;
-if (startMuted) {
-  localStream.getAudioTracks()[0].enabled = false;
-  localStream.getVideoTracks()[0].enabled = false;
-  toggleAudioBtn.textContent = "Unmute Audio";
-  toggleVideoBtn.textContent = "Turn On Video";
-} else {
-  localStream.getAudioTracks()[0].enabled = true;
-  localStream.getVideoTracks()[0].enabled = true;
-  toggleAudioBtn.textContent = "Mute Audio";
-  toggleVideoBtn.textContent = "Mute Video";
-}
+const stream = await getLocalStream(startMuted);
+if (!stream) return;
 
+setupPeerConnection();
+stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
 
+const offer = roomSnapshot.data().offer;
+await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+const answer = await peerConnection.createAnswer();
+await peerConnection.setLocalDescription(answer);
+
+await updateDoc(roomRef, { answer: { sdp: answer.sdp, type: answer.type } });
 await updateDoc(roomRef, { [`participants.${userId}`]: {
-  username: username,
-  isMuted: !localStream.getAudioTracks()[0].enabled,
-  isVideoOff: !localStream.getVideoTracks()[0].enabled
+username: username,
+isMuted: joinMutedCheckbox.checked,
+isVideoOff: joinMutedCheckbox.checked
 }});
 
-roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
-const data = snapshot.data();
-if (!snapshot.exists()) {
-  hangup();
-  showMessage('The host has closed the room.', true);
-  return;
+candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
+snapshot.docChanges().forEach(async (change) => {
+if (change.type === "added") {
+const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
+await peerConnection.addIceCandidate(candidate);
 }
-const remoteParticipantIds = Object.keys(data.participants).filter(id => id !== userId);
-for (const remoteId of remoteParticipantIds) {
-  if (!peerConnections[remoteId]) {
-    const pc = setupPeerConnection(remoteId);
-    listenForOffers(pc, remoteId);
-    listenForCandidates(pc, remoteId);
-  }
-}
+});
 });
 
 listenForChat(roomRef);
@@ -770,61 +721,18 @@ hangupBtn.disabled = false;
 sendChatBtn.disabled = false;
 };
 
-const listenForOffers = (pc, remoteId) => {
-  const offersCollection = collection(roomRef, `offers/${userId}/user-offers`);
-  onSnapshot(offersCollection, async (snapshot) => {
-    snapshot.docChanges().forEach(async (change) => {
-      if (change.type === 'added' && change.doc.data().sender === remoteId) {
-        const offer = JSON.parse(change.doc.data().offer);
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        const answersCollection = collection(roomRef, `answers/${remoteId}/user-answers`);
-        await addDoc(answersCollection, {
-          answer: JSON.stringify({ sdp: answer.sdp, type: answer.type }),
-          sender: userId
-        });
-      }
-    });
-  });
-}
-
-const listenForAnswers = (pc, remoteId) => {
-  const answersCollection = collection(roomRef, `answers/${userId}/user-answers`);
-  onSnapshot(answersCollection, async (snapshot) => {
-    snapshot.docChanges().forEach(async (change) => {
-      if (change.type === 'added' && change.doc.data().sender === remoteId) {
-        const answer = JSON.parse(change.doc.data().answer);
-        if (!pc.currentRemoteDescription) {
-          await pc.setRemoteDescription(new RTCSessionDescription(answer));
-        }
-      }
-    });
-  });
-}
-
-const listenForCandidates = (pc, remoteId) => {
-  const candidatesCollection = collection(roomRef, `candidates/${userId}/user-candidates`);
-  candidatesListeners[remoteId] = onSnapshot(candidatesCollection, async (snapshot) => {
-    snapshot.docChanges().forEach(async (change) => {
-      if (change.type === 'added' && change.doc.data().sender === remoteId) {
-        const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
-        await pc.addIceCandidate(candidate);
-      }
-    });
-  });
-}
-
 // Hang up the call and clean up resources
 const hangup = async () => {
+if (peerConnection) {
+peerConnection.close();
+}
 if (localStream) {
 localStream.getTracks().forEach(track => track.stop());
 }
-for (const pcId in peerConnections) {
-  peerConnections[pcId].close();
-}
-peerConnections = {};
-videoGrid.innerHTML = '';
+localVideo.srcObject = null;
+remoteVideo.srcObject = null;
+peerConnection = null;
+localStream = null;
 isCreator = false;
 isScreenSharing = false;
 screenShareBtn.textContent = 'Screen Share';
@@ -832,7 +740,7 @@ toggleVideoBtn.disabled = false;
 
 // Remove user from active users list
 if (userId) {
-  await deleteDoc(doc(db, `artifacts/${appId}/public/data/active-users`, userId));
+await deleteDoc(doc(db, `artifacts/${appId}/public/data/active-users`, userId));
 }
 
 if (roomRef) {
@@ -853,15 +761,13 @@ showMessage(`${username} has left the room.`, false);
 
 // Stop all listeners
 if (roomSnapshotListener) roomSnapshotListener();
+if (candidatesListener) candidatesListener();
 if (chatListener) chatListener();
 if (roomsListener) roomsListener();
 if (participantsListener) participantsListener();
 if (activeUsersListener) activeUsersListener();
-for (const listenerId in candidatesListeners) {
-  candidatesListeners[listenerId]();
-}
-candidatesListeners = {};
 roomSnapshotListener = null;
+candidatesListener = null;
 chatListener = null;
 roomsListener = null;
 participantsListener = null;
@@ -888,28 +794,47 @@ participantsList.innerHTML = 'No participants in this room.';
 };
 
 const startScreenShare = async () => {
+if (!peerConnection) {
+showMessage("Please join a room before sharing your screen.", true);
+return;
+}
     if (isScreenSharing) {
         // Stop screen share and revert to camera
         isScreenSharing = false;
         screenShareBtn.textContent = 'Screen Share';
         toggleVideoBtn.disabled = false;
         
-        const newStream = await getLocalStream();
+        const selectedQuality = videoQualitySelect.value;
+        const constraints = {
+            audio: true,
+            video: videoQualities[selectedQuality]
+        };
+
+    const displayStream = await getDisplayStream();
+    if (!displayStream) {
+        return;
+    }
+
+    // Stop current local tracks
+    if (localStream) {
+        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
         const newVideoTrack = newStream.getVideoTracks()[0];
         const newAudioTrack = newStream.getAudioTracks()[0];
 
-        for (const pcId in peerConnections) {
-          const pc = peerConnections[pcId];
-          const videoSender = pc.getSenders().find(sender => sender.track.kind === 'video');
-          if (videoSender) {
+        // Replace old tracks with new camera tracks
+        const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
+        if (videoSender) {
             videoSender.replaceTrack(newVideoTrack);
-          }
-          const audioSender = pc.getSenders().find(sender => sender.track.kind === 'audio');
-          if (audioSender) {
-            audioSender.replaceTrack(newAudioTrack);
-          }
         }
-        
+        const audioSender = peerConnection.getSenders().find(sender => sender.track.kind === 'audio');
+        if (audioSender) {
+            audioSender.replaceTrack(newAudioTrack);
+        }
+
+        // Stop the old screen share tracks
+localStream.getTracks().forEach(track => track.stop());
+        localVideo.srcObject = newStream;
+        localStream = newStream;
     } else {
         // Start screen share
         isScreenSharing = true;
@@ -924,20 +849,50 @@ const startScreenShare = async () => {
             return;
         }
         
-        for (const pcId in peerConnections) {
-          const pc = peerConnections[pcId];
-          const videoSender = pc.getSenders().find(sender => sender.track.kind === 'video');
-          if (videoSender) {
-              videoSender.replaceTrack(localStream.getVideoTracks()[0]);
-          }
-          const audioSender = pc.getSenders().find(sender => sender.track.kind === 'audio');
-          if (audioSender && localStream.getAudioTracks().length > 0) {
-              audioSender.replaceTrack(localStream.getAudioTracks()[0]);
-          } else if (audioSender) {
-              audioSender.replaceTrack(null);
-          }
+        // Stop current local tracks
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
         }
+        localStream = displayStream;
+
+        // Get the RTCRtpSenders for the video and audio tracks
+        const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
+        const audioSender = peerConnection.getSenders().find(sender => sender.track.kind === 'audio');
+
+        // Replace the old tracks with the new screen share tracks
+        if (videoSender) {
+            videoSender.replaceTrack(localStream.getVideoTracks()[0]);
+        }
+        if (audioSender && localStream.getAudioTracks().length > 0) {
+            audioSender.replaceTrack(localStream.getAudioTracks()[0]);
+        } else if (audioSender) {
+            // If the screen share has no audio, send a null track to stop the audio stream
+            audioSender.replaceTrack(null);
+        }
+        localVideo.srcObject = localStream;
+}
+    localStream = displayStream;
+
+    // Get the RTCRtpSenders for the video and audio tracks
+    const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
+    const audioSender = peerConnection.getSenders().find(sender => sender.track.kind === 'audio');
+
+    // Replace the old tracks with the new screen share tracks
+    if (videoSender) {
+        videoSender.replaceTrack(localStream.getVideoTracks()[0]);
     }
+    if (audioSender && localStream.getAudioTracks().length > 0) {
+        audioSender.replaceTrack(localStream.getAudioTracks()[0]);
+    } else if (audioSender) {
+        // If the screen share has no audio, send a null track to stop the audio stream
+        audioSender.replaceTrack(null);
+    }
+    
+    // Update UI for screen share
+    toggleVideoBtn.textContent = "Stop Sharing";
+    toggleAudioBtn.textContent = "Mute Audio";
+    toggleVideoBtn.classList.remove('btn-toggle-active');
+    toggleAudioBtn.classList.remove('btn-toggle-active');
 };
 
 
@@ -950,8 +905,8 @@ audioTrack.enabled = isMuted;
 toggleAudioBtn.textContent = audioTrack.enabled ? "Mute Audio" : "Unmute Audio";
 toggleAudioBtn.classList.toggle('btn-toggle-active', !audioTrack.enabled);
 if (roomRef) {
-  const participantRef = doc(collection(roomRef, 'participants'), userId);
-  await updateDoc(doc(roomRef, 'participants', userId), { isMuted: !audioTrack.enabled });
+const participantRef = doc(collection(roomRef, 'participants'), userId);
+await updateDoc(doc(roomRef, 'participants', userId), { isMuted: !audioTrack.enabled });
 }
 }
 };
@@ -965,21 +920,21 @@ videoTrack.enabled = isVideoOff;
 toggleVideoBtn.textContent = videoTrack.enabled ? "Mute Video" : "Unmute Video";
 toggleVideoBtn.classList.toggle('btn-toggle-active', !videoTrack.enabled);
 if (roomRef) {
-  const participantRef = doc(collection(roomRef, 'participants'), userId);
-  await updateDoc(doc(roomRef, 'participants', userId), { isVideoOff: !videoTrack.enabled });
+const participantRef = doc(collection(roomRef, 'participants'), userId);
+await updateDoc(doc(roomRef, 'participants', userId), { isVideoOff: !videoTrack.enabled });
 }
 }
 };
 
 // Toggle room lock status
 const toggleRoomLock = async () => {
-  if (isCreator && roomRef) {
-    const roomSnapshot = await getDoc(roomRef);
-    const isLocked = roomSnapshot.data()?.isLocked || false;
-    await updateDoc(roomRef, { isLocked: !isLocked });
-    lockRoomBtn.textContent = isLocked ? "Lock Room" : "Unlock Room";
-    showMessage(isLocked ? "Room is now unlocked." : "Room is now locked.", false);
-  }
+if (isCreator && roomRef) {
+const roomSnapshot = await getDoc(roomRef);
+const isLocked = roomSnapshot.data()?.isLocked || false;
+await updateDoc(roomRef, { isLocked: !isLocked });
+lockRoomBtn.textContent = isLocked ? "Lock Room" : "Unlock Room";
+showMessage(isLocked ? "Room is now unlocked." : "Room is now locked.", false);
+}
 };
 
 
@@ -1098,37 +1053,57 @@ participantsList.innerHTML = 'No participants in this room.';
 
 // Listen for active users on the website
 const listenForActiveUsers = () => {
-  if (activeUsersListener) activeUsersListener();
-  activeUsersList.innerHTML = 'Loading users...';
-  const activeUsersRef = collection(db, `artifacts/${appId}/public/data/active-users`);
-  activeUsersListener = onSnapshot(activeUsersRef, (snapshot) => {
-    activeUsersList.innerHTML = '';
-    const users = snapshot.docs.map(doc => doc.data().username);
-    if (users.length > 0) {
-      users.forEach(user => {
-        const userDiv = document.createElement('div');
-        userDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded-sm';
-        userDiv.innerHTML = `
-          <i class="fas fa-user-circle text-lg"></i>
-          <span class="text-sm flex-1">${user}</span>
-        `;
-        activeUsersList.appendChild(userDiv);
-      });
-    } else {
-      activeUsersList.innerHTML = '<p class="text-gray-500 text-sm">No active users.</p>';
-    }
-  });
+if (activeUsersListener) activeUsersListener();
+activeUsersList.innerHTML = 'Loading users...';
+const activeUsersRef = collection(db, `artifacts/${appId}/public/data/active-users`);
+activeUsersListener = onSnapshot(activeUsersRef, (snapshot) => {
+activeUsersList.innerHTML = '';
+const users = snapshot.docs.map(doc => doc.data().username);
+if (users.length > 0) {
+users.forEach(user => {
+const userDiv = document.createElement('div');
+userDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded-sm';
+userDiv.innerHTML = `
+         <i class="fas fa-user-circle text-lg"></i>
+         <span class="text-sm flex-1">${user}</span>
+       `;
+activeUsersList.appendChild(userDiv);
+});
+} else {
+activeUsersList.innerHTML = '<p class="text-gray-500 text-sm">No active users.</p>';
+}
+});
 };
 
 // Toggle side-by-side view
 const toggleSideBySide = () => {
-  if (videoGrid.style.gridTemplateColumns === '50% 50%') {
-    // Revert to default layout
-    videoGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(300px, 1fr))';
-  } else {
-    // Set to side-by-side layout
-    videoGrid.style.gridTemplateColumns = '50% 50%';
-  }
+if (localVideo.style.width === '50%') {
+// Revert to default layout
+localVideo.style.width = '150px';
+localVideo.style.height = '112.5px';
+localVideo.style.position = 'absolute';
+localVideo.style.bottom = '1rem';
+localVideo.style.right = '1rem';
+remoteVideo.style.width = '100%';
+remoteVideo.style.height = '100%';
+remoteVideo.style.position = 'absolute';
+remoteVideo.style.top = '0';
+remoteVideo.style.left = '0';
+} else {
+// Set to side-by-side layout
+localVideo.style.position = 'absolute';
+localVideo.style.width = '50%';
+localVideo.style.height = '100%';
+localVideo.style.top = '0';
+localVideo.style.left = '0';
+localVideo.style.bottom = 'auto';
+localVideo.style.right = 'auto';
+remoteVideo.style.position = 'absolute';
+remoteVideo.style.width = '50%';
+remoteVideo.style.height = '100%';
+remoteVideo.style.top = '0';
+remoteVideo.style.left = '50%';
+}
 };
 
 
@@ -1139,8 +1114,6 @@ if (user) {
 username = user;
 usernamePrompt.style.display = 'none';
 mainApp.style.display = 'grid';
-
-const initialStream = await getLocalStream();
 
 // Add user to active users list
 const activeUsersRef = doc(db, `artifacts/${appId}/public/data/active-users`, userId);
@@ -1221,49 +1194,42 @@ chatInput.addEventListener('keydown', (e) => {
 if (e.key === 'Enter') sendMessage();
 });
 fullScreenBtn.addEventListener('click', () => {
-if (videoGrid.requestFullscreen) {
-  videoGrid.requestFullscreen();
+if (remoteVideo.requestFullscreen) {
+remoteVideo.requestFullscreen();
 }
 });
 sideBySideBtn.addEventListener('click', toggleSideBySide);
 videoQualitySelect.addEventListener('change', async () => {
-  if (localStream) {
-    const newQuality = videoQualitySelect.value;
-    const newConstraints = {
-      audio: true,
-      video: videoQualities[newQuality]
-    };
-    try {
-      const newStream = await navigator.mediaDevices.getUserMedia(newConstraints);
-      const newVideoTrack = newStream.getVideoTracks()[0];
-      const oldVideoTrack = localStream.getVideoTracks()[0];
-      if (oldVideoTrack) {
-        oldVideoTrack.stop();
-      }
-      localStream.removeTrack(oldVideoTrack);
-      localStream.addTrack(newVideoTrack);
-      localVideo.srcObject = localStream;
+if (localStream) {
+const newQuality = videoQualitySelect.value;
+const newConstraints = {
+audio: true,
+video: videoQualities[newQuality]
+};
+try {
+const newStream = await navigator.mediaDevices.getUserMedia(newConstraints);
+const newVideoTrack = newStream.getVideoTracks()[0];
+const oldVideoTrack = localStream.getVideoTracks()[0];
+if (oldVideoTrack) {
+oldVideoTrack.stop();
+}
+localStream.removeTrack(oldVideoTrack);
+localStream.addTrack(newVideoTrack);
+localVideo.srcObject = localStream;
 
-      for (const pcId in peerConnections) {
-        const sender = peerConnections[pcId].getSenders().find(s => s.track.kind === 'video');
-        if (sender) {
-          sender.replaceTrack(newVideoTrack);
-        }
-      }
-      showMessage(`Video quality set to ${newQuality}.`, false);
-    } catch (error) {
-      console.error("Error setting video quality:", error);
-      showMessage("Failed to change video quality. Your device may not support it.", true);
-    }
-  }
+const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+if (sender) {
+sender.replaceTrack(newVideoTrack);
+}
+showMessage(`Video quality set to ${newQuality}.`, false);
+} catch (error) {
+console.error("Error setting video quality:", error);
+showMessage("Failed to change video quality. Your device may not support it.", true);
+}
+}
 });
 volumeControl.addEventListener('input', (e) => {
-const videoElements = videoGrid.querySelectorAll('video');
-videoElements.forEach(video => {
-  if (!video.muted) {
-    video.volume = e.target.value / 100;
-  }
-});
+remoteVideo.volume = e.target.value / 100;
 });
 deleteAllRoomsBtn.addEventListener('click', () => {
 passwordModalTitle.textContent = 'Enter Password';
