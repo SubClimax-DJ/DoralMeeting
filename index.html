@@ -309,6 +309,31 @@
                     messageInput.value = '';
                 }
             });
+
+            // Check for an existing waiting room when the user enters the lobby
+            const roomsRef = db.ref('rooms');
+            roomsRef.once('value', (snapshot) => {
+                let roomFound = false;
+                snapshot.forEach((childSnapshot) => {
+                    const roomId = childSnapshot.key;
+                    const room = childSnapshot.val();
+                    if (room.status === 'waiting' && !currentRoomId && !roomFound) {
+                        childSnapshot.ref.update({ status: 'in-call' });
+                        joinRoom(roomId);
+                        roomFound = true;
+                    }
+                });
+            });
+
+            // Listen for new rooms added in the future
+            roomsRef.on('child_added', (snapshot) => {
+                const roomId = snapshot.key;
+                const room = snapshot.val();
+                if (room.status === 'waiting' && !currentRoomId) {
+                    snapshot.ref.update({ status: 'in-call' });
+                    joinRoom(roomId);
+                }
+            });
         }
 
         // --- WebRTC Room Management and Call Setup ---
@@ -431,19 +456,6 @@
             remoteVideo.srcObject = null;
             showScreen(lobbyScreen);
         }
-
-        // A simple way to join a room, for demonstration.
-        // In a real app, you'd add a "Join" button for specific rooms.
-        // For now, if a room is available, any new user can join the first one they find.
-        db.ref('rooms').on('child_added', (snapshot) => {
-            const roomId = snapshot.key;
-            const room = snapshot.val();
-            if (room.status === 'waiting' && !currentRoomId) {
-                // Automatically join the first waiting room
-                snapshot.ref.update({ status: 'in-call' });
-                joinRoom(roomId);
-            }
-        });
     </script>
 </body>
 </html>
