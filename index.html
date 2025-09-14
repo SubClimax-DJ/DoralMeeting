@@ -646,7 +646,7 @@ await peerConnection.setRemoteDescription(answer);
 // Listen for spotlight changes
 if (data?.spotlight) {
 if (data.spotlight === userId) {
-// I am the host, do nothing
+// I am the host, my view shouldn't change
 } else {
 // A remote user is spotlit. Go fullscreen.
 if (remoteVideo.requestFullscreen) {
@@ -741,7 +741,7 @@ roomSnapshotListener = onSnapshot(roomRef, (snapshot) => {
 const data = snapshot.data();
 if (data?.spotlight) {
 if (data.spotlight === userId) {
-// I am the host, do nothing
+// I am the host, my view shouldn't change
 } else {
 // A remote user is spotlit. Go fullscreen.
 if (remoteVideo.requestFullscreen) {
@@ -1094,13 +1094,16 @@ participantDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded
 const participantName = participantData.username === username ? `${participantData.username} (You)` : participantData.username;
 const audioIcon = participantData.isMuted ? '<i class="fas fa-microphone-slash"></i>' : '<i class="fas fa-microphone"></i>';
 const videoIcon = participantData.isVideoOff ? '<i class="fas fa-video-slash"></i>' : '<i class="fas fa-video"></i>';
+const isSpotlit = roomData?.spotlight === id;
+const buttonText = isSpotlit ? 'End Spotlight' : 'Spotlight';
+
 participantDiv.innerHTML = `
 <div class="flex items-center space-x-2">
 <i class="fas fa-user-circle text-lg"></i>
 <span class="text-sm flex-1">${participantName}</span>
 <span class="text-xs text-gray-400 space-x-2">${audioIcon} ${videoIcon}</span>
 </div>
-${isCreator && id !== userId ? `<button class="spotlight-btn btn-toggle text-xs" data-user-id="${id}">Spotlight</button>` : ''}
+${isCreator ? `<button class="spotlight-btn btn-toggle text-xs ${isSpotlit ? 'btn-toggle-active' : ''}" data-user-id="${id}">${buttonText}</button>` : ''}
 `;
 participantsList.appendChild(participantDiv);
 });
