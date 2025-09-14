@@ -175,8 +175,8 @@ Doral Video Conference
 <main id="mainApp" class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 hidden">
 <!-- Left Sidebar for Chat -->
 <div class="md:col-span-1 space-y-8">
-<div class="container-card">
-<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
+<div class="container-card" id="chatContainerWrapper">
+<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4" id="chatTitle">Waiting Room Chat</h2>
 <div class="chat-container mb-4" id="chatContainer"></div>
 <div class="flex space-x-2">
 <input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" />
@@ -255,7 +255,7 @@ No participants in this room.
 </div>
 
 <div class="container-card">
-<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Active Users</h2>
+<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Waiting Room</h2>
 <div id="activeUsersList" class="space-y-2 text-gray-400 text-sm">
 Loading users...
 </div>
@@ -348,6 +348,7 @@ const joinMutedCheckbox = document.getElementById('joinMutedCheckbox');
 const participantsList = document.getElementById('participantsList');
 const activeUsersList = document.getElementById('activeUsersList');
 const sakuraEffect = document.getElementById('sakuraEffect');
+const chatTitle = document.getElementById('chatTitle');
 
 
 // Password Modal Elements
@@ -622,6 +623,12 @@ participants: participants,
 isLocked: false
 });
 
+// Stop waiting room chat listener
+if (chatListener) chatListener();
+chatTitle.textContent = "In-Room Chat";
+listenForChat(roomRef);
+
+
 roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
 const data = snapshot.data();
 if (!snapshot.exists()) {
@@ -644,7 +651,6 @@ await peerConnection.addIceCandidate(candidate);
 });
 });
 
-listenForChat(roomRef);
 listenForParticipants();
 
 showMessage(`Room created! Share this ID with your client: ${roomName}`);
@@ -702,6 +708,12 @@ isMuted: joinMutedCheckbox.checked,
 isVideoOff: joinMutedCheckbox.checked
 }});
 
+// Stop waiting room chat listener
+if (chatListener) chatListener();
+chatTitle.textContent = "In-Room Chat";
+listenForChat(roomRef);
+
+
 candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
 snapshot.docChanges().forEach(async (change) => {
 if (change.type === "added") {
@@ -711,7 +723,6 @@ await peerConnection.addIceCandidate(candidate);
 });
 });
 
-listenForChat(roomRef);
 listenForParticipants();
 
 showMessage(`Successfully joined room ${roomId}!`);
@@ -772,6 +783,11 @@ chatListener = null;
 roomsListener = null;
 participantsListener = null;
 activeUsersListener = null;
+
+// Restart waiting room chat listener
+chatTitle.textContent = "Waiting Room Chat";
+listenForChat(collection(db, `artifacts/${appId}/public/data/waiting-room-chat`));
+
 
 // Reset UI state
 roomIdInput.value = '';
@@ -954,10 +970,16 @@ showMessage("Recording stopped. Your download should start shortly.");
 // Send a chat message
 const sendMessage = async () => {
 const message = chatInput.value.trim();
-if (message === "" || !roomRef) return;
+if (message === "") return;
 
-const chatMessagesRef = collection(roomRef, 'chat-messages');
-await addDoc(chatMessagesRef, {
+let chatRef;
+if (roomRef) {
+  chatRef = collection(roomRef, 'chat-messages');
+} else {
+  chatRef = collection(db, `artifacts/${appId}/public/data/waiting-room-chat`);
+}
+
+await addDoc(chatRef, {
 senderId: userId,
 senderUsername: username,
 text: message,
@@ -967,10 +989,9 @@ chatInput.value = '';
 };
 
 // Listen for new chat messages
-const listenForChat = (roomDocRef) => {
+const listenForChat = (chatCollectionRef) => {
 if (chatListener) chatListener();
-const chatMessagesRef = collection(roomDocRef, 'chat-messages');
-chatListener = onSnapshot(chatMessagesRef, (snapshot) => {
+chatListener = onSnapshot(chatCollectionRef, (snapshot) => {
 snapshot.docChanges().forEach(change => {
 if (change.type === 'added') {
 const messageData = change.doc.data();
@@ -1085,6 +1106,8 @@ if (user) {
 username = user;
 usernamePrompt.style.display = 'none';
 mainApp.style.display = 'grid';
+// Start the waiting room chat
+listenForChat(collection(db, `artifacts/${appId}/public/data/waiting-room-chat`));
 
 // Add user to active users list
 const activeUsersRef = doc(db, `artifacts/${appId}/public/data/active-users`, userId);
