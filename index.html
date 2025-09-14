@@ -230,7 +230,7 @@
             <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="School Logo" class="h-12 mr-4">
             <div class="flex flex-col items-start">
                 <h1 class="text-3xl sm:text-4xl font-semibold font-['Crimson_Pro']">Doral Video Conference</h1>
-                <p class="text-sm font-light text-gray-400 mt-1">Created by Coach Prebeg v3.15</p>
+                <p class="text-sm font-light text-gray-400 mt-1">Created by Coach Prebeg v3.16</p>
             </div>
         </div>
         <div class="text-sm mt-2 sm:mt-0 font-light" id="auth-status">Authenticating...</div>
@@ -633,7 +633,6 @@
                 auth = getAuth(app);
                 storage = getStorage(app);
 
-                // The onAuthStateChanged listener is the single source of truth for auth state
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
@@ -641,13 +640,11 @@
                         if (isAdmin) {
                             switchToAdminView();
                         } else {
-                            // Only switch to user view if a username has been set
                             if (username) {
                                 switchToUserView();
                             }
                         }
                     } else {
-                        // This block will run on initial load and after sign-out
                         authStatus.textContent = 'Authenticating...';
                         try {
                             if (initialAuthToken) {
@@ -661,11 +658,9 @@
                             }
                         } catch (error) {
                             console.error("Firebase Authentication Error:", error);
-                            // Only show an error if it's not the custom-token-mismatch, which is expected in some environments
                             if (error.code !== 'auth/custom-token-mismatch') {
                                 showMessage("Authentication failed. Check the console for details.", true);
                             }
-                            // The anonymous sign-in should handle the case where the custom token is invalid
                             if (error.code === 'auth/custom-token-mismatch' && !auth.currentUser) {
                                 await signInAnonymously(auth);
                             }
@@ -696,7 +691,6 @@
             listenForActiveUsers();
             listenForPublicChat();
 
-            // Get IP address and set the active user document
             const ipAddress = await getPublicIpAddress();
             const activeUsersRef = doc(db, `artifacts/${appId}/public/data/active-users`, userId);
             await setDoc(activeUsersRef, {
@@ -805,15 +799,12 @@
         const setupPeerConnection = () => {
             peerConnection = new RTCPeerConnection(configuration);
 
-            // Add local stream tracks to the peer connection
             if (localStream) {
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
             } else {
                 console.error("Local stream is not available when setting up peer connection.");
             }
-            
 
-            // Listen for ICE candidates and add them to Firestore
             peerConnection.onicecandidate = (event) => {
                 if (event.candidate) {
                     const candidatesCollection = collection(roomRef, 'candidates');
@@ -824,33 +815,13 @@
                 }
             };
 
-            // Listen for remote tracks and attach them to the remote video element
             peerConnection.ontrack = (event) => {
                 if (event.streams && event.streams[0]) {
+                    console.log("Received remote stream:", event.streams[0]);
                     remoteVideo.srcObject = event.streams[0];
                     startRecordingBtn.disabled = false;
                     remoteVideoContainer.classList.add('pulse-border', 'active-border');
                     remoteVideoContainer.classList.remove('hidden');
-                }
-            };
-
-             // This listener will trigger when a new track is added, prompting a new offer
-            peerConnection.onnegotiationneeded = async () => {
-                if (roomRef) {
-                    try {
-                        const offer = await peerConnection.createOffer();
-                        await peerConnection.setLocalDescription(offer);
-                        const roomDocRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomRef.id);
-                        await updateDoc(roomDocRef, {
-                            offer: {
-                                sdp: offer.sdp,
-                                type: offer.type
-                            },
-                        });
-                        console.log("Renegotiation needed, new offer sent.");
-                    } catch (error) {
-                        console.error("Error during renegotiation:", error);
-                    }
                 }
             };
         };
@@ -869,7 +840,6 @@
             roomRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomName);
             showMessage("Creating room...");
 
-            // Check if room name already exists
             const roomSnapshot = await getDoc(roomRef);
             if (roomSnapshot.exists()) {
                 showMessage("A room with that name already exists. Please choose a different name.", true);
@@ -880,14 +850,13 @@
                 const startMuted = joinMutedCheckbox.checked;
                 const stream = await getLocalStream(startMuted);
                 if (!stream) return;
-                
+
                 setupPeerConnection();
                 listenForCandidates();
-
-                // Create and set the offer
+                
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
-                
+
                 const participants = {
                     [userId]: {
                         username,
@@ -896,29 +865,23 @@
                     }
                 };
                 await setDoc(roomRef, {
-                    offer: {
-                        sdp: offer.sdp,
-                        type: offer.type
-                    },
+                    offer,
                     createdBy: userId,
                     createdByUsername: username,
                     participants: participants,
                     isLocked: false,
                     lastUpdated: serverTimestamp()
                 });
-
-                // Listen for the answer from the joining user
+                
+                // Wait for the answer to be written to the document by the other party
                 roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
                     const data = snapshot.data();
                     if (data && data.answer && peerConnection.signalingState === 'have-local-offer') {
                         console.log("Host received answer, setting remote description.");
-                        const answer = new RTCSessionDescription(data.answer);
-                        await peerConnection.setRemoteDescription(answer);
-                        remoteVideoContainer.classList.add('active-border', 'pulse-border');
-                        remoteVideoContainer.classList.remove('hidden');
+                        await peerConnection.setRemoteDescription(data.answer);
                     }
                 });
-                
+
                 listenForRoomChat(roomRef);
                 listenForParticipants();
 
@@ -970,7 +933,6 @@
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
 
-                // Update the room document with the answer and new participant
                 await updateDoc(roomRef, {
                     answer,
                     [`participants.${userId}`]: {
@@ -1097,7 +1059,6 @@
             toggleVideoBtn.textContent = videoMuted ? "Turn On Video" : "Mute Video";
             toggleVideoBtn.classList.toggle('btn-toggle-active', !videoMuted);
 
-            // Update icons based on state
             if (audioMuted) {
                 localAudioIcon.classList.remove('fa-microphone', 'text-green-500');
                 localAudioIcon.classList.add('fa-microphone-slash', 'text-red-500');
@@ -1142,10 +1103,8 @@
                     return;
                 }
 
-                // Update local audio/video state if changed by admin
                 const myParticipantData = data.participants[userId];
                 if (myParticipantData) {
-                    // Mute/unmute local stream if the admin changes the state
                     if (localStream && localStream.getAudioTracks().length > 0 && localStream.getAudioTracks()[0].enabled !== !myParticipantData.isMuted) {
                         localStream.getAudioTracks()[0].enabled = !myParticipantData.isMuted;
                         updateMediaButtonStates(myParticipantData.isMuted, myParticipantData.isVideoOff);
@@ -1158,7 +1117,6 @@
                     }
                 }
 
-                // Update remote video label if a new user joins
                 if (data && data.participants) {
                     const remoteParticipantId = Object.keys(data.participants).find(id => id !== userId);
                     if (remoteParticipantId) {
@@ -1181,7 +1139,6 @@
                             remoteVideoIcon.classList.add('fa-video', 'text-green-500');
                         }
                     } else {
-                        // Hide remote video if no other participant exists
                         remoteVideoContainer.classList.add('hidden');
                         remoteVideoContainer.classList.remove('pulse-border', 'active-border');
                     }
@@ -1459,7 +1416,6 @@
                         displayMessage(messageData, publicChatContainer);
                     }
                     if (change.type === 'removed') {
-                        // This handles the "Clear Waiting Room Chat" feature
                         const allMessages = document.querySelectorAll('#publicChatContainer .message');
                         if (allMessages.length > 0) {
                             publicChatContainer.innerHTML = '';
@@ -1479,7 +1435,6 @@
                         displayMessage(messageData, roomChatContainer);
                     }
                     if (change.type === 'removed') {
-                        // This handles the "Clear Room Chat" feature
                         const allMessages = document.querySelectorAll('#roomChatContainer .message');
                         if (allMessages.length > 0) {
                             roomChatContainer.innerHTML = '';
@@ -1515,7 +1470,6 @@
             });
         };
 
-        // FIX: The user-facing active users list was broken. I've fixed it to correctly display users.
         const listenForActiveUsers = () => {
             if (activeUsersListener) activeUsersListener();
             const activeUsersRef = collection(db, `artifacts/${appId}/public/data/active-users`);
@@ -1609,7 +1563,6 @@
             });
         };
 
-        // FIX: The admin active users list was broken. I've fixed it to correctly display IP addresses.
         const listenForAdminUsers = () => {
             if (adminUsersListener) adminUsersListener();
             const activeUsersRef = collection(db, `artifacts/${appId}/public/data/active-users`);
@@ -1965,7 +1918,6 @@
                 if (file && roomRef) uploadFile(file, collection(roomRef, 'chat-messages'));
             });
 
-            // Room and User List Clicks (using event delegation for dynamic buttons)
             document.addEventListener('click', (e) => {
                 if (e.target.classList.contains('join-room-btn')) {
                     roomIdInput.value = e.target.dataset.roomId;
