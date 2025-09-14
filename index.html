@@ -3,593 +3,522 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gruvbox Video Conference</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, addDoc, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
-
-        setLogLevel('debug');
-
-        const firebaseConfig = { 
-            apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ", 
-            authDomain: "video-meeting-e73eb.firebaseapp.com", 
-            projectId: "video-meeting-e73eb", 
-            storageBucket: "video-meeting-e73eb.firebasestorage.app", 
-            messagingSenderId: "80496795033", 
-            appId: "1:80496795033:web:3ac35c631d76301f77c708", 
-            measurementId: "G-SFPQ0PJRPG" 
-        };
-
-        var __app_id = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        var __initial_auth_token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        let currentUser = null;
-        let localStream = null;
-        let peer = null;
-        let currentCall = null;
-        
-        const loginScreen = document.getElementById('login-screen');
-        const lobbyScreen = document.getElementById('lobby-screen');
-        const callScreen = document.getElementById('call-screen');
-        const videoChatSection = document.getElementById('video-chat-section');
-        const usernameInput = document.getElementById('username-input');
-        const usernameDisplay = document.getElementById('username-display');
-        const userIdDisplay = document.getElementById('user-id-display');
-        const lobbyChatMessages = document.getElementById('lobby-chat-messages');
-        const lobbyChatInput = document.getElementById('lobby-chat-input');
-        const roomsList = document.getElementById('rooms-list');
-        const localVideo = document.getElementById('local-video');
-        const remoteVideo = document.getElementById('remote-video');
-        const copyRoomIdBtn = document.getElementById('copy-room-id-btn');
-        const callStatus = document.getElementById('call-status');
-
-        const GRUVBOX_COLORS = {
-            bg: '#282828',
-            fg: '#d5c4a1',
-            gray: '#504945',
-            gray_light: '#665c54',
-            red: '#ea6962',
-            green: '#a9b665',
-            yellow: '#e78a4e',
-            blue: '#7daea3',
-            purple: '#d3869b',
-            aqua: '#89b482',
-            orange: '#d79921',
-        };
-
-        const showView = (view) => {
-            loginScreen.classList.add('hidden');
-            lobbyScreen.classList.add('hidden');
-            callScreen.classList.add('hidden');
-            videoChatSection.classList.add('hidden');
-            document.getElementById('loading-spinner').classList.add('hidden');
-
-            switch (view) {
-                case 'login':
-                    loginScreen.classList.remove('hidden');
-                    break;
-                case 'lobby':
-                    lobbyScreen.classList.remove('hidden');
-                    break;
-                case 'call':
-                    callScreen.classList.remove('hidden');
-                    videoChatSection.classList.remove('hidden');
-                    break;
-                case 'loading':
-                    document.getElementById('loading-spinner').classList.remove('hidden');
-                    break;
-            }
-        };
-
-        const displayMessage = (message, color = GRUVBOX_COLORS.fg) => {
-            const messagebox = document.getElementById('message-box');
-            messagebox.textContent = message;
-            messagebox.style.color = color;
-            messagebox.classList.remove('hidden');
-            setTimeout(() => messagebox.classList.add('hidden'), 5000);
-        };
-
-        const getUserId = () => {
-            return auth.currentUser?.uid || crypto.randomUUID();
-        };
-
-        const getChatCollectionPath = () => {
-            return `/artifacts/${__app_id}/public/data/chat`;
-        };
-
-        const getRoomsCollectionPath = () => {
-            return `/artifacts/${__app_id}/public/data/rooms`;
-        };
-        
-        const getMyRoomDocPath = (roomId) => {
-             return `/artifacts/${__app_id}/public/data/rooms/${roomId}`;
-        };
-
-        const initializePeer = (peerId) => {
-            if (peer) {
-                peer.destroy();
-            }
-            peer = new Peer(peerId, {
-                debug: 3
-            });
-
-            peer.on('open', (id) => {
-                console.log('My Peer ID is:', id);
-            });
-
-            peer.on('call', (call) => {
-                currentCall = call;
-                callStatus.textContent = "Incoming Call...";
-                document.getElementById('modal-overlay').classList.remove('hidden');
-            });
-
-            peer.on('error', (err) => {
-                console.error("PeerJS error:", err);
-                displayMessage("A PeerJS error occurred: " + err.message, GRUVBOX_COLORS.red);
-            });
-        };
-
-        const startCall = async (peerIdToCall, roomId) => {
-            try {
-                if (!localStream) {
-                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                }
-                
-                localVideo.srcObject = localStream;
-                localVideo.play();
-                
-                const call = peer.call(peerIdToCall, localStream);
-                currentCall = call;
-
-                call.on('stream', (remoteStream) => {
-                    remoteVideo.srcObject = remoteStream;
-                    remoteVideo.play();
-                });
-
-                call.on('close', () => {
-                    console.log("Call ended.");
-                    endCall(roomId);
-                });
-                
-                callStatus.textContent = "Calling " + peerIdToCall + "...";
-                showView('call');
-                
-            } catch (err) {
-                console.error("Failed to get local stream or make call:", err);
-                displayMessage("Could not access camera/mic: " + err.message, GRUVBOX_COLORS.red);
-            }
-        };
-
-        const answerCall = async (roomId) => {
-            try {
-                if (!localStream) {
-                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                }
-                
-                localVideo.srcObject = localStream;
-                localVideo.play();
-                
-                currentCall.answer(localStream);
-                currentCall.on('stream', (remoteStream) => {
-                    remoteVideo.srcObject = remoteStream;
-                    remoteVideo.play();
-                });
-                
-                currentCall.on('close', () => {
-                    console.log("Call ended.");
-                    endCall(roomId);
-                });
-
-                showView('call');
-                document.getElementById('modal-overlay').classList.add('hidden');
-                
-            } catch (err) {
-                console.error("Failed to get local stream or answer call:", err);
-                displayMessage("Could not access camera/mic: " + err.message, GRUVBOX_COLORS.red);
-            }
-        };
-
-        const endCall = async (roomId) => {
-            if (currentCall) {
-                currentCall.close();
-            }
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-            localVideo.srcObject = null;
-            remoteVideo.srcObject = null;
-            
-            if (roomId) {
-                await deleteDoc(doc(db, getMyRoomDocPath(roomId)));
-            }
-
-            peer.destroy();
-            initializePeer(getUserId());
-            showView('lobby');
-            callStatus.textContent = "";
-        };
-
-        // UI Event Listeners
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = usernameInput.value.trim();
-            if (username) {
-                localStorage.setItem('gruvbox_username', username);
-                showView('loading');
-                try {
-                    if (__initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                } catch (error) {
-                    console.error("Firebase auth error:", error);
-                    displayMessage('Failed to authenticate. Please try again later.');
-                    showView('login');
-                }
-            }
-        });
-        
-        document.getElementById('create-room-btn').addEventListener('click', async () => {
-            const username = localStorage.getItem('gruvbox_username') || 'Anonymous';
-            const roomRef = doc(collection(db, getRoomsCollectionPath()));
-            const roomId = roomRef.id;
-            
-            try {
-                await setDoc(roomRef, {
-                    creatorId: getUserId(),
-                    creatorName: username,
-                    createdAt: serverTimestamp(),
-                    status: 'waiting',
-                    peerId: peer.id
-                });
-                displayMessage(`Room created with ID: ${roomId}`, GRUVBOX_COLORS.green);
-                
-                // Show room ID for sharing
-                document.getElementById('created-room-id').textContent = roomId;
-                document.getElementById('room-id-display-container').classList.remove('hidden');
-                document.getElementById('create-room-btn').classList.add('hidden');
-                document.getElementById('lobby-footer').classList.add('hidden');
-                document.getElementById('join-room-container').classList.add('hidden');
-            } catch (e) {
-                console.error("Error creating room:", e);
-                displayMessage("Failed to create room.", GRUVBOX_COLORS.red);
-            }
-        });
-
-        document.getElementById('join-room-btn').addEventListener('click', async () => {
-            const roomIdToJoin = document.getElementById('join-room-input').value.trim();
-            if (roomIdToJoin) {
-                try {
-                    const roomDoc = await getDoc(doc(db, getMyRoomDocPath(roomIdToJoin)));
-                    if (roomDoc.exists() && roomDoc.data().status === 'waiting') {
-                        const roomData = roomDoc.data();
-                        await updateDoc(doc(db, getMyRoomDocPath(roomIdToJoin)), {
-                            joinerId: getUserId(),
-                            status: 'in-call',
-                            joinedAt: serverTimestamp()
-                        });
-                        startCall(roomData.peerId, roomIdToJoin);
-                    } else {
-                        displayMessage("Room not found or already in call.", GRUVBOX_COLORS.yellow);
-                    }
-                } catch (e) {
-                    console.error("Error joining room:", e);
-                    displayMessage("Failed to join room.", GRUVBOX_COLORS.red);
-                }
-            }
-        });
-
-        document.getElementById('lobby-chat-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const message = lobbyChatInput.value.trim();
-            if (message) {
-                const username = localStorage.getItem('gruvbox_username') || 'Anonymous';
-                try {
-                    await addDoc(collection(db, getChatCollectionPath()), {
-                        userId: getUserId(),
-                        username: username,
-                        message: message,
-                        timestamp: serverTimestamp()
-                    });
-                    lobbyChatInput.value = '';
-                } catch (e) {
-                    console.error("Error sending message:", e);
-                    displayMessage("Failed to send message.", GRUVBOX_COLORS.red);
-                }
-            }
-        });
-
-        document.getElementById('end-call-btn').addEventListener('click', () => {
-            const roomId = document.getElementById('created-room-id').textContent;
-            endCall(roomId);
-            document.getElementById('room-id-display-container').classList.add('hidden');
-            document.getElementById('created-room-id').textContent = "";
-            document.getElementById('create-room-btn').classList.remove('hidden');
-            document.getElementById('lobby-footer').classList.remove('hidden');
-            document.getElementById('join-room-container').classList.remove('hidden');
-        });
-
-        document.getElementById('modal-accept-btn').addEventListener('click', () => {
-            const roomId = document.getElementById('join-room-input').value.trim();
-            answerCall(roomId);
-        });
-
-        document.getElementById('modal-decline-btn').addEventListener('click', () => {
-            document.getElementById('modal-overlay').classList.add('hidden');
-            currentCall.close();
-            currentCall = null;
-        });
-
-        copyRoomIdBtn.addEventListener('click', () => {
-            const roomId = document.getElementById('created-room-id').textContent;
-            if (roomId) {
-                navigator.clipboard.writeText(roomId).then(() => {
-                    displayMessage('Room ID copied to clipboard!', GRUVBOX_COLORS.green);
-                }).catch(err => {
-                    console.error('Failed to copy text: ', err);
-                    displayMessage('Failed to copy ID to clipboard.', GRUVBOX_COLORS.red);
-                });
-            }
-        });
-
-        // Firebase Auth State Listener
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                const username = localStorage.getItem('gruvbox_username') || 'Anonymous';
-                usernameDisplay.textContent = username;
-                userIdDisplay.textContent = getUserId();
-                initializePeer(getUserId());
-                showView('lobby');
-                
-                // Real-time chat listener
-                onSnapshot(query(collection(db, getChatCollectionPath())), (snapshot) => {
-                    lobbyChatMessages.innerHTML = '';
-                    snapshot.docs.sort((a,b) => a.data().timestamp?.seconds - b.data().timestamp?.seconds).forEach(doc => {
-                        const data = doc.data();
-                        const messageElement = document.createElement('div');
-                        messageElement.classList.add('mb-1');
-                        messageElement.innerHTML = `<span class="font-bold text-gruv-blue">[${data.username}]</span>: ${data.message}`;
-                        lobbyChatMessages.appendChild(messageElement);
-                    });
-                    lobbyChatMessages.scrollTop = lobbyChatMessages.scrollHeight;
-                });
-
-                // Real-time rooms listener
-                onSnapshot(query(collection(db, getRoomsCollectionPath())), (snapshot) => {
-                    roomsList.innerHTML = '';
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        const roomElement = document.createElement('div');
-                        roomElement.classList.add('flex', 'justify-between', 'items-center', 'py-2', 'px-4', 'bg-gruv-gray-light', 'rounded-lg', 'mb-2');
-                        roomElement.innerHTML = `
-                            <div>
-                                <span class="font-bold text-gruv-green">Room ID: ${doc.id}</span>
-                                <div class="text-gruv-aqua text-sm">Created by: ${data.creatorName}</div>
-                            </div>
-                            <button onclick="document.getElementById('join-room-input').value='${doc.id}'; document.getElementById('join-room-btn').click();" 
-                                class="bg-gruv-orange text-gruv-bg font-bold py-2 px-4 rounded-full transition-colors hover:bg-gruv-yellow">
-                                Join
-                            </button>
-                        `;
-                        roomsList.appendChild(roomElement);
-                    });
-                });
-
-            } else {
-                showView('login');
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedUsername = localStorage.getItem('gruvbox_username');
-            if (savedUsername) {
-                usernameInput.value = savedUsername;
-                showView('loading');
-                try {
-                    if (__initial_auth_token) {
-                        signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        signInAnonymously(auth);
-                    }
-                } catch (error) {
-                    console.error("Firebase auth error:", error);
-                    displayMessage('Failed to authenticate. Please try again later.');
-                    showView('login');
-                }
-            } else {
-                showView('login');
-            }
-        });
-        
-        // Expose functions to global scope for onclick attributes
-        window.answerCall = answerCall;
-        window.endCall = endCall;
-        
-    </script>
+    <title>Retro Meetup</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
-        
+        :root {
+            --bg-dark: #282828;
+            --bg-medium: #3c3836;
+            --bg-light: #504945;
+            --text-primary: #fbf1c7;
+            --text-secondary: #a89984;
+            --red: #fb4934;
+            --green: #b8bb26;
+            --yellow: #fabd2f;
+            --blue: #83a598;
+            --purple: #d3869b;
+            --aqua: #8ec07c;
+            --orange: #fe8019;
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #282828;
-            color: #d5c4a1;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Fira Code', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
         }
 
-        .gruv-bg { background-color: #282828; }
-        .gruv-fg { color: #d5c4a1; }
-        .gruv-gray { background-color: #504945; }
-        .gruv-gray-light { background-color: #665c54; }
-        .gruv-red { color: #ea6962; }
-        .gruv-green { color: #a9b665; }
-        .gruv-yellow { color: #e78a4e; }
-        .gruv-blue { color: #7daea3; }
-        .gruv-purple { color: #d3869b; }
-        .gruv-aqua { color: #89b482; }
-        .gruv-orange { background-color: #d79921; }
-
-        .gruv-border { border-color: #504945; }
-
-        .gruv-btn {
-            background-color: #7daea3;
-            color: #282828;
-            font-weight: bold;
-            padding: 0.75rem 1.5rem;
-            border-radius: 9999px;
-            transition-property: background-color;
-            transition-duration: 300ms;
-        }
-        .gruv-btn:hover {
-            background-color: #89b482;
+        .container {
+            background-color: var(--bg-medium);
+            border: 2px solid var(--text-secondary);
+            padding: 2em;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
         }
 
-        .gruv-input {
-            background-color: #3c3836;
-            color: #d5c4a1;
-            border-radius: 0.5rem;
-            padding: 0.5rem 1rem;
-            border: 2px solid #504945;
+        .screen {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .title {
+            color: var(--orange);
+            text-shadow: 2px 2px var(--bg-light);
+            margin-bottom: 0.5em;
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 1.5em;
+        }
+
+        input, .btn {
+            border: 2px solid var(--text-secondary);
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+            padding: 0.75em;
+            border-radius: 5px;
+            margin-top: 0.5em;
+            font-family: 'Fira Code', monospace;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--aqua);
+            box-shadow: 0 0 5px var(--aqua);
+        }
+
+        .btn {
+            cursor: pointer;
+            background-color: var(--blue);
+            color: var(--text-primary);
+        }
+
+        .btn:hover {
+            background-color: var(--aqua);
+            color: var(--bg-dark);
+        }
+
+        .hangup {
+            background-color: var(--red);
+        }
+
+        .hangup:hover {
+            background-color: var(--orange);
+        }
+
+        #login-form, #chat-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1em;
+        }
+
+        .lobby-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1em;
         }
 
         .chat-box {
-            background-color: #3c3836;
-            border-radius: 1rem;
-            border: 2px solid #504945;
+            border: 2px solid var(--text-secondary);
+            border-radius: 5px;
+            padding: 1em;
+            height: 200px;
+            overflow-y: scroll;
+            text-align: left;
+            background-color: var(--bg-light);
+            margin-bottom: 1em;
         }
-        
-        /* Custom scrollbar for chat box */
-        .chat-box::-webkit-scrollbar {
-            width: 8px;
+
+        .messages p {
+            margin: 0.5em 0;
+            line-height: 1.5;
+            color: var(--text-primary);
         }
-        .chat-box::-webkit-scrollbar-track {
-            background: #3c3836;
+
+        .message-sender {
+            color: var(--yellow);
         }
-        .chat-box::-webkit-scrollbar-thumb {
-            background-color: #504945;
-            border-radius: 4px;
+
+        .actions {
+            margin-top: 1em;
         }
-        
-        #local-video, #remote-video {
+
+        .video-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1em;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .video-box {
+            border: 2px solid var(--text-secondary);
+            border-radius: 5px;
+            background-color: var(--bg-light);
             width: 100%;
-            height: auto;
-            border-radius: 1rem;
-            border: 3px solid #d79921;
+            max-width: 450px;
+            height: 250px;
+            overflow: hidden;
+        }
+
+        .video-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .controls {
+            margin-top: 1.5em;
+        }
+
+        #room-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 2px solid var(--text-secondary);
+            border-radius: 5px;
+            background-color: var(--bg-light);
+            padding: 1em;
+            margin-top: 1em;
+        }
+        
+        .room-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75em;
+            border-bottom: 1px solid var(--bg-medium);
+        }
+
+        .room-item:last-child {
+            border-bottom: none;
+        }
+
+        .room-item h4 {
+            margin: 0;
+            font-size: 1em;
+            color: var(--aqua);
+        }
+        
+        .room-actions .btn {
+            margin-left: 0.5em;
+            padding: 0.5em 1em;
+            font-size: 0.9em;
         }
     </style>
 </head>
-<body class="gruv-bg flex items-center justify-center min-h-screen p-4">
+<body>
 
-    <!-- Overall Container -->
-    <div class="max-w-4xl w-full">
+    <div class="container">
 
         <!-- Login Screen -->
-        <div id="login-screen" class="bg-gruv-gray p-8 rounded-2xl shadow-lg transition-opacity duration-500">
-            <h1 class="text-3xl font-bold text-center gruv-fg mb-6">Welcome to Gruvbox Chat</h1>
-            <p class="text-center text-gruv-aqua mb-8">Enter a username to join the lobby.</p>
-            <form id="login-form" class="flex flex-col gap-4">
-                <input id="username-input" type="text" placeholder="Your Username" class="gruv-input" required>
-                <button type="submit" class="gruv-btn mt-4">Join Lobby</button>
+        <section id="login-screen" class="screen active">
+            <h1 class="title">Retro Meetup</h1>
+            <p>Enter a username to join the lobby</p>
+            <form id="login-form">
+                <input type="text" id="username-input" placeholder="Your username..." required>
+                <button type="submit" class="btn">Enter Lobby</button>
             </form>
-        </div>
-
-        <!-- Loading Spinner -->
-        <div id="loading-spinner" class="hidden flex flex-col items-center justify-center text-gruv-fg p-8">
-            <svg class="animate-spin h-10 w-10 text-gruv-orange" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p class="mt-4 text-gruv-fg">Loading...</p>
-        </div>
-
-        <!-- Lobby Screen -->
-        <div id="lobby-screen" class="hidden grid md:grid-cols-2 gap-8 w-full">
+            <!-- Version info -->
+            <p style="text-align: center; color: var(--text-secondary); font-size: 0.8em; margin-top: 1em;">v 1.13</p>
+        </section>
+        
+        <!-- Main Lobby -->
+        <section id="lobby-screen" class="screen">
+            <h1 class="title">Lobby</h1>
+            <!-- Version info -->
+            <p style="text-align: center; color: var(--text-secondary); font-size: 0.8em;">v 1.13</p>
+            <p id="lobby-status">Rooms available:</p>
             
-            <!-- Rooms & Users Panel -->
-            <div class="bg-gruv-gray p-6 rounded-2xl shadow-lg flex flex-col">
-                <div class="mb-4">
-                    <h2 class="text-2xl font-bold gruv-fg">Lobby</h2>
-                    <p class="text-sm text-gruv-fg mt-2">
-                        Welcome, <span id="username-display" class="font-bold text-gruv-orange"></span>!
-                    </p>
-                    <p class="text-sm text-gruv-fg">
-                        Your User ID: <span id="user-id-display" class="font-bold text-gruv-aqua"></span>
-                    </p>
-                </div>
-                
-                <div id="room-id-display-container" class="hidden bg-gruv-gray-light p-4 rounded-lg mb-4">
-                    <p class="text-gruv-green font-bold">Your Room ID: <span id="created-room-id" class="text-gruv-fg"></span></p>
-                    <button id="copy-room-id-btn" class="mt-2 text-sm bg-gruv-blue text-gruv-bg font-bold py-1 px-3 rounded-full hover:bg-gruv-aqua transition-colors">Copy</button>
-                </div>
-                
-                <h3 class="text-xl font-bold text-gruv-yellow mb-4">Available Rooms</h3>
-                <div id="rooms-list" class="flex-grow overflow-y-auto mb-4">
-                    <!-- Room list will be populated by JS -->
-                </div>
-                
-                <div id="join-room-container" class="flex flex-col sm:flex-row gap-2">
-                    <input id="join-room-input" type="text" placeholder="Enter Room ID" class="gruv-input flex-grow">
-                    <button id="join-room-btn" class="gruv-btn bg-gruv-purple hover:bg-gruv-red flex-shrink-0">Join Room</button>
-                </div>
-                
-                <button id="create-room-btn" class="gruv-btn mt-4">Create New Room</button>
+            <div id="room-list">
+                <!-- Room items will be populated here by JavaScript -->
             </div>
 
-            <!-- Chat Panel -->
-            <div class="bg-gruv-gray p-6 rounded-2xl shadow-lg flex flex-col">
-                <h3 class="text-2xl font-bold gruv-fg mb-4">Lobby Chat</h3>
-                <div id="lobby-chat-messages" class="chat-box flex-grow p-4 mb-4 overflow-y-auto h-64">
-                    <!-- Chat messages will be populated by JS -->
+            <div class="lobby-content">
+                <div class="chat-box">
+                    <div id="messages" class="messages"></div>
+                    <form id="chat-form">
+                        <input type="text" id="message-input" placeholder="Say something..." required>
+                        <button type="submit" class="btn">Send</button>
+                    </form>
                 </div>
-                <form id="lobby-chat-form" class="flex gap-2">
-                    <input id="lobby-chat-input" type="text" placeholder="Type a message..." class="gruv-input flex-grow">
-                    <button type="submit" class="gruv-btn bg-gruv-blue hover:bg-gruv-aqua">Send</button>
-                </form>
             </div>
-            <div id="lobby-footer" class="md:col-span-2 text-center mt-4">
-                <span class="text-gruv-red font-bold">Note:</span> Your room will be visible to everyone and will be automatically deleted when the call ends.
+
+            <div class="actions">
+                <button id="create-room-btn" class="btn">Create a New Room</button>
             </div>
-        </div>
-        
+        </section>
+
         <!-- Video Call Screen -->
-        <div id="call-screen" class="hidden flex flex-col items-center p-6 bg-gruv-gray rounded-2xl shadow-lg">
-            <div id="video-chat-section" class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-                <video id="local-video" muted autoplay playsinline class="shadow-xl"></video>
-                <video id="remote-video" autoplay playsinline class="shadow-xl"></video>
-            </div>
-            <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6 w-full">
-                <span id="call-status" class="gruv-fg"></span>
-                <button id="end-call-btn" class="gruv-btn bg-gruv-red hover:bg-gruv-yellow">End Call</button>
-            </div>
-        </div>
-        
-        <!-- Message Box -->
-        <div id="message-box" class="hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gruv-gray-light p-4 rounded-lg shadow-lg text-center z-50">
-            <!-- Message will be displayed here -->
-        </div>
-
-        <!-- Call Request Modal -->
-        <div id="modal-overlay" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div class="bg-gruv-gray p-8 rounded-lg text-center shadow-2xl">
-                <h3 class="text-xl font-bold gruv-fg mb-4">Incoming Call Request!</h3>
-                <p class="mb-6 text-gruv-fg">Do you want to accept the call?</p>
-                <div class="flex justify-center gap-4">
-                    <button id="modal-accept-btn" class="gruv-btn bg-gruv-green hover:bg-gruv-aqua">Accept</button>
-                    <button id="modal-decline-btn" class="gruv-btn bg-gruv-red hover:bg-gruv-yellow">Decline</button>
+        <section id="room-screen" class="screen">
+            <div class="video-container">
+                <div class="video-box">
+                    <video id="local-video" autoplay muted></video>
+                </div>
+                <div class="video-box">
+                    <video id="remote-video" autoplay></video>
                 </div>
             </div>
-        </div>
-
+            <div class="controls">
+                <button id="hangup-btn" class="btn hangup">Hang Up</button>
+            </div>
+        </section>
     </div>
 
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+    
+    <!-- Main Script -->
+    <script>
+        // Firebase configuration from the user
+        const firebaseConfig = {
+            apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
+            authDomain: "video-meeting-e73eb.firebaseapp.com",
+            projectId: "video-meeting-e73eb",
+            storageBucket: "video-meeting-e73eb.firebasestorage.app",
+            messagingSenderId: "80496795033",
+            appId: "1:80496795033:web:3ac35c631d76301f77c708",
+            measurementId: "G-SFPQ0PJRPG"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+
+        // UI Elements
+        const loginScreen = document.getElementById('login-screen');
+        const lobbyScreen = document.getElementById('lobby-screen');
+        const roomScreen = document.getElementById('room-screen');
+        const loginForm = document.getElementById('login-form');
+        const usernameInput = document.getElementById('username-input');
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        const messagesDiv = document.getElementById('messages');
+        const createRoomBtn = document.getElementById('create-room-btn');
+        const hangupBtn = document.getElementById('hangup-btn');
+        const localVideo = document.getElementById('local-video');
+        const remoteVideo = document.getElementById('remote-video');
+        const lobbyStatus = document.getElementById('lobby-status');
+        const roomList = document.getElementById('room-list');
+
+        let username = '';
+        let currentRoomId = null;
+        let currentRoomCreator = null;
+        let localStream;
+        let peerConnection;
+
+        const iceServers = {
+            'iceServers': [
+                { 'urls': 'stun:stun.l.google.com:19302' },
+                { 'urls': 'stun:stun1.l.google.com:19302' },
+            ]
+        };
+
+        // --- Screen and State Management ---
+        function showScreen(screen) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            screen.classList.add('active');
+        }
+
+        // --- Firebase Authentication and Login ---
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            username = usernameInput.value;
+            if (username) {
+                showScreen(lobbyScreen);
+                setupLobby();
+            }
+        });
+
+        // --- Lobby Setup: Chat and Room List ---
+        function setupLobby() {
+            setupLobbyChat();
+            setupRoomList();
+        }
+
+        function setupLobbyChat() {
+            const chatRef = db.ref('lobby_chat');
+            
+            chatRef.on('child_added', (snapshot) => {
+                const message = snapshot.val();
+                const msgElement = document.createElement('p');
+                msgElement.innerHTML = `<span class="message-sender">${message.user}:</span> ${message.text}`;
+                messagesDiv.appendChild(msgElement);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            });
+
+            chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const message = messageInput.value;
+                if (message) {
+                    chatRef.push({
+                        user: username,
+                        text: message,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+                    messageInput.value = '';
+                }
+            });
+        }
+
+        function setupRoomList() {
+            const roomsRef = db.ref('rooms');
+            
+            roomsRef.on('value', (snapshot) => {
+                roomList.innerHTML = '';
+                const rooms = snapshot.val();
+                if (!rooms) {
+                    lobbyStatus.textContent = "No rooms available.";
+                    return;
+                }
+                
+                lobbyStatus.textContent = "Available rooms:";
+                Object.keys(rooms).forEach(roomId => {
+                    const room = rooms[roomId];
+                    if (room.status === 'waiting') {
+                        const roomItem = document.createElement('div');
+                        roomItem.classList.add('room-item');
+                        roomItem.innerHTML = `
+                            <h4>Room by: ${room.creator}</h4>
+                            <div class="room-actions">
+                                <button class="btn join-btn" data-room-id="${roomId}">Join</button>
+                                ${username === room.creator ? `<button class="btn hangup delete-btn" data-room-id="${roomId}">Delete</button>` : ''}
+                            </div>
+                        `;
+                        roomList.appendChild(roomItem);
+                    }
+                });
+            });
+            
+            // Add event listeners for dynamically created buttons
+            roomList.addEventListener('click', (e) => {
+                const target = e.target;
+                if (target.classList.contains('join-btn')) {
+                    const roomId = target.dataset.roomId;
+                    joinRoom(roomId);
+                } else if (target.classList.contains('delete-btn')) {
+                    const roomId = target.dataset.roomId;
+                    deleteRoom(roomId);
+                }
+            });
+        }
+
+        // --- WebRTC Room Management and Call Setup ---
+        createRoomBtn.addEventListener('click', async () => {
+            const roomId = 'room_' + Math.floor(Math.random() * 100000);
+            currentRoomId = roomId;
+            currentRoomCreator = username; // Store creator's name
+            const roomRef = db.ref('rooms/' + roomId);
+
+            showScreen(roomScreen);
+            await startLocalStream();
+
+            await roomRef.set({ creator: username, status: 'waiting' });
+            
+            setupPeerConnection(roomRef);
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            await roomRef.child('offer').set(offer);
+            
+            roomRef.child('answer').on('value', async (snapshot) => {
+                const answer = snapshot.val();
+                if (answer && peerConnection.remoteDescription.type === '') {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                }
+            });
+
+            roomRef.child('calleeCandidates').on('child_added', async (snapshot) => {
+                const candidate = new RTCIceCandidate(snapshot.val());
+                await peerConnection.addIceCandidate(candidate);
+            });
+        });
+
+        hangupBtn.addEventListener('click', () => {
+            endCall();
+        });
+
+        async function joinRoom(roomId) {
+            currentRoomId = roomId;
+            const roomRef = db.ref('rooms/' + roomId);
+            showScreen(roomScreen);
+            await startLocalStream();
+            
+            setupPeerConnection(roomRef);
+            
+            roomRef.child('offer').on('value', async (snapshot) => {
+                const offer = snapshot.val();
+                if (offer) {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                    
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
+                    await roomRef.child('answer').set(answer);
+                }
+            });
+            
+            roomRef.child('creatorCandidates').on('child_added', async (snapshot) => {
+                const candidate = new RTCIceCandidate(snapshot.val());
+                await peerConnection.addIceCandidate(candidate);
+            });
+        }
+
+        // Delete a room if the user is the creator
+        function deleteRoom(roomId) {
+            if (username === currentRoomCreator) {
+                db.ref('rooms/' + roomId).remove();
+            }
+        }
+
+        // Start local video and audio stream
+        async function startLocalStream() {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localVideo.srcObject = localStream;
+        }
+
+        // Set up the Peer Connection
+        function setupPeerConnection(roomRef) {
+            peerConnection = new RTCPeerConnection(iceServers);
+            
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+            
+            peerConnection.ontrack = (event) => {
+                remoteVideo.srcObject = event.streams[0];
+            };
+            
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    const candidateRef = peerConnection.localDescription.type === 'offer' 
+                        ? roomRef.child('creatorCandidates') 
+                        : roomRef.child('calleeCandidates');
+                    candidateRef.push(event.candidate.toJSON());
+                }
+            };
+        }
+
+        // End the call and clean up
+        function endCall() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (peerConnection) {
+                peerConnection.close();
+            }
+            
+            if (currentRoomId) {
+                // Only delete the room if the user hanging up is the creator
+                if (username === currentRoomCreator) {
+                    db.ref('rooms/' + currentRoomId).remove();
+                }
+                currentRoomId = null;
+                currentRoomCreator = null;
+            }
+            
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
+            showScreen(lobbyScreen);
+        }
+    </script>
 </body>
 </html>
