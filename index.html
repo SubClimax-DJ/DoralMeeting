@@ -230,7 +230,7 @@
             <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="School Logo" class="h-12 mr-4">
             <div class="flex flex-col items-start">
                 <h1 class="text-3xl sm:text-4xl font-semibold font-['Crimson_Pro']">Doral Video Conference</h1>
-                <p class="text-sm font-light text-gray-400 mt-1">Created by Coach Prebeg v5.0</p>
+                <p class="text-sm font-light text-gray-400 mt-1">Created by Coach Prebeg v6.0</p>
             </div>
         </div>
         <div class="text-sm mt-2 sm:mt-0 font-light" id="auth-status">Authenticating...</div>
@@ -567,7 +567,7 @@
         const confirmSwitchBtn = document.getElementById('confirmSwitchBtn');
         const cancelSwitchBtn = document.getElementById('cancelSwitchBtn');
         const roomDetailsContainer = document.getElementById('roomDetailsContainer');
-        const announcementRoomId = document.getElementById('announcementRoomId');
+        const announcementRoomId = document = document.getElementById('announcementRoomId');
         const announcementInput = document.getElementById('announcementInput');
         const sendAnnouncementBtn = document.getElementById('sendAnnouncementBtn');
         const publicChatCard = document.getElementById('publicChatCard');
@@ -796,7 +796,7 @@
             }
         };
 
-        const setupPeerConnection = (isHost) => {
+        const setupPeerConnection = () => {
             peerConnection = new RTCPeerConnection(configuration);
 
             if (localStream) {
@@ -851,9 +851,8 @@
                 const stream = await getLocalStream(startMuted);
                 if (!stream) return;
 
-                setupPeerConnection(true);
-                listenForCandidates();
-
+                setupPeerConnection();
+                
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
 
@@ -865,7 +864,10 @@
                     }
                 };
                 await setDoc(roomRef, {
-                    offer,
+                    offer: {
+                        sdp: offer.sdp,
+                        type: offer.type,
+                    },
                     createdBy: userId,
                     createdByUsername: username,
                     participants: participants,
@@ -873,13 +875,14 @@
                     lastUpdated: serverTimestamp()
                 });
                 
+                listenForCandidates();
+                
                 // Host now waits for the answer from the joining user
                 roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
                     const data = snapshot.data();
                     if (data && data.answer && peerConnection.signalingState === 'have-local-offer') {
                         console.log("Host received answer, setting remote description.");
                         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-                        // The remote video should now start playing
                     }
                 });
 
@@ -925,7 +928,7 @@
                 const stream = await getLocalStream(startMuted);
                 if (!stream) return;
 
-                setupPeerConnection(false);
+                setupPeerConnection();
                 listenForCandidates();
 
                 // Wait for the host's offer to be in the database
@@ -941,7 +944,10 @@
                 await peerConnection.setLocalDescription(answer);
 
                 await updateDoc(roomRef, {
-                    answer,
+                    answer: {
+                        sdp: answer.sdp,
+                        type: answer.type,
+                    },
                     [`participants.${userId}`]: {
                         username,
                         isMuted: startMuted,
