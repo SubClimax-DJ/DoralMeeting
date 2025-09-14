@@ -810,13 +810,6 @@ return;
             video: videoQualities[selectedQuality]
         };
 
-    const displayStream = await getDisplayStream();
-    if (!displayStream) {
-        return;
-    }
-
-    // Stop current local tracks
-    if (localStream) {
         const newStream = await navigator.mediaDevices.getUserMedia(constraints);
         const newVideoTrack = newStream.getVideoTracks()[0];
         const newAudioTrack = newStream.getAudioTracks()[0];
@@ -870,29 +863,7 @@ localStream.getTracks().forEach(track => track.stop());
             audioSender.replaceTrack(null);
         }
         localVideo.srcObject = localStream;
-}
-    localStream = displayStream;
-
-    // Get the RTCRtpSenders for the video and audio tracks
-    const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
-    const audioSender = peerConnection.getSenders().find(sender => sender.track.kind === 'audio');
-
-    // Replace the old tracks with the new screen share tracks
-    if (videoSender) {
-        videoSender.replaceTrack(localStream.getVideoTracks()[0]);
     }
-    if (audioSender && localStream.getAudioTracks().length > 0) {
-        audioSender.replaceTrack(localStream.getAudioTracks()[0]);
-    } else if (audioSender) {
-        // If the screen share has no audio, send a null track to stop the audio stream
-        audioSender.replaceTrack(null);
-    }
-    
-    // Update UI for screen share
-    toggleVideoBtn.textContent = "Stop Sharing";
-    toggleAudioBtn.textContent = "Mute Audio";
-    toggleVideoBtn.classList.remove('btn-toggle-active');
-    toggleAudioBtn.classList.remove('btn-toggle-active');
 };
 
 
@@ -1064,9 +1035,9 @@ users.forEach(user => {
 const userDiv = document.createElement('div');
 userDiv.className = 'flex items-center space-x-2 p-2 bg-[#3c3836] rounded-sm';
 userDiv.innerHTML = `
-         <i class="fas fa-user-circle text-lg"></i>
-         <span class="text-sm flex-1">${user}</span>
-       `;
+<i class="fas fa-user-circle text-lg"></i>
+<span class="text-sm flex-1">${user}</span>
+`;
 activeUsersList.appendChild(userDiv);
 });
 } else {
