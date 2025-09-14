@@ -697,7 +697,7 @@
             localVideoContainer.className = 'video-box';
             localVideoContainer.innerHTML = `
                 <video id="localVideo" class="video-element" autoplay playsinline muted></video>
-                <div id="localVideoLabel" class="absolute bottom-2 left-2 bg-gray-800 text-white text-xs px-2 py-1 rounded-md bg-opacity-70"></div>
+                <div id="localVideoLabel" class="absolute bottom-2 left-2 bg-gray-800 text-white text-xs px-2 py-1 rounded-md bg-opacity70"></div>
                 <div class="absolute top-2 right-2 flex space-x-2">
                     <i id="localAudioIcon" class="fas fa-microphone text-green-500"></i>
                     <i id="localVideoIcon" class="fas fa-video text-green-500"></i>
@@ -824,9 +824,9 @@
             
             pc.onicecandidate = (event) => {
                 if (event.candidate) {
-                    const candidatesCollection = collection(roomRef, `candidates/${remoteUserId}/connection`);
+                    const candidatesCollection = collection(roomRef, `participants/${remoteUserId}/candidates`);
                     addDoc(candidatesCollection, {
-                        candidate: JSON.stringify(event.candidate.toJSON()),
+                        candidate: event.candidate.toJSON(),
                         sender: userId
                     });
                 }
@@ -875,7 +875,8 @@
                     [userId]: {
                         username,
                         isMuted: startMuted,
-                        isVideoOff: startMuted
+                        isVideoOff: startMuted,
+                        lastActive: serverTimestamp()
                     }
                 };
 
@@ -885,16 +886,17 @@
                     createdByUsername: username,
                     participants: participants,
                     isLocked: false,
-                    lastUpdated: serverTimestamp()
                 });
 
+                // Listen for new participants and for incoming offers from them
                 listenForRoomUpdates();
                 listenForRoomChat(roomRef);
                 listenForParticipants();
+                listenForIncomingOffers();
+
                 showMessage(`Room "${roomName}" created! Share this ID with others.`);
                 updateRoomControls(true);
                 document.getElementById('localVideoContainer').classList.add('active-border');
-                for (let i = 0; i < 50; i++) addSakuraPetal();
             } catch (error) {
                 console.error("Error creating room:", error);
                 showMessage("Failed to create room. Please try again.", true);
@@ -928,34 +930,94 @@
                 const startMuted = joinMutedCheckbox.checked;
                 const stream = await getLocalStream(startMuted);
                 if (!stream) return;
+
+                // Create a peer connection for each existing participant
+                const existingParticipants = Object.keys(roomData.participants);
+                for (const remoteUserId of existingParticipants) {
+                    const pc = setupPeerConnection(remoteUserId);
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    const offersRef = collection(roomRef, `participants/${remoteUserId}/offers`);
+                    await addDoc(offersRef, {
+                        from: userId,
+                        offer: offer.toJSON(),
+                        timestamp: serverTimestamp()
+                    });
+                    
+                    // Listen for the answer to our offer
+                    const answersRef = collection(roomRef, `participants/${userId}/answers`);
+                    onSnapshot(answersRef, (snapshot) => {
+                        snapshot.docChanges().forEach(async (change) => {
+                            if (change.type === 'added') {
+                                const answerData = change.doc.data();
+                                if (answerData.from === remoteUserId) {
+                                    await pc.setRemoteDescription(new RTCSessionDescription(answerData.answer));
+                                    console.log(`Answer received and set for ${remoteUserId}`);
+                                    await deleteDoc(change.doc.ref); // Clean up the answer
+                                }
+                            }
+                        });
+                    });
+                }
                 
                 await updateDoc(roomRef, {
                     [`participants.${userId}`]: {
                         username,
                         isMuted: startMuted,
-                        isVideoOff: startMuted
+                        isVideoOff: startMuted,
+                        lastActive: serverTimestamp()
                     }
                 });
                 
+                // Listen for new participants and for incoming offers from them
                 listenForRoomUpdates();
                 listenForRoomChat(roomRef);
                 listenForParticipants();
+                listenForIncomingOffers();
+
                 showMessage(`Successfully joined room "${roomId}"!`);
                 updateRoomControls(true);
                 document.getElementById('localVideoContainer').classList.add('active-border');
-                for (let i = 0; i < 50; i++) addSakuraPetal();
             } catch (error) {
                 console.error("Error joining room:", error);
                 showMessage("Failed to join room. Please try again.", true);
             }
         };
 
+        const listenForIncomingOffers = () => {
+            const offersRef = collection(roomRef, `participants/${userId}/offers`);
+            onSnapshot(offersRef, (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    if (change.type === "added") {
+                        const offerData = change.doc.data();
+                        const remoteUserId = offerData.from;
+                        const pc = setupPeerConnection(remoteUserId);
+                        await pc.setRemoteDescription(new RTCSessionDescription(offerData.offer));
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
+
+                        const answersRef = collection(roomRef, `participants/${remoteUserId}/answers`);
+                        await addDoc(answersRef, {
+                            from: userId,
+                            answer: answer.toJSON(),
+                            timestamp: serverTimestamp()
+                        });
+                        console.log(`Answer sent to ${remoteUserId}`);
+                        await deleteDoc(change.doc.ref); // Clean up the offer
+                    }
+                });
+            });
+        };
+
         const hangup = async () => {
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
             }
-            for (const pc in peerConnections) {
-                peerConnections[pc].close();
+            if (speakingInterval) {
+                clearInterval(speakingInterval);
+            }
+            for (const pcId in peerConnections) {
+                peerConnections[pcId].close();
             }
             peerConnections = {};
 
@@ -973,15 +1035,18 @@
                 const participants = roomSnapshot.data()?.participants || {};
                 
                 if (participants[userId]) {
-                    delete participants[userId];
-                    await updateDoc(roomRef, { participants });
-                }
+                    // Update participants list by removing self
+                    const newParticipants = { ...participants };
+                    delete newParticipants[userId];
+                    await updateDoc(roomRef, { participants: newParticipants });
 
-                if (Object.keys(participants).length === 0) {
-                    await deleteDoc(roomRef);
-                    showMessage('Room has been automatically closed.', false);
-                } else {
-                    showMessage(`${username} has left the room.`, false);
+                    // Check if room is empty and delete it
+                    if (Object.keys(newParticipants).length === 0) {
+                        await deleteDoc(roomRef);
+                        showMessage('Room has been automatically closed.', false);
+                    } else {
+                        showMessage(`${username} has left the room.`, false);
+                    }
                 }
             }
 
@@ -1087,13 +1152,13 @@
                     for (const remoteId of remoteParticipantIds) {
                         if (!peerConnections[remoteId]) {
                             const pc = setupPeerConnection(remoteId);
-                            const remoteCandidatesCollection = collection(roomRef, `candidates/${userId}/connection`);
+                            const remoteCandidatesCollection = collection(roomRef, `participants/${remoteId}/candidates`);
                             
                             pc.candidatesListener = onSnapshot(remoteCandidatesCollection, (snapshot) => {
                                 snapshot.docChanges().forEach(async (change) => {
                                     if (change.type === "added" && change.doc.data().sender === remoteId) {
                                         try {
-                                            const candidate = new RTCIceCandidate(JSON.parse(change.doc.data().candidate));
+                                            const candidate = new RTCIceCandidate(change.doc.data().candidate);
                                             await pc.addIceCandidate(candidate);
                                         } catch (error) {
                                             console.error("Error adding remote ICE candidate:", error);
@@ -1101,17 +1166,6 @@
                                     }
                                 });
                             });
-                            
-                            if (data.participants[remoteId].offer) {
-                                await pc.setRemoteDescription(new RTCSessionDescription(data.participants[remoteId].offer));
-                                const answer = await pc.createAnswer();
-                                await pc.setLocalDescription(answer);
-                                await updateDoc(doc(roomRef, 'participants', remoteId), { answer });
-                            } else {
-                                const offer = await pc.createOffer();
-                                await pc.setLocalDescription(offer);
-                                await updateDoc(doc(roomRef, 'participants', userId), { [`offer-${remoteId}`]: offer });
-                            }
                             
                             addRemoteVideoElement(remoteId, data.participants[remoteId].username);
                         }
@@ -1507,7 +1561,7 @@
             if (activeUsersListener) activeUsersListener();
             const activeUsersRef = collection(db, `artifacts/${appId}/public/data/active-users`);
             activeUsersListener = onSnapshot(activeUsersRef, (snapshot) => {
-                activeUsersList.innerHTML = '';
+                adminActiveUsersList.innerHTML = '';
                 const users = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).filter(user => user.isOnline);
                 if (users.length > 0) {
                     users.forEach(user => {
