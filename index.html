@@ -181,11 +181,15 @@
                 <input type="text" id="username-input" placeholder="Your username..." required>
                 <button type="submit" class="btn">Enter Lobby</button>
             </form>
+            <!-- Version info -->
+            <p style="text-align: center; color: var(--text-secondary); font-size: 0.8em; margin-top: 1em;">v 1.12</p>
         </section>
         
         <!-- Main Lobby -->
         <section id="lobby-screen" class="screen">
             <h1 class="title">Lobby</h1>
+            <!-- Version info -->
+            <p style="text-align: center; color: var(--text-secondary); font-size: 0.8em;">v 1.12</p>
             <p>Waiting for a friend...</p>
             
             <div class="lobby-content">
@@ -310,28 +314,32 @@
                 }
             });
 
-            // Check for an existing waiting room when the user enters the lobby
+            // Check for an existing waiting room and listen for new ones
             const roomsRef = db.ref('rooms');
-            roomsRef.once('value', (snapshot) => {
-                let roomFound = false;
-                snapshot.forEach((childSnapshot) => {
-                    const roomId = childSnapshot.key;
-                    const room = childSnapshot.val();
-                    if (room.status === 'waiting' && !currentRoomId && !roomFound) {
-                        childSnapshot.ref.update({ status: 'in-call' });
-                        joinRoom(roomId);
-                        roomFound = true;
-                    }
-                });
+            let hasJoinedRoom = false;
+
+            roomsRef.once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const roomId = childSnapshot.key;
+                        const room = childSnapshot.val();
+                        if (room.status === 'waiting' && !currentRoomId && !hasJoinedRoom) {
+                            childSnapshot.ref.update({ status: 'in-call' });
+                            joinRoom(roomId);
+                            hasJoinedRoom = true;
+                        }
+                    });
+                }
             });
 
-            // Listen for new rooms added in the future
+            // Fallback: Listen for new rooms being added
             roomsRef.on('child_added', (snapshot) => {
                 const roomId = snapshot.key;
                 const room = snapshot.val();
-                if (room.status === 'waiting' && !currentRoomId) {
+                if (room.status === 'waiting' && !currentRoomId && !hasJoinedRoom) {
                     snapshot.ref.update({ status: 'in-call' });
                     joinRoom(roomId);
+                    hasJoinedRoom = true;
                 }
             });
         }
