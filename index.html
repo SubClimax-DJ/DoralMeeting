@@ -175,20 +175,12 @@ Doral Video Conference
 <main id="mainApp" class="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 hidden">
 <!-- Left Sidebar for Chat -->
 <div class="md:col-span-1 space-y-8">
-<div class="container-card" id="waitingRoomChatWrapper">
-<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Waiting Room Chat</h2>
-<div class="chat-container mb-4" id="waitingRoomChat"></div>
+<div class="container-card">
+<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">Chat</h2>
+<div class="chat-container mb-4" id="chatContainer"></div>
 <div class="flex space-x-2">
 <input type="text" id="chatInput" placeholder="Send a message..." class="input-field flex-1" />
 <button id="sendChatBtn" class="btn-primary" disabled>Send</button>
-</div>
-</div>
-<div class="container-card hidden" id="inRoomChatWrapper">
-<h2 class="text-xl font-bold font-['Crimson_Pro'] mb-4">In-Room Chat</h2>
-<div class="chat-container mb-4" id="inRoomChat"></div>
-<div class="flex space-x-2">
-<input type="text" id="inRoomChatInput" placeholder="Send a message..." class="input-field flex-1" />
-<button id="sendInRoomChatBtn" class="btn-primary" disabled>Send</button>
 </div>
 </div>
 </div>
@@ -348,11 +340,7 @@ const startRecordingBtn = document.getElementById('startRecordingBtn');
 const stopRecordingBtn = document.getElementById('stopRecordingBtn');
 const chatInput = document.getElementById('chatInput');
 const sendChatBtn = document.getElementById('sendChatBtn');
-const waitingRoomChat = document.getElementById('waitingRoomChat');
-const inRoomChat = document.getElementById('inRoomChat');
-const waitingRoomChatWrapper = document.getElementById('waitingRoomChatWrapper');
-const inRoomChatWrapper = document.getElementById('inRoomChatWrapper');
-
+const chatContainer = document.getElementById('chatContainer');
 const statusMessage = document.getElementById('status-message');
 const authStatus = document.getElementById('auth-status');
 const activeRoomsList = document.getElementById('activeRoomsList');
@@ -634,12 +622,6 @@ participants: participants,
 isLocked: false
 });
 
-// Switch to in-room chat
-waitingRoomChatWrapper.classList.add('hidden');
-inRoomChatWrapper.classList.remove('hidden');
-inRoomChat.innerHTML = '';
-listenForChat(collection(roomRef, 'chat-messages'), inRoomChat);
-
 roomSnapshotListener = onSnapshot(roomRef, async (snapshot) => {
 const data = snapshot.data();
 if (!snapshot.exists()) {
@@ -662,6 +644,7 @@ await peerConnection.addIceCandidate(candidate);
 });
 });
 
+listenForChat(roomRef);
 listenForParticipants();
 
 showMessage(`Room created! Share this ID with your client: ${roomName}`);
@@ -719,12 +702,6 @@ isMuted: joinMutedCheckbox.checked,
 isVideoOff: joinMutedCheckbox.checked
 }});
 
-// Switch to in-room chat
-waitingRoomChatWrapper.classList.add('hidden');
-inRoomChatWrapper.classList.remove('hidden');
-inRoomChat.innerHTML = '';
-listenForChat(collection(roomRef, 'chat-messages'), inRoomChat);
-
 candidatesListener = onSnapshot(collection(roomRef, 'candidates'), (snapshot) => {
 snapshot.docChanges().forEach(async (change) => {
 if (change.type === "added") {
@@ -734,6 +711,7 @@ await peerConnection.addIceCandidate(candidate);
 });
 });
 
+listenForChat(roomRef);
 listenForParticipants();
 
 showMessage(`Successfully joined room ${roomId}!`);
@@ -811,15 +789,8 @@ screenShareBtn.disabled = true;
 startRecordingBtn.disabled = true;
 stopRecordingBtn.disabled = true;
 sendChatBtn.disabled = true;
-waitingRoomChat.innerHTML = '';
-inRoomChat.innerHTML = '';
+chatContainer.innerHTML = '';
 participantsList.innerHTML = 'No participants in this room.';
-
-// Switch back to waiting room chat
-waitingRoomChatWrapper.classList.remove('hidden');
-inRoomChatWrapper.classList.add('hidden');
-listenForChat(collection(db, `artifacts/${appId}/public/data/waiting-room-chat`), waitingRoomChat);
-
 };
 
 const startScreenShare = async () => {
@@ -983,16 +954,10 @@ showMessage("Recording stopped. Your download should start shortly.");
 // Send a chat message
 const sendMessage = async () => {
 const message = chatInput.value.trim();
-if (message === "") return;
+if (message === "" || !roomRef) return;
 
-let chatRef;
-if (roomRef) {
-  chatRef = collection(roomRef, 'chat-messages');
-} else {
-  chatRef = collection(db, `artifacts/${appId}/public/data/waiting-room-chat`);
-}
-
-await addDoc(chatRef, {
+const chatMessagesRef = collection(roomRef, 'chat-messages');
+await addDoc(chatMessagesRef, {
 senderId: userId,
 senderUsername: username,
 text: message,
@@ -1001,27 +966,15 @@ timestamp: serverTimestamp()
 chatInput.value = '';
 };
 
-const sendInRoomMessage = async () => {
-    const message = inRoomChatInput.value.trim();
-    if (message === "") return;
-    const chatRef = collection(roomRef, 'chat-messages');
-    await addDoc(chatRef, {
-        senderId: userId,
-        senderUsername: username,
-        text: message,
-        timestamp: serverTimestamp()
-    });
-    inRoomChatInput.value = '';
-};
-
 // Listen for new chat messages
-const listenForChat = (chatCollectionRef, chatContainer) => {
+const listenForChat = (roomDocRef) => {
 if (chatListener) chatListener();
-chatListener = onSnapshot(chatCollectionRef, (snapshot) => {
+const chatMessagesRef = collection(roomDocRef, 'chat-messages');
+chatListener = onSnapshot(chatMessagesRef, (snapshot) => {
 snapshot.docChanges().forEach(change => {
 if (change.type === 'added') {
 const messageData = change.doc.data();
-displayMessage(messageData, chatContainer);
+displayMessage(messageData);
 }
 });
 }, (error) => {
@@ -1030,7 +983,7 @@ console.error("Error listening to chat messages:", error);
 };
 
 // Display a chat message in the UI
-const displayMessage = (messageData, chatContainer) => {
+const displayMessage = (messageData) => {
 const messageDiv = document.createElement('div');
 messageDiv.className = `message ${messageData.senderId === userId ? 'my-message' : 'other-message'}`;
 messageDiv.innerHTML = `<span class="font-bold">${messageData.senderUsername}:</span> ${messageData.text}`;
@@ -1132,8 +1085,6 @@ if (user) {
 username = user;
 usernamePrompt.style.display = 'none';
 mainApp.style.display = 'grid';
-// Start the waiting room chat
-listenForChat(collection(db, `artifacts/${appId}/public/data/waiting-room-chat`), waitingRoomChat);
 
 // Add user to active users list
 const activeUsersRef = doc(db, `artifacts/${appId}/public/data/active-users`, userId);
