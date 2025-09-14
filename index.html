@@ -806,7 +806,12 @@
             peerConnection = new RTCPeerConnection(configuration);
 
             // Add local stream tracks to the peer connection
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            if (localStream) {
+                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            } else {
+                console.error("Local stream is not available when setting up peer connection.");
+            }
+            
 
             // Listen for ICE candidates and add them to Firestore
             peerConnection.onicecandidate = (event) => {
@@ -826,6 +831,26 @@
                     startRecordingBtn.disabled = false;
                     remoteVideoContainer.classList.add('pulse-border', 'active-border');
                     remoteVideoContainer.classList.remove('hidden');
+                }
+            };
+
+             // This listener will trigger when a new track is added, prompting a new offer
+            peerConnection.onnegotiationneeded = async () => {
+                if (roomRef) {
+                    try {
+                        const offer = await peerConnection.createOffer();
+                        await peerConnection.setLocalDescription(offer);
+                        const roomDocRef = doc(db, `artifacts/${appId}/public/data/video-rooms`, roomRef.id);
+                        await updateDoc(roomDocRef, {
+                            offer: {
+                                sdp: offer.sdp,
+                                type: offer.type
+                            },
+                        });
+                        console.log("Renegotiation needed, new offer sent.");
+                    } catch (error) {
+                        console.error("Error during renegotiation:", error);
+                    }
                 }
             };
         };
@@ -1080,7 +1105,7 @@
                 }
 
                 // Host logic: listen for answer and set remote description
-                if (data && data.answer && peerConnection.signalingState === 'have-local-offer') {
+                if (data && data.answer && peerConnection && peerConnection.signalingState === 'have-local-offer') {
                     console.log("Host received answer, setting remote description.");
                     const answer = new RTCSessionDescription(data.answer);
                     await peerConnection.setRemoteDescription(answer);
@@ -1092,12 +1117,12 @@
                 const myParticipantData = data.participants[userId];
                 if (myParticipantData) {
                     // Mute/unmute local stream if the admin changes the state
-                    if (localStream.getAudioTracks()[0].enabled !== !myParticipantData.isMuted) {
+                    if (localStream && localStream.getAudioTracks().length > 0 && localStream.getAudioTracks()[0].enabled !== !myParticipantData.isMuted) {
                         localStream.getAudioTracks()[0].enabled = !myParticipantData.isMuted;
                         updateMediaButtonStates(myParticipantData.isMuted, myParticipantData.isVideoOff);
                         showMessage(myParticipantData.isMuted ? "You have been muted by the admin." : "You have been unmuted by the admin.");
                     }
-                    if (localStream.getVideoTracks()[0].enabled !== !myParticipantData.isVideoOff) {
+                    if (localStream && localStream.getVideoTracks().length > 0 && localStream.getVideoTracks()[0].enabled !== !myParticipantData.isVideoOff) {
                         localStream.getVideoTracks()[0].enabled = !myParticipantData.isVideoOff;
                         updateMediaButtonStates(myParticipantData.isMuted, myParticipantData.isVideoOff);
                         showMessage(myParticipantData.isVideoOff ? "Your video has been turned off by the admin." : "Your video has been turned on by the admin.");
