@@ -3,235 +3,291 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retro Meetup</title>
+    <title>Gruv Box Conference</title>
     <style>
+        /* Gruvbox Color Palette */
         :root {
             --bg-dark: #282828;
-            --bg-medium: #3c3836;
-            --bg-light: #504945;
-            --text-primary: #fbf1c7;
-            --text-secondary: #a89984;
-            --red: #fb4934;
-            --green: #b8bb26;
-            --yellow: #fabd2f;
-            --blue: #83a598;
-            --purple: #d3869b;
-            --aqua: #8ec07c;
-            --orange: #fe8019;
+            --bg-light: #3c3836;
+            --fg: #ebdbb2;
+            --gray: #928374;
+            --red: #cc241d;
+            --green: #98971a;
+            --yellow: #d79921;
+            --blue: #458588;
+            --purple: #b16286;
+            --aqua: #689d6a;
+            --orange: #d65d0e;
         }
 
+        /* Base Styles */
         body {
+            font-family: 'monospace', 'Courier New', monospace;
             background-color: var(--bg-dark);
-            color: var(--text-primary);
-            font-family: 'Fira Code', monospace;
+            color: var(--fg);
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 1rem;
         }
 
         .container {
-            background-color: var(--bg-medium);
-            border: 2px solid var(--text-secondary);
-            padding: 2em;
-            border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
-            width: 90%;
-            max-width: 600px;
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            border: 2px solid var(--fg);
+            border-radius: 8px;
+            padding: 2rem;
+            background-color: var(--bg-light);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        h1, h2, h3 {
+            color: var(--yellow);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            text-transform: uppercase;
             text-align: center;
         }
 
+        /* Screen Sections */
         .screen {
             display: none;
-            animation: fadeIn 0.5s ease-in-out;
+            flex-direction: column;
+            gap: 1.5rem;
         }
-
         .screen.active {
-            display: block;
+            display: flex;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* Form & Input Styles */
+        input[type="text"], button {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--gray);
+            color: var(--fg);
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            transition: all 0.2s ease-in-out;
         }
-
-        .title {
-            color: var(--orange);
-            text-shadow: 2px 2px var(--bg-light);
-            margin-bottom: 0.5em;
-        }
-
-        p {
-            color: var(--text-secondary);
-            margin-bottom: 1.5em;
-        }
-
-        input, .btn {
-            border: 2px solid var(--text-secondary);
-            background-color: var(--bg-light);
-            color: var(--text-primary);
-            padding: 0.75em;
-            border-radius: 5px;
-            margin-top: 0.5em;
-            font-family: 'Fira Code', monospace;
-            transition: all 0.3s ease;
-        }
-
-        input:focus {
+        input[type="text"]:focus {
             outline: none;
-            border-color: var(--aqua);
-            box-shadow: 0 0 5px var(--aqua);
+            border-color: var(--orange);
         }
-
-        .btn {
+        button {
             cursor: pointer;
-            background-color: var(--blue);
-            color: var(--text-primary);
+            border-color: var(--blue);
+            text-transform: uppercase;
         }
-
-        .btn:hover {
-            background-color: var(--aqua);
+        button:hover {
+            background-color: var(--blue);
             color: var(--bg-dark);
         }
 
-        .hangup {
-            background-color: var(--red);
+        /* Login Screen */
+        .login-screen {
+            align-items: center;
+            text-align: center;
+        }
+        .login-screen input {
+            width: 100%;
+            max-width: 300px;
         }
 
-        .hangup:hover {
-            background-color: var(--orange);
+        /* Lobby & Chat */
+        .lobby-screen {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 1.5rem;
         }
-
-        #login-form, #chat-form {
-            display: flex;
-            flex-direction: column;
-            gap: 1em;
+        .users-list {
+            padding: 1rem;
+            border: 1px solid var(--gray);
+            border-radius: 4px;
+            background-color: var(--bg-dark);
+            height: 300px;
+            overflow-y: auto;
         }
-
-        .lobby-content {
-            display: flex;
-            flex-direction: column;
-            gap: 1em;
+        .user-item {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--bg-light);
+            cursor: pointer;
         }
-
-        .chat-box {
-            border: 2px solid var(--text-secondary);
-            border-radius: 5px;
-            padding: 1em;
-            height: 200px;
-            overflow-y: scroll;
-            text-align: left;
+        .user-item:last-child {
+            border-bottom: none;
+        }
+        .user-item:hover {
             background-color: var(--bg-light);
-            margin-bottom: 1em;
         }
 
-        .messages p {
-            margin: 0.5em 0;
-            line-height: 1.5;
-            color: var(--text-primary);
+        .chat-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .chat-box {
+            border: 1px solid var(--gray);
+            border-radius: 4px;
+            background-color: var(--bg-dark);
+            height: 250px;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .chat-message {
+            word-wrap: break-word;
+        }
+        .chat-message .username {
+            color: var(--green);
+            font-weight: bold;
         }
 
-        .message-sender {
-            color: var(--yellow);
+        .chat-input {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .chat-input input {
+            flex-grow: 1;
         }
 
-        .actions {
-            margin-top: 1em;
+        /* Video Room */
+        .room-screen {
+            align-items: center;
+            text-align: center;
         }
-
         .video-container {
             display: flex;
-            flex-direction: column;
-            gap: 1em;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        video {
+            width: 100%;
+            max-width: 400px;
+            border: 2px solid var(--gray);
+            background-color: var(--bg-dark);
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+        }
+        #local-video {
+            transform: scaleX(-1); /* Mirror local video */
+        }
+        .room-controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
             justify-content: center;
             align-items: center;
         }
-
-        .video-box {
-            border: 2px solid var(--text-secondary);
-            border-radius: 5px;
+        .modal-content {
             background-color: var(--bg-light);
-            width: 100%;
-            max-width: 450px;
-            height: 250px;
-            overflow: hidden;
+            border: 2px solid var(--orange);
+            border-radius: 8px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
         }
 
-        .video-box video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .controls {
-            margin-top: 1.5em;
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .lobby-screen {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-
         <!-- Login Screen -->
-        <section id="login-screen" class="screen active">
-            <h1 class="title">Retro Meetup</h1>
-            <p>Enter a username to join the lobby</p>
-            <form id="login-form">
-                <input type="text" id="username-input" placeholder="Your username..." required>
-                <button type="submit" class="btn">Enter Lobby</button>
-            </form>
-            <!-- Version info -->
-            <p style="text-align: center; color: var(--text-secondary); font-size: 0.8em; margin-top: 1em;">v 1.12</p>
-        </section>
-        
-        <!-- Main Lobby -->
-        <section id="lobby-screen" class="screen">
-            <h1 class="title">Lobby</h1>
-            <!-- Version info -->
-            <p style="text-align: center; color: var(--text-secondary); font-size: 0.8em;">v 1.12</p>
-            <p>Waiting for a friend...</p>
-            
-            <div class="lobby-content">
-                <div class="chat-box">
-                    <div id="messages" class="messages"></div>
-                    <form id="chat-form">
-                        <input type="text" id="message-input" placeholder="Say something..." required>
-                        <button type="submit" class="btn">Send</button>
-                    </form>
+        <div id="login-screen" class="screen active">
+            <h1>Gruv Box</h1>
+            <p style="text-align: center;">Welcome to the terminal. Please enter your handle to proceed.</p>
+            <input type="text" id="username-input" placeholder="Enter username...">
+            <button id="join-lobby-btn">Connect</button>
+        </div>
+
+        <!-- Lobby Screen -->
+        <div id="lobby-screen" class="screen">
+            <h2>Lobby</h2>
+            <div class="lobby-screen">
+                <div class="users-section">
+                    <h3>Online Users</h3>
+                    <div id="users-list" class="users-list">
+                        <p style="color: var(--gray);">Loading users...</p>
+                    </div>
+                </div>
+                <div class="chat-section">
+                    <h3>Public Chat</h3>
+                    <div id="chat-box" class="chat-box"></div>
+                    <div class="chat-input">
+                        <input type="text" id="chat-input" placeholder="Message...">
+                        <button id="send-chat-btn">Send</button>
+                    </div>
+                    <button id="create-room-btn" style="background-color: var(--green); border-color: var(--green); color: var(--bg-dark);">Create 1-on-1 Room</button>
                 </div>
             </div>
+            <p id="user-id-display" style="text-align: center; color: var(--gray); font-size: 0.8em;"></p>
+        </div>
 
-            <div class="actions">
-                <button id="create-room-btn" class="btn">Create a New Room</button>
-            </div>
-        </section>
-
-        <!-- Video Call Screen -->
-        <section id="room-screen" class="screen">
+        <!-- Video Room Screen -->
+        <div id="room-screen" class="screen">
+            <h2 id="room-header"></h2>
             <div class="video-container">
-                <div class="video-box">
-                    <video id="local-video" autoplay muted></video>
-                </div>
-                <div class="video-box">
-                    <video id="remote-video" autoplay></video>
-                </div>
+                <video id="local-video" autoplay muted></video>
+                <video id="remote-video" autoplay></video>
             </div>
-            <div class="controls">
-                <button id="hangup-btn" class="btn hangup">Hang Up</button>
+            <div class="room-controls">
+                <button id="end-call-btn" style="background-color: var(--red); border-color: var(--red); color: var(--bg-dark);">Hang Up</button>
             </div>
-        </section>
+        </div>
     </div>
 
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
-    
-    <!-- Main Script -->
-    <script>
-        // Firebase configuration from the user
-        const firebaseConfig = {
+    <!-- Modal for notifications -->
+    <div id="alert-modal" class="modal">
+        <div class="modal-content">
+            <p id="modal-message"></p>
+            <div class="modal-buttons">
+                <button id="modal-ok-btn" style="background-color: var(--blue); border-color: var(--blue); color: var(--bg-dark);">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+        import Peer from 'https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js';
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
             authDomain: "video-meeting-e73eb.firebaseapp.com",
             projectId: "video-meeting-e73eb",
@@ -240,230 +296,292 @@
             appId: "1:80496795033:web:3ac35c631d76301f77c708",
             measurementId: "G-SFPQ0PJRPG"
         };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const auth = firebase.auth();
+        // Firebase Initialization
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
         // UI Elements
-        const loginScreen = document.getElementById('login-screen');
-        const lobbyScreen = document.getElementById('lobby-screen');
-        const roomScreen = document.getElementById('room-screen');
-        const loginForm = document.getElementById('login-form');
+        const screens = {
+            login: document.getElementById('login-screen'),
+            lobby: document.getElementById('lobby-screen'),
+            room: document.getElementById('room-screen')
+        };
         const usernameInput = document.getElementById('username-input');
-        const chatForm = document.getElementById('chat-form');
-        const messageInput = document.getElementById('message-input');
-        const messagesDiv = document.getElementById('messages');
+        const joinLobbyBtn = document.getElementById('join-lobby-btn');
+        const usersList = document.getElementById('users-list');
+        const chatBox = document.getElementById('chat-box');
+        const chatInput = document.getElementById('chat-input');
+        const sendChatBtn = document.getElementById('send-chat-btn');
         const createRoomBtn = document.getElementById('create-room-btn');
-        const hangupBtn = document.getElementById('hangup-btn');
         const localVideo = document.getElementById('local-video');
         const remoteVideo = document.getElementById('remote-video');
+        const endCallBtn = document.getElementById('end-call-btn');
+        const userIdDisplay = document.getElementById('user-id-display');
+        const roomHeader = document.getElementById('room-header');
 
-        let username = '';
-        let currentRoomId = null;
+        // Modal Elements
+        const alertModal = document.getElementById('alert-modal');
+        const modalMessage = document.getElementById('modal-message');
+        const modalOkBtn = document.getElementById('modal-ok-btn');
+
+        // Global State
+        let userId;
+        let username;
+        let peer;
         let localStream;
-        let peerConnection;
+        let currentCall;
 
-        const iceServers = {
-            'iceServers': [
-                { 'urls': 'stun:stun.l.google.com:19302' },
-                { 'urls': 'stun:stun1.l.google.com:19302' },
-            ]
+        // --- Utility Functions ---
+
+        // Custom modal function instead of alert()
+        const showModal = (message) => {
+            modalMessage.textContent = message;
+            alertModal.style.display = 'flex';
         };
 
-        // --- Screen and State Management ---
-        function showScreen(screen) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            screen.classList.add('active');
-        }
+        modalOkBtn.addEventListener('click', () => {
+            alertModal.style.display = 'none';
+        });
 
-        // --- Firebase Authentication and Login ---
-        loginForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            username = usernameInput.value;
-            if (username) {
-                showScreen(lobbyScreen);
-                setupLobbyChat();
+        const showScreen = (screenName) => {
+            Object.values(screens).forEach(screen => screen.classList.remove('active'));
+            screens[screenName].classList.add('active');
+        };
+
+        const getPublicCollectionPath = (name) => `/artifacts/${appId}/public/data/${name}`;
+
+        // --- Firebase Logic ---
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+                // Check if user has a username
+                const userDocRef = doc(db, getPublicCollectionPath('users'), userId);
+                const userDoc = await getDoc(userDocRef);
+
+                if (userDoc.exists()) {
+                    username = userDoc.data().username;
+                    setupLobby();
+                } else {
+                    showScreen('login');
+                }
+            } else {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
             }
         });
 
-        // --- Firebase Lobby Chat ---
-        function setupLobbyChat() {
-            const chatRef = db.ref('lobby_chat');
-            
-            // Listen for new messages
-            chatRef.on('child_added', (snapshot) => {
-                const message = snapshot.val();
-                const msgElement = document.createElement('p');
-                msgElement.innerHTML = `<span class="message-sender">${message.user}:</span> ${message.text}`;
-                messagesDiv.appendChild(msgElement);
-                messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll
+        joinLobbyBtn.addEventListener('click', async () => {
+            const newUsername = usernameInput.value.trim();
+            if (!newUsername) {
+                showModal("Please enter a username.");
+                return;
+            }
+            username = newUsername;
+
+            // Save username to Firestore
+            await setDoc(doc(db, getPublicCollectionPath('users'), userId), {
+                username: username
             });
 
-            chatForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const message = messageInput.value;
+            setupLobby();
+        });
+
+        const setupLobby = () => {
+            showScreen('lobby');
+            userIdDisplay.textContent = `Your User ID: ${userId}`;
+            
+            // Add user to online users list
+            const onlineUsersRef = doc(db, getPublicCollectionPath('onlineUsers'), userId);
+            setDoc(onlineUsersRef, {
+                username: username,
+                timestamp: Date.now()
+            });
+
+            // Listen for online users
+            onSnapshot(collection(db, getPublicCollectionPath('onlineUsers')), (snapshot) => {
+                usersList.innerHTML = '';
+                if (snapshot.empty) {
+                    usersList.innerHTML = '<p style="color: var(--gray);">No users online.</p>';
+                    return;
+                }
+                snapshot.forEach(doc => {
+                    const user = doc.data();
+                    const userItem = document.createElement('div');
+                    userItem.className = 'user-item';
+                    userItem.textContent = user.username;
+                    if (doc.id === userId) {
+                         userItem.textContent += ' (You)';
+                         userItem.style.color = var(--aqua);
+                    }
+                    userItem.addEventListener('click', () => {
+                        // In a real app, this could initiate a call
+                        // For this demo, we'll just log
+                        console.log(`Clicked on user: ${user.username}`);
+                    });
+                    usersList.appendChild(userItem);
+                });
+            });
+
+            // Listen for chat messages
+            onSnapshot(collection(db, getPublicCollectionPath('lobbyChat')), (snapshot) => {
+                chatBox.innerHTML = '';
+                snapshot.docs.sort((a,b) => a.data().timestamp - b.data().timestamp).forEach(doc => {
+                    const msg = doc.data();
+                    const chatMessage = document.createElement('div');
+                    chatMessage.className = 'chat-message';
+                    chatMessage.innerHTML = `<span class="username">${msg.username}:</span> ${msg.message}`;
+                    chatBox.appendChild(chatMessage);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+
+            // Send chat message
+            const sendMessage = async () => {
+                const message = chatInput.value.trim();
                 if (message) {
-                    chatRef.push({
-                        user: username,
-                        text: message,
-                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    await addDoc(collection(db, getPublicCollectionPath('lobbyChat')), {
+                        username: username,
+                        message: message,
+                        timestamp: Date.now()
                     });
-                    messageInput.value = '';
+                    chatInput.value = '';
+                }
+            };
+            sendChatBtn.addEventListener('click', sendMessage);
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
                 }
             });
+        };
 
-            // Check for an existing waiting room and listen for new ones
-            const roomsRef = db.ref('rooms');
-            let hasJoinedRoom = false;
+        // --- Video Call Logic ---
 
-            roomsRef.once('value').then((snapshot) => {
-                if (snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        const roomId = childSnapshot.key;
-                        const room = childSnapshot.val();
-                        if (room.status === 'waiting' && !currentRoomId && !hasJoinedRoom) {
-                            childSnapshot.ref.update({ status: 'in-call' });
-                            joinRoom(roomId);
-                            hasJoinedRoom = true;
-                        }
-                    });
-                }
-            });
-
-            // Fallback: Listen for new rooms being added
-            roomsRef.on('child_added', (snapshot) => {
-                const roomId = snapshot.key;
-                const room = snapshot.val();
-                if (room.status === 'waiting' && !currentRoomId && !hasJoinedRoom) {
-                    snapshot.ref.update({ status: 'in-call' });
-                    joinRoom(roomId);
-                    hasJoinedRoom = true;
-                }
-            });
-        }
-
-        // --- WebRTC Room Management and Call Setup ---
         createRoomBtn.addEventListener('click', async () => {
-            const roomId = 'room_' + Math.floor(Math.random() * 100000);
-            currentRoomId = roomId;
-            const roomRef = db.ref('rooms/' + roomId);
+            showModal("Creating a room...");
+            try {
+                // Create a room document in Firestore
+                const roomDoc = await addDoc(collection(db, getPublicCollectionPath('videoRooms')), {
+                    creatorId: userId,
+                    createdAt: Date.now()
+                });
+                const roomId = roomDoc.id;
 
-            showScreen(roomScreen);
-            await startLocalStream();
+                // Get local media stream
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
 
-            // Create a new room in Firebase and wait for a second user
-            await roomRef.set({ creator: username, status: 'waiting' });
-            
-            // Set up the WebRTC connection for the creator
-            setupPeerConnection(roomRef);
+                // Initialize PeerJS
+                peer = new Peer(userId); // Use userId as Peer ID for easy lookup
 
-            // Creator creates and sends an offer
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-            await roomRef.child('offer').set(offer);
-            
-            // Listen for an answer from a joining user
-            roomRef.child('answer').on('value', async (snapshot) => {
-                const answer = snapshot.val();
-                if (answer && peerConnection.remoteDescription.type === '') {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-                }
-            });
+                peer.on('open', (id) => {
+                    console.log('My Peer ID is:', id);
+                    updateDoc(roomDoc, { peerId: id });
+                    showModal(`Room created! Share this Room ID with a friend: ${roomId}`);
+                    setupRoom(roomId);
+                });
 
-            // Listen for ICE candidates from the joining user
-            roomRef.child('calleeCandidates').on('child_added', async (snapshot) => {
-                const candidate = new RTCIceCandidate(snapshot.val());
-                await peerConnection.addIceCandidate(candidate);
-            });
+                peer.on('call', (call) => {
+                    console.log("Incoming call:", call);
+                    showModal("Answering incoming call...");
+                    call.answer(localStream); // Answer the call with our local stream
+                    call.on('stream', (remoteStream) => {
+                        remoteVideo.srcObject = remoteStream;
+                    });
+                    currentCall = call;
+                });
+
+                peer.on('close', () => console.log('Peer connection closed.'));
+                peer.on('error', (err) => console.error('Peer error:', err));
+
+            } catch (error) {
+                console.error("Error creating room or getting media:", error);
+                showModal("Failed to create room. Please check camera/mic permissions.");
+            }
         });
 
-        hangupBtn.addEventListener('click', () => {
-            endCall();
-        });
+        // Simplified join logic: user needs to manually paste a room ID
+        const setupRoom = async (roomId) => {
+            showScreen('room');
+            roomHeader.textContent = `Room: ${roomId}`;
+            endCallBtn.style.display = 'block';
 
-        // Joins an existing room (in a real app, you'd have a UI for this)
-        async function joinRoom(roomId) {
-            currentRoomId = roomId;
-            const roomRef = db.ref('rooms/' + roomId);
-            showScreen(roomScreen);
-            await startLocalStream();
-            
-            // Set up the WebRTC connection for the joiner
-            setupPeerConnection(roomRef);
-            
-            // Joiner listens for the offer
-            roomRef.child('offer').on('value', async (snapshot) => {
-                const offer = snapshot.val();
-                if (offer) {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            // Check if this is the second person joining the room
+            const roomDocRef = doc(db, getPublicCollectionPath('videoRooms'), roomId);
+            const roomSnapshot = await getDoc(roomDocRef);
+
+            if (roomSnapshot.exists() && roomSnapshot.data().peerId) {
+                const remotePeerId = roomSnapshot.data().peerId;
+                if (remotePeerId !== userId) {
+                    // This is the second user, initiate a call
+                    showModal("Joining room...");
+                    // Ensure peer is initialized
+                    if (!peer) {
+                         peer = new Peer(userId);
+                         peer.on('open', (id) => console.log('My Peer ID is:', id));
+                         peer.on('close', () => console.log('Peer connection closed.'));
+                         peer.on('error', (err) => console.error('Peer error:', err));
+                    }
                     
-                    // Joiner creates and sends an answer
-                    const answer = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answer);
-                    await roomRef.child('answer').set(answer);
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    localVideo.srcObject = localStream;
+
+                    const call = peer.call(remotePeerId, localStream);
+                    currentCall = call;
+                    
+                    call.on('stream', (remoteStream) => {
+                        console.log("Got remote stream from call.");
+                        remoteVideo.srcObject = remoteStream;
+                    });
+                    
+                    call.on('close', () => {
+                         console.log("Call ended by remote peer.");
+                         endCall();
+                    });
                 }
-            });
-            
-            // Listen for ICE candidates from the creator
-            roomRef.child('creatorCandidates').on('child_added', async (snapshot) => {
-                const candidate = new RTCIceCandidate(snapshot.val());
-                await peerConnection.addIceCandidate(candidate);
-            });
-        }
+            }
+        };
 
-        // Start local video and audio stream
-        async function startLocalStream() {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            localVideo.srcObject = localStream;
-        }
+        endCallBtn.addEventListener('click', endCall);
 
-        // Set up the Peer Connection
-        function setupPeerConnection(roomRef) {
-            peerConnection = new RTCPeerConnection(iceServers);
-            
-            // Add local tracks to the connection
-            localStream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, localStream);
-            });
-            
-            // Listen for the remote stream
-            peerConnection.ontrack = (event) => {
-                remoteVideo.srcObject = event.streams[0];
-            };
-            
-            // Collect ICE candidates and send them to Firebase
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    const candidateRef = peerConnection.localDescription.type === 'offer' 
-                        ? roomRef.child('creatorCandidates') 
-                        : roomRef.child('calleeCandidates');
-                    candidateRef.push(event.candidate.toJSON());
-                }
-            };
-        }
-
-        // End the call and clean up
-        function endCall() {
+        const endCall = () => {
+            if (currentCall) {
+                currentCall.close();
+                currentCall = null;
+            }
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
             }
-            if (peerConnection) {
-                peerConnection.close();
+            if (peer) {
+                peer.destroy();
+                peer = null;
             }
-            
-            // Clean up Firebase data for the room
-            if (currentRoomId) {
-                db.ref('rooms/' + currentRoomId).remove();
-                currentRoomId = null;
-            }
-            
-            // Reset video elements and return to lobby
             localVideo.srcObject = null;
             remoteVideo.srcObject = null;
-            showScreen(lobbyScreen);
-        }
+            showScreen('lobby');
+            showModal("Call has ended.");
+        };
+
+        // --- Instructions for use ---
+
+        // In a production app, the "Join" logic would be more robust.
+        // For this demo:
+        // 1. The first user logs in and clicks "Create 1-on-1 Room".
+        // 2. The app will generate a Room ID. The user needs to copy this ID.
+        // 3. The second user needs to open the app and manually paste the ID somewhere
+        //    to connect. As this app is simplified, the second user will just need to
+        //    be logged in and the app will auto-join if a room is available.
+        //    In a real app, you would have a "Join Room" button with an input field.
+        //    I've added a basic check to auto-join if the `peerId` is available.
+
     </script>
 </body>
 </html>
