@@ -6,6 +6,7 @@
     <title>Teacher Office Hours</title>
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
@@ -142,11 +143,13 @@
         }
 
         .user-list li {
-            cursor: pointer;
             padding: 12px;
             border-bottom: 1px solid var(--gray);
             color: var(--fg1);
             transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .user-list li:hover {
@@ -156,6 +159,20 @@
 
         .user-list li:last-child {
             border-bottom: none;
+        }
+
+        .user-list li span {
+            cursor: pointer;
+        }
+
+        .kick-btn {
+            background: var(--red);
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .kick-btn:hover {
+            background: #cc241d;
         }
 
         button {
@@ -174,6 +191,12 @@
         button:hover {
             background: var(--aqua);
             transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background: var(--gray);
+            cursor: not-allowed;
+            transform: none;
         }
 
         .btn-success {
@@ -244,6 +267,32 @@
             font-size: 12px;
         }
 
+        .control-group {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        [data-tooltip] {
+            position: relative;
+        }
+
+        [data-tooltip]:hover:after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg1);
+            color: var(--fg0);
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
         @media (max-width: 768px) {
             video {
                 width: 100%;
@@ -296,7 +345,10 @@
         </div>
         <div id="teacherControls" style="display:none;">
             <h3>Teacher Controls</h3>
-            <button onclick="leaveLobby()" class="btn btn-warning">Leave Lobby</button>
+            <div class="control-group">
+                <button onclick="leaveLobby()" class="btn btn-warning" data-tooltip="Leave the lobby and sign out">Leave Lobby</button>
+                <button onclick="endAllCalls()" class="btn btn-danger" data-tooltip="End all active calls">End All Calls</button>
+            </div>
         </div>
     </div>
 
@@ -312,9 +364,11 @@
                 <div class="video-label" id="remoteVideoLabel">Other</div>
             </div>
         </div>
-        <div style="text-align: center; margin-top: 20px;">
-            <button onclick="toggleScreenShare()" id="screenBtn" class="btn btn-info">Share Screen</button>
-            <button onclick="endCall()" class="btn btn-danger">End Call</button>
+        <div class="control-group">
+            <button onclick="toggleScreenShare()" id="screenBtn" class="btn btn-info" data-tooltip="Toggle screen sharing">Share Screen</button>
+            <button onclick="toggleMic()" id="micBtn" class="btn btn-info" data-tooltip="Toggle microphone">Mute Mic</button>
+            <button onclick="toggleVideo()" id="videoBtn" class="btn btn-info" data-tooltip="Toggle camera">Turn Off Video</button>
+            <button onclick="endCall()" class="btn btn-danger" data-tooltip="End the current call">End Call</button>
         </div>
         <div id="callChat"></div>
         <div class="chat-row">
@@ -335,6 +389,7 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database().ref();
+        const auth = firebase.auth();
 
         let currentUser = null;
         let isTeacher = false;
@@ -342,6 +397,9 @@
         let localStream = null;
         let currentCallRoom = null;
         let remoteUser = null;
+        let remoteUid = null;
+        let micEnabled = true;
+        let videoEnabled = true;
         const LOBBY_ROOM = 'lobby';
         const iceServers = [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -351,39 +409,59 @@
         function joinLobby() {
             const name = document.getElementById('userName').value.trim();
             if (!name) return alert('Enter a name');
-            currentUser = name;
             isTeacher = document.getElementById('isTeacher').checked;
-            document.getElementById('login').style.display = 'none';
-            document.getElementById('lobby').style.display = 'block';
-            if (isTeacher) document.getElementById('teacherControls').style.display = 'block';
 
-            db.child(LOBBY_ROOM).child('users').child(currentUser).set(true);
-            db.child(LOBBY_ROOM).child('users').child(currentUser).onDisconnect().remove();
+            auth.signInAnonymously().then(user => {
+                currentUser = name;
+                document.getElementById('login').style.display = 'none';
+                document.getElementById('lobby').style.display = 'block';
+                if (isTeacher) document.getElementById('teacherControls').style.display = 'block';
 
-            db.child(LOBBY_ROOM).child('users').on('child_added', (snap) => updateUserList());
-            db.child(LOBBY_ROOM).child('users').on('child_removed', (snap) => updateUserList());
+                db.child(LOBBY_ROOM).child('users').child(user.user.uid).set({ name: currentUser });
+                db.child(LOBBY_ROOM).child('users').child(user.user.uid).onDisconnect().remove();
 
-            db.child(LOBBY_ROOM).child('messages').on('child_added', (snap) => {
-                const msg = snap.val();
-                addChatMessage(`${msg.from}: ${msg.text}`);
-            });
+                db.child(LOBBY_ROOM).child('users').on('child_added', (snap) => updateUserList());
+                db.child(LOBBY_ROOM).child('users').on('child_removed', (snap) => updateUserList());
+
+                db.child(LOBBY_ROOM).child('messages').on('child_added', (snap) => {
+                    const msg = snap.val();
+                    addChatMessage(`${msg.from}: ${msg.text}`);
+                });
+            }).catch(err => alert('Authentication failed: ' + err.message));
         }
 
         function updateUserList() {
             db.child(LOBBY_ROOM).child('users').once('value', (snap) => {
-                const users = Object.keys(snap.val() || {});
+                const users = snap.val() || {};
                 const list = document.getElementById('userList');
                 list.innerHTML = '';
-                users.forEach(user => {
-                    if (user !== currentUser) {
+                Object.entries(users).forEach(([uid, data]) => {
+                    if (data.name !== currentUser) {
                         const li = document.createElement('li');
-                        li.textContent = user;
+                        const nameSpan = document.createElement('span');
+                        nameSpan.textContent = data.name;
                         if (isTeacher) {
-                            li.onclick = () => initiateCall(user);
+                            nameSpan.onclick = () => initiateCall(data.name, uid);
+                            const kickBtn = document.createElement('button');
+                            kickBtn.className = 'kick-btn btn';
+                            kickBtn.textContent = 'Kick';
+                            kickBtn.setAttribute('data-tooltip', `Remove ${data.name} from lobby`);
+                            kickBtn.onclick = () => kickUser(uid);
+                            li.appendChild(nameSpan);
+                            li.appendChild(kickBtn);
+                        } else {
+                            li.appendChild(nameSpan);
                         }
                         list.appendChild(li);
                     }
                 });
+            });
+        }
+
+        function kickUser(uid) {
+            if (!isTeacher) return;
+            db.child(LOBBY_ROOM).child('users').child(uid).remove().then(() => {
+                alert('User removed from lobby');
             });
         }
 
@@ -401,9 +479,10 @@
             chat.scrollTop = chat.scrollHeight;
         }
 
-        function initiateCall(parentName) {
+        function initiateCall(parentName, parentUid) {
             remoteUser = parentName;
-            currentCallRoom = `${currentUser}_${parentName}`;
+            remoteUid = parentUid;
+            currentCallRoom = `${auth.currentUser.uid}_${parentUid}`;
             document.getElementById('lobby').style.display = 'none';
             document.getElementById('call').style.display = 'block';
             document.getElementById('yourVideoLabel').textContent = currentUser;
@@ -417,6 +496,7 @@
                 localStream = stream;
                 document.getElementById('yourVideo').srcObject = stream;
                 stream.getTracks().forEach(track => pc.addTrack(track, stream));
+                updateControlButtons();
             }).catch(err => alert('Camera/mic access denied: ' + err.message));
 
             pc.createOffer().then(offer => pc.setLocalDescription(offer)).then(() => {
@@ -429,7 +509,7 @@
                 snap.ref.remove();
             });
 
-            db.child('calls').child(currentCallRoom).child('callInitiated').set({ from: currentUser, to: parentName });
+            db.child('calls').child(currentCallRoom).child('callInitiated').set({ from: auth.currentUser.uid, to: parentUid, fromName: currentUser, toName: parentName });
 
             db.child('calls').child(currentCallRoom).child('messages').on('child_added', (snap) => {
                 const msg = snap.val();
@@ -440,9 +520,10 @@
         if (!isTeacher) {
             db.child('calls').on('child_added', (snap) => {
                 const data = snap.val();
-                if (data.callInitiated && data.callInitiated.to === currentUser && !currentCallRoom) {
+                if (data.callInitiated && data.callInitiated.to === auth.currentUser.uid && !currentCallRoom) {
                     currentCallRoom = snap.key;
-                    remoteUser = data.callInitiated.from;
+                    remoteUser = data.callInitiated.fromName;
+                    remoteUid = data.callInitiated.from;
                     alert(`Incoming call from ${remoteUser}`);
                     joinCall();
                 }
@@ -463,6 +544,7 @@
                 localStream = stream;
                 document.getElementById('yourVideo').srcObject = stream;
                 stream.getTracks().forEach(track => pc.addTrack(track, stream));
+                updateControlButtons();
             }).catch(err => alert('Camera/mic access denied: ' + err.message));
 
             db.child('calls').child(currentCallRoom).on('child_added', (snap) => {
@@ -515,13 +597,30 @@
 
         let screenSharing = false;
         function toggleScreenShare() {
+            if (!localStream) return;
             if (screenSharing) {
-                navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => replaceStream(stream));
+                navigator.mediaDevices.getUserMedia({ video: videoEnabled, audio: micEnabled }).then(stream => replaceStream(stream));
             } else {
                 navigator.mediaDevices.getDisplayMedia({ video: true }).then(stream => replaceStream(stream));
             }
             screenSharing = !screenSharing;
             document.getElementById('screenBtn').textContent = screenSharing ? 'Stop Screen Share' : 'Share Screen';
+        }
+
+        function toggleMic() {
+            if (!localStream) return;
+            micEnabled = !micEnabled;
+            localStream.getAudioTracks().forEach(track => track.enabled = micEnabled);
+            document.getElementById('micBtn').textContent = micEnabled ? 'Mute Mic' : 'Unmute Mic';
+            document.getElementById('micBtn').disabled = screenSharing;
+        }
+
+        function toggleVideo() {
+            if (!localStream) return;
+            videoEnabled = !videoEnabled;
+            localStream.getVideoTracks().forEach(track => track.enabled = videoEnabled);
+            document.getElementById('videoBtn').textContent = videoEnabled ? 'Turn Off Video' : 'Turn On Video';
+            document.getElementById('videoBtn').disabled = screenSharing;
         }
 
         function replaceStream(newStream) {
@@ -534,6 +633,16 @@
                 if (sender) sender.replaceTrack(track);
                 else pc.addTrack(track, newStream);
             });
+            micEnabled = newStream.getAudioTracks().length > 0 && micEnabled;
+            videoEnabled = newStream.getVideoTracks().length > 0 && videoEnabled;
+            updateControlButtons();
+        }
+
+        function updateControlButtons() {
+            document.getElementById('micBtn').textContent = micEnabled ? 'Mute Mic' : 'Unmute Mic';
+            document.getElementById('videoBtn').textContent = videoEnabled ? 'Turn Off Video' : 'Turn On Video';
+            document.getElementById('micBtn').disabled = screenSharing;
+            document.getElementById('videoBtn').disabled = screenSharing;
         }
 
         function endCall() {
@@ -546,12 +655,27 @@
             }
             currentCallRoom = null;
             remoteUser = null;
+            remoteUid = null;
+            screenSharing = false;
+            micEnabled = true;
+            videoEnabled = true;
             updateUserList();
         }
 
+        function endAllCalls() {
+            if (!isTeacher) return;
+            db.child('calls').remove().then(() => {
+                alert('All active calls have been terminated');
+            });
+            endCall();
+        }
+
         function leaveLobby() {
-            db.child(LOBBY_ROOM).child('users').child(currentUser).remove();
-            location.reload();
+            db.child(LOBBY_ROOM).child('users').child(auth.currentUser.uid).remove();
+            if (currentCallRoom) {
+                db.child('calls').child(currentCallRoom).remove();
+            }
+            auth.signOut().then(() => location.reload());
         }
 
         document.getElementById('chatInput').addEventListener('keypress', (e) => e.key === 'Enter' && sendChat());
