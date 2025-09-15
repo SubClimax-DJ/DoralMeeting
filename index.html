@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gruvbox Video Conference</title>
+    <title>Parent-Teacher Video Conference</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
             --bg-dark: #282828;
-            --bg-light: #3c3836;
-            --fg-main: #ebdbb2;
+            --bg-medium: #3c3836;
+            --fg-light: #ebdbb2;
+            --fg-dark: #a89984;
             --red: #cc241d;
             --green: #98971a;
             --yellow: #d79921;
@@ -21,214 +22,149 @@
             --aqua: #689d6a;
             --orange: #d65d0e;
         }
+
         body {
-            font-family: 'Fira Code', monospace;
+            font-family: 'Inter', sans-serif;
             background-color: var(--bg-dark);
-            color: var(--fg-main);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 1rem;
+            color: var(--fg-light);
         }
-        .container {
-            width: 100%;
-            max-width: 900px;
+
+        .gruvbox-card {
+            background-color: var(--bg-medium);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--fg-dark);
         }
+
         .btn {
-            @apply font-bold py-2 px-6 rounded-lg transition-colors duration-200 text-sm md:text-base;
+            background-color: var(--blue);
+            color: var(--fg-light);
+            transition: background-color 0.3s ease;
         }
+
         .btn-green {
             background-color: var(--green);
-            color: var(--bg-dark);
         }
-        .btn-green:hover {
-            background-color: #a8b843;
-        }
+
         .btn-red {
             background-color: var(--red);
-            color: var(--fg-main);
+        }
+
+        .btn:hover {
+            background-color: var(--aqua);
+        }
+        .btn-green:hover {
+            background-color: var(--aqua);
         }
         .btn-red:hover {
-            background-color: #de504e;
+            background-color: var(--orange);
         }
-        .btn-blue {
-            background-color: var(--blue);
-            color: var(--bg-dark);
+
+        .chat-container {
+            border: 1px solid var(--fg-dark);
+            height: 300px;
         }
-        .btn-blue:hover {
-            background-color: #559598;
+
+        .user-list {
+            max-height: 400px;
         }
-        .input-gruvbox {
-            background-color: var(--bg-light);
-            color: var(--fg-main);
-            border: 2px solid var(--blue);
-        }
-        .text-gruvbox {
-            color: var(--aqua);
-        }
-        .title {
-            color: var(--yellow);
-        }
-        .subtitle {
-            color: var(--purple);
-        }
+
         video {
-            background-color: var(--bg-light);
-            border: 3px solid var(--blue);
+            border: 2px solid var(--purple);
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: #000;
         }
-        .modal {
-            background-color: var(--bg-light);
-            border: 2px solid var(--fg-main);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+
+        .hidden {
+            display: none;
         }
-        .room-item {
-            @apply p-3 rounded-lg flex justify-between items-center cursor-pointer;
-            background-color: var(--bg-dark);
-            border: 1px solid var(--fg-main);
-            transition: background-color 0.2s;
-        }
-        .room-item:hover {
-            background-color: var(--bg-light);
-        }
-        #chat-messages {
-            height: 200px;
-            overflow-y: auto;
-            border: 1px solid var(--fg-main);
-            border-radius: 8px;
-            padding: 1rem;
-            background-color: var(--bg-dark);
-        }
-        .chat-message {
-            margin-bottom: 0.5rem;
+
+        /* Responsive video containers */
+        #call-screen-videos {
             display: flex;
-            align-items: flex-start;
+            flex-direction: column;
+            gap: 1rem;
         }
-        .chat-sender {
-            font-weight: bold;
-            color: var(--aqua);
-            margin-right: 0.5rem;
-        }
-        .chat-text {
-            color: var(--fg-main);
-            word-wrap: break-word;
-            flex-grow: 1;
-        }
-        .btn-delete {
-            background-color: var(--red);
-            color: var(--fg-main);
-            font-size: 0.8rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.5rem;
-            display: none; /* Initially hidden */
+
+        @media (min-width: 768px) {
+            #call-screen-videos {
+                flex-direction: row;
+            }
         }
     </style>
 </head>
-<body class="p-4 md:p-8">
-    <!-- Login Screen -->
-    <div id="login-screen" class="container bg-[var(--bg-light)] p-6 md:p-8 rounded-xl shadow-2xl space-y-6">
-        <div class="flex flex-col items-center justify-center text-center">
-            <h1 class="text-3xl md:text-4xl font-extrabold title">
-                <span class="text-gruvbox">Gruvbox</span> Video Conference
-            </h1>
-            <p class="text-gruvbox mt-2 text-sm md:text-base">Welcome! Please enter a nickname to get started.</p>
-            <p class="text-gruvbox text-sm md:text-base mt-1">v2.37</p>
+<body class="p-4 flex items-center justify-center min-h-screen">
+
+    <!-- Main App Screen (Lobby) -->
+    <div id="lobby-screen" class="gruvbox-card rounded-lg p-8 w-full max-w-2xl">
+        <h1 class="text-3xl font-bold mb-4 text-green">Parent-Teacher Video Lobby</h1>
+        <p class="mb-2 text-fg-dark">Your User ID: <span class="font-mono text-purple" id="display-user-id">Loading...</span></p>
+        <p class="mb-2 text-fg-dark">Please enter your name to be seen by others.</p>
+        <input type="text" id="username-input" placeholder="Your Name" class="w-full p-3 mb-4 rounded bg-bg-dark text-fg-light placeholder-fg-dark focus:outline-none focus:ring-2 focus:ring-purple border border-fg-dark">
+        
+        <div class="md:flex md:space-x-4 mb-4">
+            <!-- User List -->
+            <div class="flex-1">
+                <h2 class="text-xl font-bold mb-2 text-aqua">Online Users</h2>
+                <div id="user-list" class="user-list p-4 rounded bg-bg-dark overflow-y-auto space-y-2">
+                    <p class="text-center text-fg-dark">No other users online yet...</p>
+                </div>
+            </div>
+
+            <!-- Chat -->
+            <div class="flex-1 mt-4 md:mt-0">
+                <h2 class="text-xl font-bold mb-2 text-aqua">Chat</h2>
+                <div id="chat-messages" class="chat-container p-4 rounded bg-bg-dark overflow-y-auto mb-2 space-y-2">
+                    <!-- Chat messages will be dynamically added here -->
+                </div>
+                <form id="chat-form" class="flex">
+                    <input type="text" id="chat-input" placeholder="Type a message..." class="flex-1 p-3 rounded-l bg-bg-dark text-fg-light placeholder-fg-dark focus:outline-none focus:ring-2 focus:ring-purple border border-fg-dark">
+                    <button type="submit" class="btn py-3 px-4 rounded-r font-bold">Send</button>
+                </form>
+            </div>
         </div>
-        <div class="flex flex-col items-center space-y-4">
-            <input type="text" id="nickname-input" class="input-gruvbox w-full md:w-64 px-4 py-2 rounded-lg text-center" placeholder="Your Nickname">
-            <button id="start-app-btn" class="btn btn-green w-full md:w-auto">Start Conference</button>
-        </div>
-        <div id="login-status" class="mt-4 w-full text-center">
-            <p class="text-gruvbox text-sm md:text-base">Connecting to server...</p>
-        </div>
+        
     </div>
 
-    <!-- Main Conference Screen (initially hidden) -->
-    <div id="conference-screen" class="container bg-[var(--bg-light)] p-6 md:p-8 rounded-xl shadow-2xl space-y-6 hidden">
-        <div class="flex flex-col items-center justify-center text-center">
-            <h1 class="text-3xl md:text-4xl font-extrabold title">
-                <span class="text-gruvbox">Gruvbox</span> Video Conference
-            </h1>
-            <p class="text-gruvbox mt-2 text-sm md:text-base">Simple 2-Way Peer-to-Peer Calling</p>
+    <!-- Call Screen -->
+    <div id="call-screen" class="hidden gruvbox-card rounded-lg p-8 w-full max-w-4xl">
+        <h1 class="text-3xl font-bold mb-4 text-orange text-center">In Call</h1>
+        <p class="mb-4 text-fg-dark text-center">You are connected with <span id="remote-user-name" class="font-bold text-yellow"></span>.</p>
+
+        <div id="call-screen-videos" class="flex flex-col md:flex-row gap-4 mb-4">
+            <video id="local-video" autoplay muted playsinline class="w-full md:w-1/2 rounded-lg"></video>
+            <video id="remote-video" autoplay playsinline class="w-full md:w-1/2 rounded-lg"></video>
         </div>
 
-        <div id="video-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="flex flex-col items-center">
-                <video id="localVideo" class="w-full h-64 md:h-80" autoplay muted playsinline></video>
-                <p id="local-video-label" class="text-gruvbox mt-2">Your Camera</p>
-            </div>
-            <div class="flex flex-col items-center">
-                <video id="remoteVideo" class="w-full h-64 md:h-80" autoplay playsinline></video>
-                <p id="remote-video-label" class="text-gruvbox mt-2">Remote Camera</p>
-            </div>
-        </div>
-
-        <div id="controls-panel" class="flex flex-col items-center justify-center space-y-4">
-            <div class="flex space-x-4">
-                <button id="start-call-btn" class="btn btn-green">Start Call</button>
-                <button id="hang-up-btn" class="btn btn-red" disabled>Hang Up</button>
-            </div>
-            <div id="message-container" class="mt-4 w-full text-center">
-                <p id="status-message" class="text-gruvbox text-sm md:text-base">Please grant camera and microphone access to start.</p>
-            </div>
-        </div>
-
-        <hr class="border-t-2 border-dashed border-[var(--aqua)] my-6">
-
-        <!-- Available Rooms Section -->
-        <div id="room-list-section" class="flex flex-col items-center w-full">
-            <h2 class="text-2xl font-bold subtitle mb-4">Join an Existing Room</h2>
-            <div id="rooms-container" class="w-full space-y-2 max-h-64 overflow-y-auto">
-                <!-- Rooms will be dynamically added here -->
-            </div>
-            <p id="no-rooms-message" class="text-gruvbox mt-4">No rooms available. Be the first to start a call!</p>
-        </div>
-
-        <hr class="border-t-2 border-dashed border-[var(--aqua)] my-6">
-        
-        <!-- Chat Section -->
-        <div id="chat-section" class="flex flex-col items-center w-full">
-            <h2 class="text-2xl font-bold subtitle mb-4">Chat</h2>
-            <div id="chat-messages" class="w-full">
-                <!-- Messages will be dynamically added here -->
-            </div>
-            <div class="flex w-full mt-4 space-x-2">
-                <input type="text" id="chat-input" class="input-gruvbox flex-grow px-4 py-2 rounded-lg" placeholder="Type a message...">
-                <button id="send-chat-btn" class="btn btn-blue px-4 py-2">Send</button>
-            </div>
+        <div class="flex justify-center space-x-4">
+            <button id="hangup-btn" class="btn-red py-3 px-6 rounded-lg font-bold">End Call</button>
         </div>
     </div>
     
-    <!-- Modal for sharing unique URL -->
-    <div id="idModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
-        <div class="modal p-8 rounded-lg text-center max-w-sm w-full">
-            <h2 class="text-xl md:text-2xl font-bold text-yellow">Share this link</h2>
-            <p class="mt-4 text-sm md:text-base text-gruvbox">Copy and share this unique URL with the person you want to call:</p>
-            <div class="mt-4 bg-[var(--bg-dark)] p-4 rounded-lg flex flex-col items-center space-y-2">
-                <input type="text" id="shareUrlInput" readonly class="input-gruvbox w-full px-2 py-1 text-sm break-all">
-                <button id="copyUrlBtn" class="btn btn-blue w-full flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-[var(--fg-main)]" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 013 3v12c0 1.1-.9 2-2 2H5a2 2 0 01-2-2V6a3 3 0 013-3z" />
-                    </svg>
-                    Copy Link
-                </button>
+    <!-- Custom Modal for Alerts -->
+    <div id="alert-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-bg-medium text-fg-light p-6 rounded-lg shadow-lg max-w-sm w-full">
+            <div id="modal-message" class="text-center mb-4 text-lg"></div>
+            <div class="flex justify-center">
+                <button id="modal-ok-btn" class="btn py-2 px-6 rounded-lg">OK</button>
             </div>
-            <button id="closeModalBtn" class="mt-6 btn btn-green w-full">Close</button>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
+    <!-- Custom Modal for Incoming Calls -->
+    <div id="call-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-bg-medium text-fg-light p-6 rounded-lg shadow-lg max-w-sm w-full">
+            <div id="call-modal-message" class="text-center mb-4 text-lg font-bold text-yellow"></div>
+            <div class="flex justify-center space-x-4">
+                <button id="call-accept-btn" class="btn-green py-2 px-6 rounded-lg font-bold">Accept</button>
+                <button id="call-decline-btn" class="btn-red py-2 px-6 rounded-lg font-bold">Decline</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, addDoc, query, where, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        
-        // Provided Firebase configuration
-        const firebaseConfig = {
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
             authDomain: "video-meeting-e73eb.firebaseapp.com",
             projectId: "video-meeting-e73eb",
@@ -237,377 +173,463 @@
             appId: "1:80496795033:web:3ac35c631d76301f77c708",
             measurementId: "G-SFPQ0PJRPG"
         };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
-        // Global variables for Firebase and WebRTC
-        let localStream = null;
-        let remoteStream = null;
-        let peerConnection = null;
-        let callId = null;
-        let db = null;
-        let auth = null;
-        let userId = null;
-        let userNickname = null;
-        const publicCollectionPrefix = `artifacts/${firebaseConfig.appId}/public/data`;
-        
-        // --- DOM Elements ---
-        const loginScreen = document.getElementById('login-screen');
-        const conferenceScreen = document.getElementById('conference-screen');
-        const nicknameInput = document.getElementById('nickname-input');
-        const startAppBtn = document.getElementById('start-app-btn');
-        const loginStatus = document.getElementById('login-status');
-        
-        const localVideo = document.getElementById('localVideo');
-        const remoteVideo = document.getElementById('remoteVideo');
-        const localVideoLabel = document.getElementById('local-video-label');
-        const remoteVideoLabel = document.getElementById('remote-video-label');
-        const startCallBtn = document.getElementById('start-call-btn');
-        const hangUpBtn = document.getElementById('hang-up-btn');
-        const statusMessage = document.getElementById('status-message');
-        const idModal = document.getElementById('idModal');
-        const shareUrlInput = document.getElementById('shareUrlInput');
-        const copyUrlBtn = document.getElementById('copyUrlBtn');
-        const closeModalBtn = document.getElementById('closeModalBtn');
-        const roomsContainer = document.getElementById('rooms-container');
-        const noRoomsMessage = document.getElementById('no-rooms-message');
-        const chatMessages = document.getElementById('chat-messages');
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // UI Elements
+        const lobbyScreen = document.getElementById('lobby-screen');
+        const callScreen = document.getElementById('call-screen');
+        const usernameInput = document.getElementById('username-input');
+        const displayUserIdSpan = document.getElementById('display-user-id');
+        const userListDiv = document.getElementById('user-list');
+        const localVideo = document.getElementById('local-video');
+        const remoteVideo = document.getElementById('remote-video');
+        const remoteUserNameSpan = document.getElementById('remote-user-name');
+        const hangupBtn = document.getElementById('hangup-btn');
+        const chatMessagesDiv = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
         const chatInput = document.getElementById('chat-input');
-        const sendChatBtn = document.getElementById('send-chat-btn');
+        const alertModal = document.getElementById('alert-modal');
+        const modalMessage = document.getElementById('modal-message');
+        const modalOkBtn = document.getElementById('modal-ok-btn');
+        const callModal = document.getElementById('call-modal');
+        const callModalMessage = document.getElementById('call-modal-message');
+        const callAcceptBtn = document.getElementById('call-accept-btn');
+        const callDeclineBtn = document.getElementById('call-decline-btn');
 
-        // --- Firebase & App Initialization ---
-        async function initializeAppAndAuth() {
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                
-                await signInAnonymously(auth);
-                
-                userId = auth.currentUser.uid;
-                console.log("Firebase initialized. User ID:", userId);
-                
-                // Check if user has a stored nickname
-                const userDocRef = doc(db, `${publicCollectionPrefix}/users/${userId}`);
-                const userDoc = await getDoc(userDocRef);
+        // Firebase variables
+        let app, auth, db;
+        let userId;
 
-                if (userDoc.exists()) {
-                    userNickname = userDoc.data().nickname;
-                    loginStatus.textContent = `Welcome back, ${userNickname}!`;
-                    showConferenceScreen();
-                } else {
-                    loginStatus.textContent = 'Ready. Please enter your nickname.';
-                    startAppBtn.disabled = false;
-                }
-            } catch (error) {
-                console.error("Error initializing Firebase:", error);
-                loginStatus.textContent = 'Error connecting to Firebase. Please check console for details.';
-            }
-        }
-
-        // --- User Login Flow ---
-        async function handleLogin() {
-            const nickname = nicknameInput.value.trim();
-            if (nickname.length === 0) {
-                loginStatus.textContent = 'Please enter a nickname.';
-                return;
-            }
-            userNickname = nickname;
-            
-            // Save the nickname to Firestore
-            const userDocRef = doc(db, `${publicCollectionPrefix}/users/${userId}`);
-            await setDoc(userDocRef, { nickname: userNickname });
-
-            showConferenceScreen();
-        }
-
-        function showConferenceScreen() {
-            loginScreen.classList.add('hidden');
-            conferenceScreen.classList.remove('hidden');
-            localVideoLabel.textContent = userNickname;
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlCallId = urlParams.get('id');
-
-            if (urlCallId) {
-                handleJoinCall(urlCallId);
-            } else {
-                statusMessage.textContent = 'Firebase connected. Click "Start Call" to begin or join a room below.';
-                startCallBtn.disabled = false;
-                setupRoomsList();
-            }
-        }
-        
-        // --- WebRTC Setup ---
-        const servers = {
+        // WebRTC variables
+        let localStream;
+        let peerConnection;
+        let currentCallId;
+        const configuration = {
             iceServers: [
-                { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }
+                { urls: 'stun:stun.l.google.com:19302' }
             ]
         };
 
-        async function createPeerConnection() {
-            peerConnection = new RTCPeerConnection(servers);
+        /**
+         * Displays a custom modal with a message.
+         * @param {string} message The message to display.
+         */
+        function showAlert(message) {
+            modalMessage.textContent = message;
+            alertModal.classList.remove('hidden');
+        }
 
-            localStream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, localStream);
+        modalOkBtn.addEventListener('click', () => {
+            alertModal.classList.add('hidden');
+        });
+
+        /**
+         * Shows the incoming call modal and returns a promise that resolves when a button is clicked.
+         * @param {string} callerName The name of the person calling.
+         * @returns {Promise<boolean>} Resolves to true if accepted, false if declined.
+         */
+        function showIncomingCallModal(callerName) {
+            return new Promise(resolve => {
+                callModalMessage.textContent = `Incoming call from ${callerName}!`;
+                callModal.classList.remove('hidden');
+
+                const onAccept = () => {
+                    callModal.classList.add('hidden');
+                    callAcceptBtn.removeEventListener('click', onAccept);
+                    callDeclineBtn.removeEventListener('click', onDecline);
+                    resolve(true);
+                };
+                const onDecline = () => {
+                    callModal.classList.add('hidden');
+                    callAcceptBtn.removeEventListener('click', onAccept);
+                    callDeclineBtn.removeEventListener('click', onDecline);
+                    resolve(false);
+                };
+
+                callAcceptBtn.addEventListener('click', onAccept);
+                callDeclineBtn.addEventListener('click', onDecline);
             });
+        }
+
+        // Initialize Firebase
+        function setupFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                console.log('Firebase initialized.');
+            } catch (e) {
+                console.error("Firebase initialization failed:", e);
+                showAlert("Failed to initialize Firebase. Please check your config.");
+            }
+        }
+
+        async function signInAndSetup() {
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Sign-in failed:", error);
+                showAlert("Sign-in failed. Please try again.");
+            }
+        }
+        
+        async function startLocalStream() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+                console.log('Local stream started.');
+            } catch (e) {
+                console.error("Error starting local stream:", e);
+                showAlert("Could not access camera/microphone. Please allow access.");
+                return false;
+            }
+            return true;
+        }
+
+        /**
+         * Updates the user's presence in Firestore.
+         * @param {string} username The name of the user.
+         */
+        async function updatePresence(username) {
+            if (!userId) {
+                console.error("User ID is not set. Cannot update presence.");
+                return;
+            }
+            const userDocRef = doc(db, `/artifacts/${appId}/public/data/users`, userId);
+            try {
+                await setDoc(userDocRef, {
+                    name: username,
+                    timestamp: serverTimestamp(),
+                    isOnline: true,
+                }, { merge: true });
+                console.log('Presence updated for user:', username);
+            } catch (e) {
+                console.error("Error updating presence:", e);
+            }
+        }
+        
+        /**
+         * Renders the list of online users in the lobby.
+         * @param {Array} users The list of user objects.
+         */
+        function renderUserList(users) {
+            userListDiv.innerHTML = '';
+            const otherUsers = users.filter(u => u.id !== userId);
+            if (otherUsers.length === 0) {
+                userListDiv.innerHTML = '<p class="text-center text-fg-dark">No other users online yet...</p>';
+                return;
+            }
+
+            otherUsers.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'flex items-center justify-between p-2 bg-bg-medium rounded-lg';
+                userItem.innerHTML = `
+                    <div class="flex flex-col">
+                      <span class="font-semibold text-fg-light">${user.name}</span>
+                      <span class="text-xs text-fg-dark font-mono">${user.id}</span>
+                    </div>
+                    <button class="btn-green py-1 px-4 rounded-full text-sm font-bold call-btn" data-user-id="${user.id}" data-user-name="${user.name}">Call</button>
+                `;
+                userListDiv.appendChild(userItem);
+            });
+        }
+
+        /**
+         * Creates a new call document in Firestore and initiates the call.
+         * @param {string} calleeId The user ID of the person to call.
+         * @param {string} calleeName The name of the person to call.
+         */
+        async function createCall(calleeId, calleeName) {
+            if (!localStream) {
+                showAlert("Please allow camera and mic access first.");
+                return;
+            }
+            
+            // Create call document
+            const callsCollection = collection(db, `/artifacts/${appId}/public/data/calls`);
+            const callDoc = await addDoc(callsCollection, {
+                callerId: userId,
+                callerName: usernameInput.value || `User ${userId.substring(0, 4)}`,
+                calleeId: calleeId,
+                timestamp: serverTimestamp(),
+                status: 'pending'
+            });
+            currentCallId = callDoc.id;
+            console.log("Call document created with ID:", currentCallId);
+
+            // Setup WebRTC peer connection
+            peerConnection = new RTCPeerConnection(configuration);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            // Listen for remote track
+            peerConnection.ontrack = (event) => {
+                console.log('Remote track received.');
+                remoteVideo.srcObject = event.streams[0];
+                switchScreen('call');
+                remoteUserNameSpan.textContent = calleeName;
+            };
+
+            // Listen for ICE candidates and send them to Firestore
+            peerConnection.onicecandidate = async (event) => {
+                if (event.candidate) {
+                    await addDoc(collection(doc(callsCollection, currentCallId), 'callerCandidates'), event.candidate.toJSON());
+                }
+            };
+
+            // Create and send offer
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            // Update call document with offer
+            await updateDoc(doc(callsCollection, currentCallId), {
+                offer: {
+                    sdp: offer.sdp,
+                    type: offer.type
+                }
+            });
+        }
+
+        /**
+         * Handles an incoming offer, sets up peer connection, and sends an answer.
+         * @param {string} callId The ID of the call document.
+         * @param {Object} offer The offer SDP object.
+         */
+        async function handleOffer(callId, offer, callerName) {
+            if (!localStream) {
+                showAlert("Please allow camera and mic access first.");
+                return;
+            }
+            if (peerConnection) {
+                console.log("Already in a call, ignoring new offer.");
+                return;
+            }
+            
+            currentCallId = callId;
+            const callsCollection = collection(db, `/artifacts/${appId}/public/data/calls`);
+
+            peerConnection = new RTCPeerConnection(configuration);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
             peerConnection.ontrack = (event) => {
-                console.log("Remote track received:", event.track);
+                console.log('Remote track received.');
                 remoteVideo.srcObject = event.streams[0];
-                const remoteData = JSON.parse(event.streams[0].id);
-                remoteVideoLabel.textContent = remoteData.nickname;
+                switchScreen('call');
+                remoteUserNameSpan.textContent = callerName;
             };
 
             peerConnection.onicecandidate = async (event) => {
                 if (event.candidate) {
-                    const candidatesCollection = collection(db, `${publicCollectionPrefix}/calls/${callId}/${peerConnection.localDescription.type === 'offer' ? 'offerCandidates' : 'answerCandidates'}`);
-                    await addDoc(candidatesCollection, event.candidate.toJSON());
+                    await addDoc(collection(doc(callsCollection, currentCallId), 'calleeCandidates'), event.candidate.toJSON());
                 }
             };
-        }
+            
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
-        async function startLocalStream() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                stream.id = JSON.stringify({ userId: userId, nickname: userNickname }); // Add nickname to stream
-                localStream = stream;
-                localVideo.srcObject = localStream;
-                startCallBtn.disabled = true;
-                hangUpBtn.disabled = false;
-            } catch (e) {
-                console.error("Error getting local media:", e);
-                statusMessage.textContent = 'Permission denied. Please allow camera and microphone access to use this app.';
-                return null;
-            }
-            return localStream;
-        }
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
 
+            await updateDoc(doc(callsCollection, currentCallId), {
+                answer: {
+                    sdp: answer.sdp,
+                    type: answer.type
+                }
+            });
+
+            // Start listening for candidates from the caller
+            onSnapshot(collection(doc(callsCollection, currentCallId), 'callerCandidates'), (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    if (change.type === 'added') {
+                        const candidate = new RTCIceCandidate(change.doc.data());
+                        try {
+                            await peerConnection.addIceCandidate(candidate);
+                        } catch (e) {
+                            console.error("Error adding caller ICE candidate:", e);
+                        }
+                    }
+                });
+            });
+        }
+        
+        /**
+         * Ends the current call and cleans up resources.
+         */
         async function endCall() {
             if (peerConnection) {
                 peerConnection.close();
+                peerConnection = null;
             }
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
             }
             localVideo.srcObject = null;
             remoteVideo.srcObject = null;
-            localVideoLabel.textContent = userNickname;
-            remoteVideoLabel.textContent = 'Remote Camera';
-            startCallBtn.disabled = false;
-            hangUpBtn.disabled = true;
-            statusMessage.textContent = 'Call ended. Ready to start or join a new one.';
-
-            // Delete the chat subcollection and the room document from Firestore
-            if (callId) {
-                const chatDocs = await getDocs(collection(db, `${publicCollectionPrefix}/calls/${callId}/chat`));
-                const deletePromises = chatDocs.docs.map(d => deleteDoc(d.ref));
-                await Promise.all(deletePromises);
-
-                const callDoc = doc(db, `${publicCollectionPrefix}/calls/${callId}`);
-                await deleteDoc(callDoc).catch(e => console.error("Error deleting room:", e));
-                console.log(`Room ${callId} and chat deleted.`);
-                callId = null;
+            
+            if (currentCallId) {
+                const callDocRef = doc(db, `/artifacts/${appId}/public/data/calls`, currentCallId);
+                // Use a try-catch for deleteDoc in case the other user already deleted it
+                try {
+                     await deleteDoc(callDocRef);
+                } catch(e) {
+                    console.log("Call document already deleted, no need to delete again.");
+                }
+                currentCallId = null;
             }
+            switchScreen('lobby');
         }
 
-        // --- Call Creation & Joining Logic ---
-        startCallBtn.onclick = async () => {
-            statusMessage.textContent = 'Creating a new call...';
-            const stream = await startLocalStream();
-            if (!stream) return;
+        /**
+         * Switches the display to the specified screen.
+         * @param {string} screen The name of the screen ('lobby', 'call').
+         */
+        function switchScreen(screen) {
+            lobbyScreen.classList.add('hidden');
+            callScreen.classList.add('hidden');
+            if (screen === 'lobby') lobbyScreen.classList.remove('hidden');
+            if (screen === 'call') callScreen.classList.remove('hidden');
+        }
 
-            callId = doc(collection(db, `${publicCollectionPrefix}/calls`)).id;
-            const joinUrl = `${window.location.href.split('?')[0]}?id=${callId}`;
-            shareUrlInput.value = joinUrl;
-            idModal.classList.remove('hidden');
-
-            const callDoc = doc(db, `${publicCollectionPrefix}/calls/${callId}`);
+        /**
+         * Starts all real-time listeners for presence, calls, and chat.
+         */
+        function startListeners() {
+            // Set up a listener for the presence collection
+            onSnapshot(collection(db, `/artifacts/${appId}/public/data/users`), (snapshot) => {
+                const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUserList(users);
+            });
             
-            await createPeerConnection();
-
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
+            // Set up a listener for incoming calls
+            onSnapshot(collection(db, `/artifacts/${appId}/public/data/calls`), async (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    const callData = change.doc.data();
+                    if (change.type === 'added' && callData.calleeId === userId && !callData.answer) {
+                        const callId = change.doc.id;
+                        const isAccepted = await showIncomingCallModal(callData.callerName);
+                        
+                        if (isAccepted) {
+                            await handleOffer(callId, callData.offer, callData.callerName);
+                            // Start listening for caller's candidates
+                            onSnapshot(collection(db, `/artifacts/${appId}/public/data/calls/${callId}/callerCandidates`), (snapshot) => {
+                                snapshot.docChanges().forEach(async (change) => {
+                                    if (change.type === 'added') {
+                                        const candidate = new RTCIceCandidate(change.doc.data());
+                                        try {
+                                            await peerConnection.addIceCandidate(candidate);
+                                        } catch (e) {
+                                            console.error("Error adding caller ICE candidate:", e);
+                                        }
+                                    }
+                                });
+                            });
+                        } else {
+                            // Decline the call
+                            await deleteDoc(change.doc.ref);
+                        }
+                    } else if (change.type === 'modified' && callData.callerId === userId && callData.answer) {
+                        // Handle the answer from the callee
+                        try {
+                            await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.answer));
+                            // Start listening for callee's candidates
+                            onSnapshot(collection(db, `/artifacts/${appId}/public/data/calls/${currentCallId}/calleeCandidates`), (snapshot) => {
+                                snapshot.docChanges().forEach(async (change) => {
+                                    if (change.type === 'added') {
+                                        const candidate = new RTCIceCandidate(change.doc.data());
+                                        try {
+                                            await peerConnection.addIceCandidate(candidate);
+                                        } catch (e) {
+                                            console.error("Error adding callee ICE candidate:", e);
+                                        }
+                                    }
+                                });
+                            });
+                        } catch (e) {
+                            console.error("Error setting remote description from answer:", e);
+                        }
+                    } else if (change.type === 'removed' && change.doc.id === currentCallId) {
+                        endCall();
+                        showAlert("Call ended.");
+                    }
+                });
+            });
             
-            await setDoc(callDoc, { offer: offer.toJSON(), createdAt: new Date(), creatorNickname: userNickname, creatorId: userId });
-            statusMessage.textContent = 'Call created. Share the link above and wait for someone to join...';
+            // Set up a listener for chat messages
+            onSnapshot(collection(db, `/artifacts/${appId}/public/data/chat`), (snapshot) => {
+                chatMessagesDiv.innerHTML = '';
+                const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Sort by timestamp in memory
+                messages.sort((a, b) => a.timestamp - b.timestamp);
+                messages.forEach(msg => {
+                    const msgElement = document.createElement('div');
+                    msgElement.className = 'flex flex-col';
+                    msgElement.innerHTML = `<span class="font-bold text-yellow">${msg.sender}:</span><span>${msg.text}</span>`;
+                    chatMessagesDiv.appendChild(msgElement);
+                });
+                chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+            });
+        }
 
-            onSnapshot(callDoc, async (snapshot) => {
-                const data = snapshot.data();
-                if (data?.answer && !peerConnection.currentRemoteDescription) {
-                    console.log("Received answer:", data.answer);
-                    const answerDescription = new RTCSessionDescription(data.answer);
-                    await peerConnection.setRemoteDescription(answerDescription);
-                    statusMessage.textContent = 'Connected! Enjoy your call.';
-                    setupChatListener(callId);
+        // Event Listeners
+        window.onload = async () => {
+            setupFirebase();
+            await signInAndSetup();
+            await startLocalStream();
+            
+            // This is the correct place to register the onAuthStateChanged listener
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    displayUserIdSpan.textContent = userId;
+                    console.log('User signed in:', userId);
+                    startListeners();
+                    updatePresence(usernameInput.value || `User ${userId.substring(0, 4)}`);
+                } else {
+                    console.log('User not signed in. Attempting anonymous sign-in.');
+                    userId = crypto.randomUUID();
+                    displayUserIdSpan.textContent = userId;
+                    startListeners();
+                    updatePresence(usernameInput.value || `User ${userId.substring(0, 4)}`);
                 }
             });
-
-            onSnapshot(collection(db, `${publicCollectionPrefix}/calls/${callId}/answerCandidates`), (snapshot) => {
-                snapshot.docChanges().forEach(async (change) => {
-                    if (change.type === 'added') {
-                        const candidate = new RTCIceCandidate(change.doc.data());
-                        await peerConnection.addIceCandidate(candidate);
-                        console.log("Added remote ICE candidate (answerer).");
-                    }
-                });
-            });
         };
 
-        async function handleJoinCall(inputCallId) {
-            callId = inputCallId;
-            statusMessage.textContent = 'Joining call...';
-            const stream = await startLocalStream();
-            if (!stream) return;
-            
-            const callDoc = doc(db, `${publicCollectionPrefix}/calls/${callId}`);
-            const callSnapshot = await getDoc(callDoc);
-            
-            if (!callSnapshot.exists() || callSnapshot.data().answer) {
-                statusMessage.textContent = 'Call is either not found or already in progress.';
-                endCall();
-                return;
-            }
+        usernameInput.addEventListener('input', () => {
+            const username = usernameInput.value.trim() || `User ${userId.substring(0, 4)}`;
+            updatePresence(username);
+        });
 
-            await createPeerConnection();
-            
-            const offer = callSnapshot.data().offer;
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-            
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            
-            await setDoc(callDoc, { answer: answer.toJSON() }, { merge: true });
-            statusMessage.textContent = 'Connected! Enjoy your call.';
-            setupChatListener(callId);
-
-            onSnapshot(collection(db, `${publicCollectionPrefix}/calls/${callId}/offerCandidates`), (snapshot) => {
-                snapshot.docChanges().forEach(async (change) => {
-                    if (change.type === 'added') {
-                        const candidate = new RTCIceCandidate(change.doc.data());
-                        await peerConnection.addIceCandidate(candidate);
-                        console.log("Added remote ICE candidate (offerer).");
-                    }
-                });
-            });
-        }
-
-        // --- Dynamic Room List ---
-        function setupRoomsList() {
-            const q = query(collection(db, `${publicCollectionPrefix}/calls`), where("answer", "==", null));
-            onSnapshot(q, (snapshot) => {
-                let hasRooms = false;
-                roomsContainer.innerHTML = '';
-                snapshot.forEach(doc => {
-                    const roomData = doc.data();
-                    const roomDiv = document.createElement('div');
-                    roomDiv.className = 'room-item';
-                    
-                    let buttonsHtml = `<button class="btn-blue btn-join-room px-4 py-1">Join</button>`;
-                    if (roomData.creatorId === userId) {
-                        buttonsHtml += `<button class="btn-delete px-4 py-1 ml-2">Delete</button>`;
-                    }
-                    
-                    roomDiv.innerHTML = `
-                        <span>Room created by: <span class="text-yellow">${roomData.creatorNickname}</span></span>
-                        <div class="flex items-center space-x-2">
-                            ${buttonsHtml}
-                        </div>
-                    `;
-
-                    roomDiv.querySelector('.btn-join-room').onclick = () => {
-                        handleJoinCall(doc.id);
-                    };
-
-                    const deleteBtn = roomDiv.querySelector('.btn-delete');
-                    if (deleteBtn) {
-                        deleteBtn.style.display = 'block';
-                        deleteBtn.onclick = async (e) => {
-                            e.stopPropagation(); // Prevent join from firing
-                            if (confirm('Are you sure you want to delete this room?')) {
-                                try {
-                                    // Delete all chat messages first
-                                    const chatDocs = await getDocs(collection(db, `${publicCollectionPrefix}/calls/${doc.id}/chat`));
-                                    const deletePromises = chatDocs.docs.map(d => deleteDoc(d.ref));
-                                    await Promise.all(deletePromises);
-
-                                    // Then delete the room document
-                                    await deleteDoc(doc(db, `${publicCollectionPrefix}/calls/${doc.id}`));
-                                    console.log(`Room ${doc.id} deleted successfully.`);
-                                } catch (error) {
-                                    console.error("Error deleting room:", error);
-                                }
-                            }
-                        };
-                    }
-
-                    roomsContainer.appendChild(roomDiv);
-                    hasRooms = true;
-                });
-                noRoomsMessage.style.display = hasRooms ? 'none' : 'block';
-            });
-        }
-        
-        // --- Chat Functionality ---
-        function setupChatListener(currentCallId) {
-            const chatQuery = query(collection(db, `${publicCollectionPrefix}/calls/${currentCallId}/chat`));
-            onSnapshot(chatQuery, (snapshot) => {
-                chatMessages.innerHTML = '';
-                snapshot.forEach(doc => {
-                    const msg = doc.data();
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = 'chat-message';
-                    messageDiv.innerHTML = `<span class="chat-sender">${msg.senderNickname}:</span> <span class="chat-text">${msg.text}</span>`;
-                    chatMessages.appendChild(messageDiv);
-                });
-                chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to bottom
-            });
-        }
-
-        sendChatBtn.onclick = async () => {
-            const text = chatInput.value.trim();
-            if (text.length === 0 || !callId) return;
-
-            await addDoc(collection(db, `${publicCollectionPrefix}/calls/${callId}/chat`), {
-                text: text,
-                senderId: userId,
-                senderNickname: userNickname,
-                timestamp: new Date()
-            });
-
-            chatInput.value = '';
-        };
-
-        // Allow sending message with Enter key
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendChatBtn.click();
+        // Delegate click event for the dynamically added call buttons
+        userListDiv.addEventListener('click', (e) => {
+            if (e.target.classList.contains('call-btn')) {
+                const calleeId = e.target.getAttribute('data-user-id');
+                const calleeName = e.target.getAttribute('data-user-name');
+                createCall(calleeId, calleeName);
             }
         });
 
-        // --- Event Listeners ---
-        startAppBtn.onclick = handleLogin;
-        hangUpBtn.onclick = endCall;
-        
-        copyUrlBtn.onclick = () => {
-            shareUrlInput.select();
-            document.execCommand('copy');
-            copyUrlBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-[var(--fg-main)]" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                    </svg>
-                                    Copied!`;
-            setTimeout(() => {
-                copyUrlBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-[var(--fg-main)]" viewBox="0 0 20 20" fill="currentColor">
-                                            <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-                                            <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 013 3v12c0 1.1-.9 2-2 2H5a2 2 0 01-2-2V6a3 3 0 013-3z" />
-                                        </svg>
-                                        Copy Link`;
-            }, 2000);
-        };
+        hangupBtn.addEventListener('click', endCall);
 
-        closeModalBtn.onclick = () => {
-            idModal.classList.add('hidden');
-        };
-
-        // Initialize the app on page load
-        window.onload = initializeAppAndAuth;
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const messageText = chatInput.value.trim();
+            if (messageText) {
+                await addDoc(collection(db, `/artifacts/${appId}/public/data/chat`), {
+                    sender: usernameInput.value || `User ${userId.substring(0, 4)}`,
+                    text: messageText,
+                    timestamp: serverTimestamp()
+                });
+                chatInput.value = '';
+            }
+        });
 
     </script>
 </body>
