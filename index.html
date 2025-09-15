@@ -94,6 +94,29 @@
         .room-item:hover {
             background-color: var(--bg-light);
         }
+        #chat-messages {
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--fg-main);
+            border-radius: 8px;
+            padding: 1rem;
+            background-color: var(--bg-dark);
+        }
+        .chat-message {
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: flex-start;
+        }
+        .chat-sender {
+            font-weight: bold;
+            color: var(--aqua);
+            margin-right: 0.5rem;
+        }
+        .chat-text {
+            color: var(--fg-main);
+            word-wrap: break-word;
+            flex-grow: 1;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -154,6 +177,20 @@
             </div>
             <p id="no-rooms-message" class="text-gruvbox mt-4">No rooms available. Be the first to start a call!</p>
         </div>
+
+        <hr class="border-t-2 border-dashed border-[var(--aqua)] my-6">
+        
+        <!-- Chat Section -->
+        <div id="chat-section" class="flex flex-col items-center w-full">
+            <h2 class="text-2xl font-bold subtitle mb-4">Chat</h2>
+            <div id="chat-messages" class="w-full">
+                <!-- Messages will be dynamically added here -->
+            </div>
+            <div class="flex w-full mt-4 space-x-2">
+                <input type="text" id="chat-input" class="input-gruvbox flex-grow px-4 py-2 rounded-lg" placeholder="Type a message...">
+                <button id="send-chat-btn" class="btn btn-blue px-4 py-2">Send</button>
+            </div>
+        </div>
     </div>
     
     <!-- Modal for sharing unique URL -->
@@ -178,7 +215,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, addDoc, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, addDoc, query, where, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         
         // Provided Firebase configuration
@@ -222,6 +259,9 @@
         const closeModalBtn = document.getElementById('closeModalBtn');
         const roomsContainer = document.getElementById('rooms-container');
         const noRoomsMessage = document.getElementById('no-rooms-message');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const sendChatBtn = document.getElementById('send-chat-btn');
 
         // --- Firebase & App Initialization ---
         async function initializeAppAndAuth() {
@@ -349,11 +389,15 @@
             hangUpBtn.disabled = true;
             statusMessage.textContent = 'Call ended. Ready to start or join a new one.';
 
-            // Delete the room document from Firestore
+            // Delete the chat subcollection and the room document from Firestore
             if (callId) {
+                const chatDocs = await getDocs(collection(db, `artifacts/${__app_id}/public/data/calls/${callId}/chat`));
+                const deletePromises = chatDocs.docs.map(d => deleteDoc(d.ref));
+                await Promise.all(deletePromises);
+
                 const callDoc = doc(db, `artifacts/${__app_id}/public/data/calls/${callId}`);
                 await deleteDoc(callDoc).catch(e => console.error("Error deleting room:", e));
-                console.log(`Room ${callId} deleted.`);
+                console.log(`Room ${callId} and chat deleted.`);
                 callId = null;
             }
         }
@@ -386,6 +430,7 @@
                     const answerDescription = new RTCSessionDescription(data.answer);
                     await peerConnection.setRemoteDescription(answerDescription);
                     statusMessage.textContent = 'Connected! Enjoy your call.';
+                    setupChatListener(callId);
                 }
             });
 
@@ -425,6 +470,7 @@
             
             await setDoc(callDoc, { answer: answer.toJSON() }, { merge: true });
             statusMessage.textContent = 'Connected! Enjoy your call.';
+            setupChatListener(callId);
 
             onSnapshot(collection(db, `artifacts/${__app_id}/public/data/calls/${callId}/offerCandidates`), (snapshot) => {
                 snapshot.docChanges().forEach(async (change) => {
@@ -448,7 +494,7 @@
                     const roomDiv = document.createElement('div');
                     roomDiv.className = 'room-item';
                     roomDiv.innerHTML = `
-                        <span>Room ID: <span class="text-yellow">${doc.id}</span></span>
+                        <span>Room created by: <span class="text-yellow">${roomData.creatorNickname}</span></span>
                         <button class="btn-blue btn-join-room px-4 py-1">Join</button>
                     `;
                     roomDiv.querySelector('.btn-join-room').onclick = () => {
@@ -460,6 +506,43 @@
                 noRoomsMessage.style.display = hasRooms ? 'none' : 'block';
             });
         }
+        
+        // --- Chat Functionality ---
+        function setupChatListener(currentCallId) {
+            const chatQuery = query(collection(db, `artifacts/${__app_id}/public/data/calls/${currentCallId}/chat`));
+            onSnapshot(chatQuery, (snapshot) => {
+                chatMessages.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const msg = doc.data();
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'chat-message';
+                    messageDiv.innerHTML = `<span class="chat-sender">${msg.senderNickname}:</span> <span class="chat-text">${msg.text}</span>`;
+                    chatMessages.appendChild(messageDiv);
+                });
+                chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to bottom
+            });
+        }
+
+        sendChatBtn.onclick = async () => {
+            const text = chatInput.value.trim();
+            if (text.length === 0 || !callId) return;
+
+            await addDoc(collection(db, `artifacts/${__app_id}/public/data/calls/${callId}/chat`), {
+                text: text,
+                senderId: userId,
+                senderNickname: userNickname,
+                timestamp: new Date()
+            });
+
+            chatInput.value = '';
+        };
+
+        // Allow sending message with Enter key
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendChatBtn.click();
+            }
+        });
 
         // --- Event Listeners ---
         startAppBtn.onclick = handleLogin;
