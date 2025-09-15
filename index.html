@@ -3,428 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Virtual Parent-Teacher Conferences</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Teacher Office Hours</title>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .conference-bg {
-            background-color: #1a1a1a;
-        }
-        .chat-bubble {
-            max-width: 75%;
-        }
-        .chat-bubble-me {
-            background-color: #3b82f6; /* Tailwind blue-500 */
-        }
-        .chat-bubble-other {
-            background-color: #4b5563; /* Tailwind gray-600 */
-        }
-        /* Custom scrollbar for chat */
-        .chat-messages::-webkit-scrollbar {
-            width: 8px;
-        }
-        .chat-messages::-webkit-scrollbar-track {
-            background: #2d3748; /* Tailwind gray-800 */
-        }
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: #4a5568; /* Tailwind gray-700 */
-            border-radius: 4px;
-        }
-        #screen-share-placeholder {
-            background-image: repeating-linear-gradient(45deg, #2d3748 25%, transparent 25%, transparent 75%, #2d3748 75%, #2d3748), repeating-linear-gradient(45deg, #2d3748 25%, #1f2937 25%, #1f2937 75%, #2d3748 75%, #2d3748);
-            background-position: 0 0, 10px 10px;
-            background-size: 20px 20px;
-        }
+        body { padding: 20px; }
+        video { background-color: #ddd; border-radius: 7px; margin: 10px; width: 320px; height: 240px; }
+        #login { max-width: 400px; margin: 0 auto; }
+        #lobby, #call { display: none; }
+        #chat { height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+        .user-list { list-style: none; padding: 0; }
+        .user-list li { cursor: pointer; padding: 5px; border-bottom: 1px solid #eee; }
+        .user-list li:hover { background: #f5f5f5; }
+        button { margin: 5px; }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 antialiased">
-
-    <!-- App Container -->
-    <div id="app" class="h-screen w-screen flex items-center justify-center transition-opacity duration-500">
-
-        <!-- Login View -->
-        <div id="login-view" class="w-full max-w-md p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
-            <h1 class="text-3xl font-bold text-center mb-2 text-gray-900 dark:text-white">Office Hours</h1>
-            <p class="text-center text-gray-600 dark:text-gray-400 mb-8">Please enter your name to join the lobby.</p>
-            <form id="login-form" class="space-y-6">
-                <div>
-                    <label for="name" class="text-sm font-medium text-gray-700 dark:text-gray-300">Your Name</label>
-                    <input type="text" id="name" name="name" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="e.g., Jane Doe" required>
-                </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform hover:scale-105 transition-transform duration-150 ease-in-out">
-                    Join Waiting Room
-                </button>
-            </form>
-             <p class="text-xs text-center text-gray-500 dark:text-gray-400 mt-4">Teacher: Enter your name and add "(Teacher)"</p>
-        </div>
-
-        <!-- Lobby View -->
-        <div id="lobby-view" class="hidden h-screen w-screen flex flex-col p-4 md:p-6 lg:p-8 bg-gray-100 dark:bg-gray-900">
-            <header class="mb-6 flex justify-between items-center">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Lobby</h1>
-                    <p class="text-gray-600 dark:text-gray-400">Please wait for the teacher to start the conference.</p>
-                </div>
-                 <button id="leave-lobby-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform duration-150 hover:scale-105">
-                    Leave
-                </button>
-            </header>
-            <div class="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6 h-full overflow-hidden">
-                <!-- Parents List -->
-                <div class="lg:col-span-1 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col h-full">
-                    <h2 class="text-xl font-semibold mb-4 border-b border-gray-200 dark:border-gray-700 pb-3">Waiting Parents</h2>
-                    <ul id="parents-list" class="space-y-3 overflow-y-auto flex-grow pr-2">
-                        <!-- Parent items will be injected here -->
-                    </ul>
-                </div>
-                <!-- Lobby Chat -->
-                <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col h-full">
-                    <h2 class="text-xl font-semibold mb-4 border-b border-gray-200 dark:border-gray-700 pb-3">Lobby Chat</h2>
-                    <div id="lobby-chat-messages" class="flex-grow space-y-4 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg mb-4 chat-messages">
-                        <!-- Chat messages will be injected here -->
-                    </div>
-                    <form id="lobby-chat-form" class="flex items-center gap-4">
-                        <input type="text" id="lobby-chat-input" class="flex-grow px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type a message..." required>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform duration-150 hover:scale-105">Send</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Conference View -->
-        <div id="conference-view" class="hidden h-screen w-screen flex flex-col bg-gray-200 dark:conference-bg">
-            <header class="p-4 flex justify-between items-center bg-white dark:bg-gray-800 shadow-md">
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">1-on-1 Conference</h1>
-                <button id="leave-conference-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform duration-150 hover:scale-105">
-                    End Conference
-                </button>
-            </header>
-            <main class="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-hidden">
-                <!-- Screen Share Area -->
-                <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center p-4">
-                    <div id="screen-share-placeholder" class="w-full h-full bg-gray-100 dark:bg-gray-900/50 rounded-lg flex items-center justify-center">
-                        <p class="text-gray-500 dark:text-gray-400 text-lg">Screen Sharing Area</p>
-                    </div>
-                </div>
-                <!-- Conference Chat -->
-                <div class="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg flex flex-col h-full">
-                     <h2 class="text-lg font-semibold p-4 border-b border-gray-200 dark:border-gray-700">Private Chat</h2>
-                    <div id="conference-chat-messages" class="flex-grow space-y-4 overflow-y-auto p-4 bg-gray-100 dark:bg-gray-900/50 chat-messages">
-                        <!-- Private chat messages will be injected here -->
-                    </div>
-                    <form id="conference-chat-form" class="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center gap-4">
-                        <input type="text" id="conference-chat-input" class="flex-grow px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type a message..." required>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform duration-150 hover:scale-105">Send</button>
-                    </form>
-                </div>
-            </main>
-        </div>
-
+<body>
+    <div id="login" class="container">
+        <h2>Office Hours Login</h2>
+        <input type="text" id="userName" class="form-control" placeholder="Enter your name" required>
+        <label><input type="checkbox" id="isTeacher"> I am the teacher</label>
+        <button onclick="joinLobby()" class="btn btn-primary btn-lg">Join Lobby</button>
     </div>
 
-    <!-- Firebase -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, serverTimestamp, orderBy, deleteDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    <div id="lobby" class="container">
+        <h2>Lobby Chat</h2>
+        <ul id="userList" class="user-list"></ul>
+        <div id="chat"></div>
+        <input type="text" id="chatInput" class="form-control" placeholder="Type a message...">
+        <button onclick="sendChat()" class="btn btn-success">Send</button>
+        <div id="teacherControls" style="display:none;">
+            <h3>Teacher Controls</h3>
+            <button onclick="leaveLobby()" class="btn btn-warning">Leave Lobby</button>
+        </div>
+    </div>
 
-        // --- DO NOT EDIT ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID" };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-office-hours';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
-        // -------------------
-        
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+    <div id="call" class="container">
+        <h2>1-on-1 Conference</h2>
+        <video id="yourVideo" autoplay muted></video>
+        <video id="remoteVideo" autoplay></video>
+        <br>
+        <button onclick="toggleScreenShare()" id="screenBtn" class="btn btn-info">Share Screen</button>
+        <button onclick="endCall()" class="btn btn-danger">End Call</button>
+    </div>
 
-        const state = {
-            currentUser: null,
-            isTeacher: false,
-            currentConferenceId: null,
-            unsubscribers: [],
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
+            authDomain: "video-meeting-e73eb.firebaseapp.com",
+            projectId: "video-meeting-e73eb",
+            storageBucket: "video-meeting-e73eb.firebasestorage.app",
+            messagingSenderId: "80496795033",
+            appId: "1:80496795033:web:3ac35c631d76301f77c708",
+            measurementId: "G-SFPQ0PJRPG"
         };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database().ref();
 
-        // DOM Elements
-        const loginView = document.getElementById('login-view');
-        const lobbyView = document.getElementById('lobby-view');
-        const conferenceView = document.getElementById('conference-view');
-        
-        // --- Core Logic ---
-        
-        async function init() {
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    state.currentUser = user;
-                    // User is signed in. Now check if they have a profile.
-                    const userDoc = await getDoc(doc(db, `artifacts/${appId}/public/data/users`, user.uid));
-                    if(userDoc.exists()) {
-                        handleExistingSession(userDoc.data());
-                    }
-                } else {
-                    // User is signed out.
-                    if(initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                }
+        let currentUser = null;
+        let isTeacher = false;
+        let pc = null;
+        let localStream = null;
+        let currentCallRoom = null;
+        const LOBBY_ROOM = 'lobby';
+        const iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun.services.mozilla.com' }
+        ];
+
+        function joinLobby() {
+            const name = document.getElementById('userName').value.trim();
+            if (!name) return alert('Enter a name');
+            currentUser = name;
+            isTeacher = document.getElementById('isTeacher').checked;
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('lobby').style.display = 'block';
+            if (isTeacher) document.getElementById('teacherControls').style.display = 'block';
+
+            db.child(LOBBY_ROOM).child('users').child(currentUser).set(true);
+            db.child(LOBBY_ROOM).child('users').child(currentUser).onDisconnect().remove();
+
+            db.child(LOBBY_ROOM).child('users').on('child_added', (snap) => updateUserList());
+            db.child(LOBBY_ROOM).child('users').on('child_removed', (snap) => updateUserList());
+
+            db.child(LOBBY_ROOM).child('messages').on('child_added', (snap) => {
+                const msg = snap.val();
+                addChatMessage(`${msg.from}: ${msg.text}`);
             });
-
-            setupEventListeners();
         }
 
-        function handleExistingSession(userData) {
-            state.isTeacher = userData.isTeacher;
-            if (userData.status === 'in-conference') {
-                showConferenceView(userData.conferenceId);
+        function updateUserList() {
+            db.child(LOBBY_ROOM).child('users').once('value', (snap) => {
+                const users = Object.keys(snap.val() || {});
+                const list = document.getElementById('userList');
+                list.innerHTML = '';
+                users.forEach(user => {
+                    if (user !== currentUser) {
+                        const li = document.createElement('li');
+                        li.textContent = user;
+                        if (isTeacher) {
+                            li.onclick = () => initiateCall(user);
+                        }
+                        list.appendChild(li);
+                    }
+                });
+            });
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+            db.child(LOBBY_ROOM).child('messages').push({ from: currentUser, text, timestamp: Date.now() });
+            input.value = '';
+        }
+
+        function addChatMessage(msg) {
+            const chat = document.getElementById('chat');
+            chat.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${msg}</div>`;
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function initiateCall(parentName) {
+            currentCallRoom = `${currentUser}_${parentName}`;
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('call').style.display = 'block';
+
+            pc = new RTCPeerConnection({ iceServers });
+            pc.onicecandidate = (event) => event.candidate && sendSignalingMessage('ice', event.candidate);
+            pc.ontrack = (event) => document.getElementById('remoteVideo').srcObject = event.streams[0];
+
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+                localStream = stream;
+                document.getElementById('yourVideo').srcObject = stream;
+                stream.getTracks().forEach(track => pc.addTrack(track, stream));
+            });
+
+            pc.createOffer().then(offer => pc.setLocalDescription(offer)).then(() => {
+                sendSignalingMessage('sdp', pc.localDescription);
+            });
+
+            db.child('calls').child(currentCallRoom).on('child_added', (snap) => {
+                const msg = snap.val();
+                handleSignalingMessage(msg);
+                snap.ref.remove();
+            });
+
+            db.child('calls').child(currentCallRoom).child('callInitiated').set({ from: currentUser, to: parentName });
+        }
+
+        if (!isTeacher) {
+            db.child('calls').on('child_added', (snap) => {
+                const data = snap.val();
+                if (data.callInitiated && data.callInitiated.to === currentUser && !currentCallRoom) {
+                    currentCallRoom = snap.key;
+                    joinCall();
+                }
+            });
+        }
+
+        function joinCall() {
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('call').style.display = 'block';
+
+            pc = new RTCPeerConnection({ iceServers });
+            pc.onicecandidate = (event) => event.candidate && sendSignalingMessage('ice', event.candidate);
+            pc.ontrack = (event) => document.getElementById('remoteVideo').srcObject = event.streams[0];
+
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+                localStream = stream;
+                document.getElementById('yourVideo').srcObject = stream;
+                stream.getTracks().forEach(track => pc.addTrack(track, stream));
+            });
+
+            db.child('calls').child(currentCallRoom).on('child_added', (snap) => {
+                const msg = snap.val();
+                handleSignalingMessage(msg);
+                snap.ref.remove();
+            });
+        }
+
+        function sendSignalingMessage(type, data) {
+            db.child('calls').child(currentCallRoom).push({ type, data: JSON.stringify(data) });
+        }
+
+        function handleSignalingMessage(msg) {
+            const data = JSON.parse(msg.data);
+            if (msg.type === 'ice') {
+                pc.addIceCandidate(new RTCIceCandidate(data));
+            } else if (msg.type === 'sdp') {
+                if (data.type === 'offer') {
+                    pc.setRemoteDescription(new RTCSessionDescription(data)).then(() => pc.createAnswer()).then(answer => {
+                        pc.setLocalDescription(answer);
+                        sendSignalingMessage('sdp', answer);
+                    });
+                } else if (data.type === 'answer') {
+                    pc.setRemoteDescription(new RTCSessionDescription(data));
+                }
+            }
+        }
+
+        let screenSharing = false;
+        function toggleScreenShare() {
+            if (screenSharing) {
+                navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => replaceStream(stream));
             } else {
-                showLobbyView();
+                navigator.mediaDevices.getDisplayMedia({ video: true }).then(stream => replaceStream(stream));
             }
-        }
-        
-        function setupEventListeners() {
-            document.getElementById('login-form').addEventListener('submit', handleLogin);
-            document.getElementById('lobby-chat-form').addEventListener('submit', handleLobbyChat);
-            document.getElementById('conference-chat-form').addEventListener('submit', handleConferenceChat);
-            document.getElementById('leave-lobby-btn').addEventListener('click', handleLogout);
-            document.getElementById('leave-conference-btn').addEventListener('click', handleLeaveConference);
+            screenSharing = !screenSharing;
+            document.getElementById('screenBtn').textContent = screenSharing ? 'Stop Screen Share' : 'Share Screen';
         }
 
-        async function handleLogin(e) {
-            e.preventDefault();
-            const nameInput = document.getElementById('name');
-            let name = nameInput.value.trim();
-
-            if (!name || !state.currentUser) return;
-            
-            state.isTeacher = name.toLowerCase().includes('(teacher)');
-            if(state.isTeacher) {
-                name = name.replace(/\(teacher\)/i, '').trim();
-            }
-
-            const userRef = doc(db, `artifacts/${appId}/public/data/users`, state.currentUser.uid);
-            await setDoc(userRef, {
-                name: name,
-                uid: state.currentUser.uid,
-                isTeacher: state.isTeacher,
-                status: 'lobby'
-            });
-
-            showLobbyView();
-        }
-        
-        async function handleLogout() {
-             if (!state.currentUser) return;
-             const userRef = doc(db, `artifacts/${appId}/public/data/users`, state.currentUser.uid);
-             await deleteDoc(userRef);
-             resetUI();
+        function replaceStream(newStream) {
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
+            localStream = newStream;
+            document.getElementById('yourVideo').srcObject = newStream;
+            localStream.getTracks().forEach(track => pc.addTrack(track, newStream));
         }
 
-        async function handleStartConference(parentId) {
-            if (!state.isTeacher || !state.currentUser) return;
-            
-            const conferenceId = `conf_${state.currentUser.uid}_${parentId}`;
-            state.currentConferenceId = conferenceId;
-
-            const conferenceRef = doc(db, `artifacts/${appId}/public/data/conferences`, conferenceId);
-            await setDoc(conferenceRef, {
-                teacherId: state.currentUser.uid,
-                parentId: parentId,
-                createdAt: serverTimestamp(),
-                status: 'active'
-            });
-
-            await updateDoc(doc(db, `artifacts/${appId}/public/data/users`, state.currentUser.uid), { status: 'in-conference', conferenceId: conferenceId });
-            await updateDoc(doc(db, `artifacts/${appId}/public/data/users`, parentId), { status: 'in-conference', conferenceId: conferenceId });
+        function endCall() {
+            if (pc) pc.close();
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
+            document.getElementById('call').style.display = 'none';
+            document.getElementById('lobby').style.display = 'block';
+            currentCallRoom = null;
+            updateUserList();
+            db.child('calls').child(currentCallRoom).remove();
         }
 
-        async function handleLeaveConference() {
-            if (!state.currentUser || !state.currentConferenceId) return;
-            
-            const conferenceRef = doc(db, `artifacts/${appId}/public/data/conferences`, state.currentConferenceId);
-            const conferenceDoc = await getDoc(conferenceRef);
-
-            if (conferenceDoc.exists()) {
-                const data = conferenceDoc.data();
-                // Both teacher and parent return to lobby
-                await updateDoc(doc(db, `artifacts/${appId}/public/data/users`, data.teacherId), { status: 'lobby', conferenceId: null });
-                await updateDoc(doc(db, `artifacts/${appId}/public/data/users`, data.parentId), { status: 'lobby', conferenceId: null });
-            }
-             // Optionally delete conference history, or mark as ended
-             await updateDoc(conferenceRef, { status: 'ended' });
-
-            state.currentConferenceId = null;
-            showLobbyView(); // Go back to lobby for both
-        }
-        
-        async function handleLobbyChat(e) {
-            e.preventDefault();
-            const input = document.getElementById('lobby-chat-input');
-            const message = input.value.trim();
-            if (message && state.currentUser) {
-                const userDoc = await getDoc(doc(db, `artifacts/${appId}/public/data/users`, state.currentUser.uid));
-                await addDoc(collection(db, `artifacts/${appId}/public/data/lobby-chat`), {
-                    text: message,
-                    uid: state.currentUser.uid,
-                    name: userDoc.data()?.name || 'Anonymous',
-                    createdAt: serverTimestamp()
-                });
-                input.value = '';
-            }
+        function leaveLobby() {
+            db.child(LOBBY_ROOM).child('users').child(currentUser).remove();
+            location.reload();
         }
 
-        async function handleConferenceChat(e) {
-            e.preventDefault();
-            const input = document.getElementById('conference-chat-input');
-            const message = input.value.trim();
-            if (message && state.currentUser && state.currentConferenceId) {
-                 const userDoc = await getDoc(doc(db, `artifacts/${appId}/public/data/users`, state.currentUser.uid));
-                 await addDoc(collection(db, `artifacts/${appId}/public/data/conferences`, state.currentConferenceId, 'messages'), {
-                    text: message,
-                    uid: state.currentUser.uid,
-                    name: userDoc.data()?.name || 'Anonymous',
-                    createdAt: serverTimestamp()
-                });
-                input.value = '';
-            }
-        }
-
-        // --- UI Updates & View Management ---
-
-        function cleanupSubscriptions() {
-            state.unsubscribers.forEach(unsub => unsub());
-            state.unsubscribers = [];
-        }
-
-        function showLobbyView() {
-            cleanupSubscriptions();
-
-            loginView.classList.add('hidden');
-            conferenceView.classList.add('hidden');
-            lobbyView.classList.remove('hidden');
-
-            const usersUnsub = onSnapshot(collection(db, `artifacts/${appId}/public/data/users`), (snapshot) => {
-                const users = [];
-                let userInConference = false;
-                snapshot.forEach(docSnap => {
-                    const user = docSnap.data();
-                    users.push(user);
-                    // Check if current user is being pulled into a conference
-                    if (user.uid === state.currentUser.uid && user.status === 'in-conference') {
-                        userInConference = true;
-                        showConferenceView(user.conferenceId);
-                    }
-                });
-                if (!userInConference) {
-                    renderParentsList(users);
-                }
-            });
-
-            const chatUnsub = onSnapshot(query(collection(db, `artifacts/${appId}/public/data/lobby-chat`), orderBy('createdAt')), (snapshot) => {
-                renderLobbyChat(snapshot.docs);
-            });
-            
-            state.unsubscribers.push(usersUnsub, chatUnsub);
-        }
-
-        function showConferenceView(conferenceId) {
-            cleanupSubscriptions();
-            state.currentConferenceId = conferenceId;
-
-            loginView.classList.add('hidden');
-            lobbyView.classList.add('hidden');
-            conferenceView.classList.remove('hidden');
-            
-            const messagesUnsub = onSnapshot(query(collection(db, `artifacts/${appId}/public/data/conferences`, conferenceId, 'messages'), orderBy('createdAt')), (snapshot) => {
-                renderConferenceChat(snapshot.docs);
-            });
-
-            // Listen for conference end signal
-            const conferenceUnsub = onSnapshot(doc(db, `artifacts/${appId}/public/data/users`, state.currentUser.uid), (docSnap) => {
-                if(docSnap.data()?.status === 'lobby') {
-                    state.currentConferenceId = null;
-                    showLobbyView();
-                }
-            });
-
-            state.unsubscribers.push(messagesUnsub, conferenceUnsub);
-        }
-        
-        function resetUI() {
-            cleanupSubscriptions();
-            conferenceView.classList.add('hidden');
-            lobbyView.classList.add('hidden');
-            loginView.classList.remove('hidden');
-            document.getElementById('name').value = '';
-            state.currentUser = null;
-            state.isTeacher = false;
-            state.currentConferenceId = null;
-        }
-
-
-        function renderParentsList(users) {
-            const list = document.getElementById('parents-list');
-            list.innerHTML = '';
-            users.filter(u => !u.isTeacher && u.status === 'lobby').forEach(user => {
-                const li = document.createElement('li');
-                li.className = 'flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg';
-                li.innerHTML = `
-                    <span class="font-medium">${user.name}</span>
-                    ${state.isTeacher ? `<button data-uid="${user.uid}" class="start-conf-btn bg-green-500 hover:bg-green-600 text-white text-sm font-bold py-1 px-3 rounded-md shadow transition-transform duration-150 hover:scale-105">Start Meeting</button>` : ''}
-                `;
-                list.appendChild(li);
-            });
-
-            if (state.isTeacher) {
-                document.querySelectorAll('.start-conf-btn').forEach(button => {
-                    button.addEventListener('click', (e) => handleStartConference(e.target.dataset.uid));
-                });
-            }
-        }
-
-        function renderLobbyChat(docs) {
-            const messagesDiv = document.getElementById('lobby-chat-messages');
-            messagesDiv.innerHTML = '';
-            docs.forEach(doc => {
-                const data = doc.data();
-                const isMe = data.uid === state.currentUser?.uid;
-                messagesDiv.innerHTML += `
-                    <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
-                        <div class="chat-bubble rounded-lg p-3 ${isMe ? 'chat-bubble-me text-white' : 'chat-bubble-other text-white'}">
-                            ${!isMe ? `<p class="text-xs font-bold text-blue-300 mb-1">${data.name}</p>` : ''}
-                            <p class="text-sm">${data.text}</p>
-                        </div>
-                    </div>
-                `;
-            });
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function renderConferenceChat(docs) {
-            const messagesDiv = document.getElementById('conference-chat-messages');
-            messagesDiv.innerHTML = '';
-            docs.forEach(doc => {
-                 const data = doc.data();
-                 const isMe = data.uid === state.currentUser?.uid;
-                 messagesDiv.innerHTML += `
-                    <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
-                        <div class="chat-bubble rounded-lg p-3 ${isMe ? 'chat-bubble-me text-white' : 'chat-bubble-other text-white'}">
-                             ${!isMe ? `<p class="text-xs font-bold text-blue-300 mb-1">${data.name}</p>` : ''}
-                            <p class="text-sm">${data.text}</p>
-                        </div>
-                    </div>
-                `;
-            });
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        // --- Initialize App ---
-        init();
-
+        document.getElementById('chatInput').addEventListener('keypress', (e) => e.key === 'Enter' && sendChat());
     </script>
 </body>
 </html>
