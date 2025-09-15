@@ -256,52 +256,13 @@
             });
         }
 
-        // Initialize Firebase
-        function setupFirebase() {
-            try {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                console.log('Firebase initialized.');
-            } catch (e) {
-                console.error("Firebase initialization failed:", e);
-                showAlert("Failed to initialize Firebase. Please check your config.");
-            }
-        }
-
-        async function signInAndSetup() {
-            try {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Sign-in failed:", error);
-                showAlert("Sign-in failed. Please try again.");
-            }
-        }
-        
-        async function startLocalStream() {
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                localVideo.srcObject = localStream;
-                console.log('Local stream started.');
-            } catch (e) {
-                console.error("Error starting local stream:", e);
-                showAlert("Could not access camera/microphone. Please allow access.");
-                return false;
-            }
-            return true;
-        }
-
         /**
          * Updates the user's presence in Firestore.
          * @param {string} username The name of the user.
          */
         async function updatePresence(username) {
-            if (!userId) {
-                console.error("User ID is not set. Cannot update presence.");
+            if (!userId || !db) {
+                console.error("User ID or DB is not set. Cannot update presence.");
                 return;
             }
             const userDocRef = doc(db, `/artifacts/${appId}/public/data/users`, userId);
@@ -580,26 +541,41 @@
 
         // Event Listeners
         window.onload = async () => {
-            setupFirebase();
-            await signInAndSetup();
-            await startLocalStream();
-            
-            // This is the correct place to register the onAuthStateChanged listener
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
-                    displayUserIdSpan.textContent = userId;
-                    console.log('User signed in:', userId);
-                    startListeners();
-                    updatePresence(usernameInput.value || `User ${userId.substring(0, 4)}`);
+            try {
+                // Initialize Firebase services first
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                console.log('Firebase initialized.');
+
+                // Set up the listener immediately
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        displayUserIdSpan.textContent = userId;
+                        console.log('User signed in:', userId);
+                        startListeners();
+                        updatePresence(usernameInput.value || `User ${userId.substring(0, 4)}`);
+                    } else {
+                        console.log('User not signed in. Attempting anonymous sign-in.');
+                        await signInAnonymously(auth);
+                    }
+                });
+
+                // Trigger the initial sign-in
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
                 } else {
-                    console.log('User not signed in. Attempting anonymous sign-in.');
-                    userId = crypto.randomUUID();
-                    displayUserIdSpan.textContent = userId;
-                    startListeners();
-                    updatePresence(usernameInput.value || `User ${userId.substring(0, 4)}`);
+                    await signInAnonymously(auth);
                 }
-            });
+
+                // Start the local video stream
+                await startLocalStream();
+
+            } catch (e) {
+                console.error("Initialization failed:", e);
+                showAlert("Failed to initialize the app. Please check your connection.");
+            }
         };
 
         usernameInput.addEventListener('input', () => {
