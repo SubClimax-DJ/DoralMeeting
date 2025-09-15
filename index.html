@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doral Video Conference</title>
+    <title>Gruvbox Video Conference</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
@@ -116,6 +116,14 @@
             color: var(--fg-main);
             word-wrap: break-word;
             flex-grow: 1;
+        }
+        .btn-delete {
+            background-color: var(--red);
+            color: var(--fg-main);
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.5rem;
+            display: none; /* Initially hidden */
         }
     </style>
 </head>
@@ -428,7 +436,7 @@
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
             
-            await setDoc(callDoc, { offer: offer.toJSON(), createdAt: new Date(), creatorNickname: userNickname });
+            await setDoc(callDoc, { offer: offer.toJSON(), createdAt: new Date(), creatorNickname: userNickname, creatorId: userId });
             statusMessage.textContent = 'Call created. Share the link above and wait for someone to join...';
 
             onSnapshot(callDoc, async (snapshot) => {
@@ -501,13 +509,45 @@
                     const roomData = doc.data();
                     const roomDiv = document.createElement('div');
                     roomDiv.className = 'room-item';
+                    
+                    let buttonsHtml = `<button class="btn-blue btn-join-room px-4 py-1">Join</button>`;
+                    if (roomData.creatorId === userId) {
+                        buttonsHtml += `<button class="btn-delete px-4 py-1 ml-2">Delete</button>`;
+                    }
+                    
                     roomDiv.innerHTML = `
                         <span>Room created by: <span class="text-yellow">${roomData.creatorNickname}</span></span>
-                        <button class="btn-blue btn-join-room px-4 py-1">Join</button>
+                        <div class="flex items-center space-x-2">
+                            ${buttonsHtml}
+                        </div>
                     `;
+
                     roomDiv.querySelector('.btn-join-room').onclick = () => {
                         handleJoinCall(doc.id);
                     };
+
+                    const deleteBtn = roomDiv.querySelector('.btn-delete');
+                    if (deleteBtn) {
+                        deleteBtn.style.display = 'block';
+                        deleteBtn.onclick = async (e) => {
+                            e.stopPropagation(); // Prevent join from firing
+                            if (confirm('Are you sure you want to delete this room?')) {
+                                try {
+                                    // Delete all chat messages first
+                                    const chatDocs = await getDocs(collection(db, `artifacts/${__app_id}/public/data/calls/${doc.id}/chat`));
+                                    const deletePromises = chatDocs.docs.map(d => deleteDoc(d.ref));
+                                    await Promise.all(deletePromises);
+
+                                    // Then delete the room document
+                                    await deleteDoc(doc(db, `artifacts/${__app_id}/public/data/calls/${doc.id}`));
+                                    console.log(`Room ${doc.id} deleted successfully.`);
+                                } catch (error) {
+                                    console.error("Error deleting room:", error);
+                                }
+                            }
+                        };
+                    }
+
                     roomsContainer.appendChild(roomDiv);
                     hasRooms = true;
                 });
