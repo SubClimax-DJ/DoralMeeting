@@ -289,6 +289,21 @@
                 console.error("Error updating presence:", e);
             }
         }
+
+        /**
+         * Starts the local video and audio stream.
+         * @returns {Promise<boolean>} Resolves to true on success, false on failure.
+         */
+        async function startLocalStream() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+                return true;
+            } catch (e) {
+                console.error("Error accessing media devices:", e);
+                return false;
+            }
+        }
         
         /**
          * Renders the list of online users in the lobby.
@@ -557,7 +572,7 @@
         window.onload = async () => {
             try {
                 // Initialize Firebase services first
-                const app = initializeApp(firebaseConfig);
+                app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
                 console.log('Firebase initialized.');
