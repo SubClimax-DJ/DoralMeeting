@@ -3,17 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parent-Teacher Video Conference</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>Gruvbox Video Conference</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Gruvbox Dark Theme Palette */
         :root {
-            --bg-dark: #282828;
-            --bg-medium: #3c3836;
-            --fg-light: #ebdbb2;
-            --fg-dark: #a89984;
+            --bg: #282828;
+            --bg1: #3c3836;
+            --fg: #ebdbb2;
+            --fg1: #d5c4a1;
             --red: #cc241d;
             --green: #98971a;
             --yellow: #d79921;
@@ -21,150 +19,136 @@
             --purple: #b16286;
             --aqua: #689d6a;
             --orange: #d65d0e;
+            --gray: #a89984;
         }
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--fg-light);
+            background-color: var(--bg);
+            color: var(--fg);
         }
-
-        .gruvbox-card {
-            background-color: var(--bg-medium);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border: 1px solid var(--fg-dark);
+        .video-container {
+            @apply relative w-full bg-black rounded-lg overflow-hidden shadow-lg;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
         }
-
-        .btn {
-            background-color: var(--blue);
-            color: var(--fg-light);
-            transition: background-color 0.3s ease;
-        }
-
-        .btn-green {
-            background-color: var(--green);
-        }
-
-        .btn-red {
-            background-color: var(--red);
-        }
-
-        .btn:hover {
-            background-color: var(--aqua);
-        }
-        .btn-green:hover {
-            background-color: var(--aqua);
-        }
-        .btn-red:hover {
-            background-color: var(--orange);
-        }
-
-        .chat-container {
-            border: 1px solid var(--fg-dark);
-            height: 300px;
-        }
-
-        .user-list {
-            max-height: 400px;
-        }
-
         video {
-            border: 2px solid var(--purple);
-            border-radius: 8px;
-            background-color: #000;
+            @apply absolute top-0 left-0 w-full h-full object-cover;
         }
-
-        .hidden {
-            display: none;
+        #localVideo {
+            @apply w-32 h-24 md:w-48 md:h-36 absolute bottom-4 right-4 border-2 rounded-md z-10;
+            border-color: var(--aqua);
         }
-
-        /* Responsive video containers */
-        #call-screen-videos {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
+        .btn {
+            @apply inline-flex items-center justify-center gap-2 px-5 py-3 font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 transition-all transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:transform-none disabled:opacity-50;
         }
-
-        @media (min-width: 768px) {
-            #call-screen-videos {
-                flex-direction: row;
-            }
+        .btn-primary {
+            background-color: var(--blue);
+            color: var(--bg);
+        }
+        .btn-primary:hover {
+             background-color: var(--aqua);
+        }
+        .btn-danger {
+            background-color: var(--red);
+            color: #fff;
+        }
+         .btn-danger:hover {
+            background-color: #fb4934; /* Brighter red */
+        }
+        .input-field {
+            @apply mt-1 block w-full px-4 py-3 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 sm:text-sm;
+            background-color: var(--bg1);
+            border: 1px solid var(--gray);
+            color: var(--fg);
+            border-color: var(--gray);
+            focus:ring-color: var(--orange);
+            focus:border-color: var(--orange);
+        }
+        .icon {
+            width: 1.25em;
+            height: 1.25em;
+        }
+        /* Custom notification for alerts */
+        #notification {
+            @apply fixed top-5 right-5 p-4 rounded-md shadow-lg text-white text-sm z-50 opacity-0 transition-opacity duration-300;
+        }
+        #notification.show {
+            opacity: 1;
         }
     </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="p-4 flex items-center justify-center min-h-screen">
+<body class="flex items-center justify-center min-h-screen p-4">
 
-    <!-- Main App Screen (Lobby) -->
-    <div id="lobby-screen" class="gruvbox-card rounded-lg p-8 w-full max-w-2xl">
-        <h1 class="text-3xl font-bold mb-4 text-green">Parent-Teacher Video Lobby</h1>
-        <p class="mb-2 text-fg-dark">Your User ID: <span class="font-mono text-purple" id="display-user-id">Loading...</span></p>
-        <p class="mb-2 text-fg-dark">Please enter your name to be seen by others.</p>
-        <input type="text" id="username-input" placeholder="Your Name" class="w-full p-3 mb-4 rounded bg-bg-dark text-fg-light placeholder-fg-dark focus:outline-none focus:ring-2 focus:ring-purple border border-fg-dark">
-        
-        <div class="md:flex md:space-x-4 mb-4">
-            <!-- User List -->
-            <div class="flex-1">
-                <h2 class="text-xl font-bold mb-2 text-aqua">Online Users</h2>
-                <div id="user-list" class="user-list p-4 rounded bg-bg-dark overflow-y-auto space-y-2">
-                    <p class="text-center text-fg-dark">No other users online yet...</p>
-                </div>
+    <div class="w-full max-w-4xl mx-auto">
+        <div class="rounded-xl shadow-2xl p-6" style="background-color: var(--bg1);">
+            <h1 class="text-3xl font-bold text-center mb-2 flex items-center justify-center gap-3">
+                <svg class="icon" style="color: var(--yellow);" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9A2.25 2.25 0 0013.5 5.25h-9A2.25 2.25 0 002.25 7.5v9A2.25 2.25 0 004.5 18.75z" /></svg>
+                Gruvbox Video Conference
+            </h1>
+            <p id="status" class="text-center mb-6" style="color: var(--gray);">Waiting to start camera...</p>
+
+            <div class="video-container bg-black">
+                <video id="remoteVideo" autoplay playsinline></video>
+                <video id="localVideo" autoplay playsinline muted></video>
             </div>
 
-            <!-- Chat -->
-            <div class="flex-1 mt-4 md:mt-0">
-                <h2 class="text-xl font-bold mb-2 text-aqua">Chat</h2>
-                <div id="chat-messages" class="chat-container p-4 rounded bg-bg-dark overflow-y-auto mb-2 space-y-2">
-                    <!-- Chat messages will be dynamically added here -->
+            <!-- Controls -->
+            <div class="mt-6">
+                <div id="initialControls" class="text-center">
+                    <button id="startCamBtn" class="btn btn-primary w-full sm:w-auto">
+                        <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9A2.25 2.25 0 0013.5 5.25h-9A2.25 2.25 0 002.25 7.5v9A2.25 2.25 0 004.5 18.75z" /></svg>
+                        <span>Step 1: Start Camera</span>
+                    </button>
                 </div>
-                <form id="chat-form" class="flex">
-                    <input type="text" id="chat-input" placeholder="Type a message..." class="flex-1 p-3 rounded-l bg-bg-dark text-fg-light placeholder-fg-dark focus:outline-none focus:ring-2 focus:ring-purple border border-fg-dark">
-                    <button type="submit" class="btn py-3 px-4 rounded-r font-bold">Send</button>
-                </form>
+
+                <div id="callControls" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    <div class="p-4 rounded-lg border" style="background-color: var(--bg); border-color: var(--gray);">
+                        <h2 class="text-lg font-semibold mb-3 text-center">Create a New Call</h2>
+                        <button id="createCallBtn" class="btn btn-primary w-full">
+                           <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+                            <span>Step 2: Create Call</span>
+                        </button>
+                        <div class="mt-4 text-center" id="callIdDisplayWrapper" style="display: none;">
+                            <p class="text-sm" style="color: var(--gray);">Share this ID to connect:</p>
+                            <div class="mt-2 p-2 rounded-md font-mono text-sm break-all" style="background-color: var(--bg); color: var(--yellow);" id="callIdDisplay"></div>
+                            <button id="copyBtn" class="mt-2 text-sm hover:underline" style="color: var(--aqua);">Copy ID</button>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-lg border" style="background-color: var(--bg); border-color: var(--gray);">
+                         <h2 class="text-lg font-semibold mb-3 text-center">Join an Existing Call</h2>
+                        <input type="text" id="callIdInput" class="input-field w-full" placeholder="Enter Call ID here...">
+                        <button id="joinCallBtn" class="btn btn-primary w-full mt-3">
+                           <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                           <span>Step 2: Join Call</span>
+                        </button>
+                    </div>
+                </div>
+                 <div id="hangupControls" class="hidden text-center mt-6">
+                    <button id="hangupBtn" class="btn btn-danger w-full md:w-1/2">
+                        <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.658-.463 1.243-1.117 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.117 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                        <span>Hang Up</span>
+                    </button>
+                </div>
             </div>
-        </div>
-        
-    </div>
-
-    <!-- Call Screen -->
-    <div id="call-screen" class="hidden gruvbox-card rounded-lg p-8 w-full max-w-4xl">
-        <h1 class="text-3xl font-bold mb-4 text-orange text-center">In Call</h1>
-        <p class="mb-4 text-fg-dark text-center">You are connected with <span id="remote-user-name" class="font-bold text-yellow"></span>.</p>
-
-        <div id="call-screen-videos" class="flex flex-col md:flex-row gap-4 mb-4">
-            <video id="local-video" autoplay muted playsinline class="w-full md:w-1/2 rounded-lg"></video>
-            <video id="remote-video" autoplay playsinline class="w-full md:w-1/2 rounded-lg"></video>
-        </div>
-
-        <div class="flex justify-center space-x-4">
-            <button id="hangup-btn" class="btn-red py-3 px-6 rounded-lg font-bold">End Call</button>
         </div>
     </div>
     
-    <!-- Custom Modal for Alerts -->
-    <div id="alert-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-bg-medium text-fg-light p-6 rounded-lg shadow-lg max-w-sm w-full">
-            <div id="modal-message" class="text-center mb-4 text-lg"></div>
-            <div class="flex justify-center">
-                <button id="modal-ok-btn" class="btn py-2 px-6 rounded-lg">OK</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Custom Modal for Incoming Calls -->
-    <div id="call-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-bg-medium text-fg-light p-6 rounded-lg shadow-lg max-w-sm w-full">
-            <div id="call-modal-message" class="text-center mb-4 text-lg font-bold text-yellow"></div>
-            <div class="flex justify-center space-x-4">
-                <button id="call-accept-btn" class="btn-green py-2 px-6 rounded-lg font-bold">Accept</button>
-                <button id="call-decline-btn" class="btn-red py-2 px-6 rounded-lg font-bold">Decline</button>
-            </div>
-        </div>
-    </div>
+    <!-- Notification Element -->
+    <div id="notification"></div>
 
     <script type="module">
-        // Global variables provided by the Canvas environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+        // --- Firebase SDK Imports ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection, updateDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+
+        // --- User-provided Firebase Configuration ---
+        const firebaseConfig = {
             apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
             authDomain: "video-meeting-e73eb.firebaseapp.com",
             projectId: "video-meeting-e73eb",
@@ -173,440 +157,213 @@
             appId: "1:80496795033:web:3ac35c631d76301f77c708",
             measurementId: "G-SFPQ0PJRPG"
         };
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        // Import Firebase modules
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // UI Elements
-        const lobbyScreen = document.getElementById('lobby-screen');
-        const callScreen = document.getElementById('call-screen');
-        const usernameInput = document.getElementById('username-input');
-        const displayUserIdSpan = document.getElementById('display-user-id');
-        const userListDiv = document.getElementById('user-list');
-        const localVideo = document.getElementById('local-video');
-        const remoteVideo = document.getElementById('remote-video');
-        const remoteUserNameSpan = document.getElementById('remote-user-name');
-        const hangupBtn = document.getElementById('hangup-btn');
-        const chatMessagesDiv = document.getElementById('chat-messages');
-        const chatForm = document.getElementById('chat-form');
-        const chatInput = document.getElementById('chat-input');
-        const alertModal = document.getElementById('alert-modal');
-        const modalMessage = document.getElementById('modal-message');
-        const modalOkBtn = document.getElementById('modal-ok-btn');
-        const callModal = document.getElementById('call-modal');
-        const callModalMessage = document.getElementById('call-modal-message');
-        const callAcceptBtn = document.getElementById('call-accept-btn');
-        const callDeclineBtn = document.getElementById('call-decline-btn');
 
-        // Firebase variables
-        let app, auth, db;
-        let userId;
+        // --- Initialize Firebase ---
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
 
-        // WebRTC variables
-        let localStream;
-        let peerConnection;
-        let currentCallId;
-        const configuration = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' }
-            ]
-        };
-
-        /**
-         * Displays a custom modal with a message.
-         * @param {string} message The message to display.
-         */
-        function showAlert(message) {
-            modalMessage.textContent = message;
-            alertModal.classList.remove('hidden');
-        }
-
-        modalOkBtn.addEventListener('click', () => {
-            alertModal.classList.add('hidden');
+        signInAnonymously(auth).catch(error => {
+            console.error("Anonymous sign-in failed:", error);
+            showNotification("Error: Could not connect to authentication service.", true);
         });
 
-        /**
-         * Shows the incoming call modal and returns a promise that resolves when a button is clicked.
-         * @param {string} callerName The name of the person calling.
-         * @returns {Promise<boolean>} Resolves to true if accepted, false if declined.
-         */
-        function showIncomingCallModal(callerName) {
-            return new Promise(resolve => {
-                callModalMessage.textContent = `Incoming call from ${callerName}!`;
-                callModal.classList.remove('hidden');
+        // --- DOM Elements ---
+        const startCamBtn = document.getElementById('startCamBtn');
+        const createCallBtn = document.getElementById('createCallBtn');
+        const joinCallBtn = document.getElementById('joinCallBtn');
+        const hangupBtn = document.getElementById('hangupBtn');
+        const callIdInput = document.getElementById('callIdInput');
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const status = document.getElementById('status');
+        const initialControls = document.getElementById('initialControls');
+        const callControls = document.getElementById('callControls');
+        const hangupControls = document.getElementById('hangupControls');
+        const callIdDisplay = document.getElementById('callIdDisplay');
+        const callIdDisplayWrapper = document.getElementById('callIdDisplayWrapper');
+        const copyBtn = document.getElementById('copyBtn');
+        const notification = document.getElementById('notification');
 
-                const onAccept = () => {
-                    callModal.classList.add('hidden');
-                    callAcceptBtn.removeEventListener('click', onAccept);
-                    callDeclineBtn.removeEventListener('click', onDecline);
-                    resolve(true);
-                };
-                const onDecline = () => {
-                    callModal.classList.add('hidden');
-                    callAcceptBtn.removeEventListener('click', onAccept);
-                    callDeclineBtn.removeEventListener('click', onDecline);
-                    resolve(false);
-                };
+        // --- WebRTC Configuration ---
+        const servers = {
+            iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }],
+            iceCandidatePoolSize: 10,
+        };
 
-                callAcceptBtn.addEventListener('click', onAccept);
-                callDeclineBtn.addEventListener('click', onDecline);
-            });
-        }
+        // --- Global State ---
+        let pc = new RTCPeerConnection(servers);
+        let localStream = null;
+        let remoteStream = null;
+        let callId = null;
+        let unsubscribe = null;
 
-        /**
-         * Updates the user's presence in Firestore.
-         * @param {string} username The name of the user.
-         */
-        async function updatePresence(username) {
-            if (!userId || !db) {
-                console.error("User ID or DB is not set. Cannot update presence.");
-                return;
-            }
-            const userDocRef = doc(db, `/artifacts/${appId}/public/data/users`, userId);
-            try {
-                await setDoc(userDocRef, {
-                    name: username,
-                    timestamp: serverTimestamp(),
-                    isOnline: true,
-                }, { merge: true });
-                console.log('Presence updated for user:', username);
-            } catch (e) {
-                console.error("Error updating presence:", e);
-            }
+        // --- UI Helper Functions ---
+        function updateStatus(message) {
+            status.textContent = message;
         }
         
-        /**
-         * Renders the list of online users in the lobby.
-         * @param {Array} users The list of user objects.
-         */
-        function renderUserList(users) {
-            userListDiv.innerHTML = '';
-            const otherUsers = users.filter(u => u.id !== userId);
-            if (otherUsers.length === 0) {
-                userListDiv.innerHTML = '<p class="text-center text-fg-dark">No other users online yet...</p>';
-                return;
-            }
-
-            otherUsers.forEach(user => {
-                const userItem = document.createElement('div');
-                userItem.className = 'flex items-center justify-between p-2 bg-bg-medium rounded-lg';
-                userItem.innerHTML = `
-                    <div class="flex flex-col">
-                      <span class="font-semibold text-fg-light">${user.name}</span>
-                      <span class="text-xs text-fg-dark font-mono">${user.id}</span>
-                    </div>
-                    <button class="btn-green py-1 px-4 rounded-full text-sm font-bold call-btn" data-user-id="${user.id}" data-user-name="${user.name}">Call</button>
-                `;
-                userListDiv.appendChild(userItem);
-            });
+        function showNotification(message, isError = false) {
+            notification.textContent = message;
+            notification.style.backgroundColor = isError ? 'var(--red)' : 'var(--green)';
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
         }
 
-        /**
-         * Creates a new call document in Firestore and initiates the call.
-         * @param {string} calleeId The user ID of the person to call.
-         * @param {string} calleeName The name of the person to call.
-         */
-        async function createCall(calleeId, calleeName) {
-            if (!localStream) {
-                showAlert("Please allow camera and mic access first.");
-                return;
-            }
-            
-            // Create call document
-            const callsCollection = collection(db, `/artifacts/${appId}/public/data/calls`);
-            const callDoc = await addDoc(callsCollection, {
-                callerId: userId,
-                callerName: usernameInput.value || `User ${userId.substring(0, 4)}`,
-                calleeId: calleeId,
-                timestamp: serverTimestamp(),
-                status: 'pending'
-            });
-            currentCallId = callDoc.id;
-            console.log("Call document created with ID:", currentCallId);
+        // --- Core WebRTC and Signaling Logic ---
 
-            // Setup WebRTC peer connection
-            peerConnection = new RTCPeerConnection(configuration);
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-            // Listen for remote track
-            peerConnection.ontrack = (event) => {
-                console.log('Remote track received.');
-                remoteVideo.srcObject = event.streams[0];
-                switchScreen('call');
-                remoteUserNameSpan.textContent = calleeName;
-            };
-
-            // Listen for ICE candidates and send them to Firestore
-            peerConnection.onicecandidate = async (event) => {
-                if (event.candidate) {
-                    await addDoc(collection(doc(callsCollection, currentCallId), 'callerCandidates'), event.candidate.toJSON());
-                }
-            };
-
-            // Create and send offer
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-
-            // Update call document with offer
-            await updateDoc(doc(callsCollection, currentCallId), {
-                offer: {
-                    sdp: offer.sdp,
-                    type: offer.type
-                }
-            });
-        }
-
-        /**
-         * Handles an incoming offer, sets up peer connection, and sends an answer.
-         * @param {string} callId The ID of the call document.
-         * @param {Object} offer The offer SDP object.
-         */
-        async function handleOffer(callId, offer, callerName) {
-            if (!localStream) {
-                showAlert("Please allow camera and mic access first.");
-                return;
-            }
-            if (peerConnection) {
-                console.log("Already in a call, ignoring new offer.");
-                return;
-            }
-            
-            currentCallId = callId;
-            const callsCollection = collection(db, `/artifacts/${appId}/public/data/calls`);
-
-            peerConnection = new RTCPeerConnection(configuration);
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-            peerConnection.ontrack = (event) => {
-                console.log('Remote track received.');
-                remoteVideo.srcObject = event.streams[0];
-                switchScreen('call');
-                remoteUserNameSpan.textContent = callerName;
-            };
-
-            peerConnection.onicecandidate = async (event) => {
-                if (event.candidate) {
-                    await addDoc(collection(doc(callsCollection, currentCallId), 'calleeCandidates'), event.candidate.toJSON());
-                }
-            };
-            
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-
-            await updateDoc(doc(callsCollection, currentCallId), {
-                answer: {
-                    sdp: answer.sdp,
-                    type: answer.type
-                }
-            });
-
-            // Start listening for candidates from the caller
-            onSnapshot(collection(doc(callsCollection, currentCallId), 'callerCandidates'), (snapshot) => {
-                snapshot.docChanges().forEach(async (change) => {
-                    if (change.type === 'added') {
-                        const candidate = new RTCIceCandidate(change.doc.data());
-                        try {
-                            await peerConnection.addIceCandidate(candidate);
-                        } catch (e) {
-                            console.error("Error adding caller ICE candidate:", e);
-                        }
-                    }
-                });
-            });
-        }
-        
-        /**
-         * Ends the current call and cleans up resources.
-         */
-        async function endCall() {
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-            localVideo.srcObject = null;
-            remoteVideo.srcObject = null;
-            
-            if (currentCallId) {
-                const callDocRef = doc(db, `/artifacts/${appId}/public/data/calls`, currentCallId);
-                // Use a try-catch for deleteDoc in case the other user already deleted it
-                try {
-                     await deleteDoc(callDocRef);
-                } catch(e) {
-                    console.log("Call document already deleted, no need to delete again.");
-                }
-                currentCallId = null;
-            }
-            switchScreen('lobby');
-        }
-
-        /**
-         * Switches the display to the specified screen.
-         * @param {string} screen The name of the screen ('lobby', 'call').
-         */
-        function switchScreen(screen) {
-            lobbyScreen.classList.add('hidden');
-            callScreen.classList.add('hidden');
-            if (screen === 'lobby') lobbyScreen.classList.remove('hidden');
-            if (screen === 'call') callScreen.classList.remove('hidden');
-        }
-
-        /**
-         * Starts all real-time listeners for presence, calls, and chat.
-         */
-        function startListeners() {
-            // Set up a listener for the presence collection
-            onSnapshot(collection(db, `/artifacts/${appId}/public/data/users`), (snapshot) => {
-                const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderUserList(users);
-            });
-            
-            // Set up a listener for incoming calls
-            onSnapshot(collection(db, `/artifacts/${appId}/public/data/calls`), async (snapshot) => {
-                snapshot.docChanges().forEach(async (change) => {
-                    const callData = change.doc.data();
-                    if (change.type === 'added' && callData.calleeId === userId && !callData.answer) {
-                        const callId = change.doc.id;
-                        const isAccepted = await showIncomingCallModal(callData.callerName);
-                        
-                        if (isAccepted) {
-                            await handleOffer(callId, callData.offer, callData.callerName);
-                            // Start listening for caller's candidates
-                            onSnapshot(collection(db, `/artifacts/${appId}/public/data/calls/${callId}/callerCandidates`), (snapshot) => {
-                                snapshot.docChanges().forEach(async (change) => {
-                                    if (change.type === 'added') {
-                                        const candidate = new RTCIceCandidate(change.doc.data());
-                                        try {
-                                            await peerConnection.addIceCandidate(candidate);
-                                        } catch (e) {
-                                            console.error("Error adding caller ICE candidate:", e);
-                                        }
-                                    }
-                                });
-                            });
-                        } else {
-                            // Decline the call
-                            await deleteDoc(change.doc.ref);
-                        }
-                    } else if (change.type === 'modified' && callData.callerId === userId && callData.answer) {
-                        // Handle the answer from the callee
-                        try {
-                            await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.answer));
-                            // Start listening for callee's candidates
-                            onSnapshot(collection(db, `/artifacts/${appId}/public/data/calls/${currentCallId}/calleeCandidates`), (snapshot) => {
-                                snapshot.docChanges().forEach(async (change) => {
-                                    if (change.type === 'added') {
-                                        const candidate = new RTCIceCandidate(change.doc.data());
-                                        try {
-                                            await peerConnection.addIceCandidate(candidate);
-                                        } catch (e) {
-                                            console.error("Error adding callee ICE candidate:", e);
-                                        }
-                                    }
-                                });
-                            });
-                        } catch (e) {
-                            console.error("Error setting remote description from answer:", e);
-                        }
-                    } else if (change.type === 'removed' && change.doc.id === currentCallId) {
-                        endCall();
-                        showAlert("Call ended.");
-                    }
-                });
-            });
-            
-            // Set up a listener for chat messages
-            onSnapshot(collection(db, `/artifacts/${appId}/public/data/chat`), (snapshot) => {
-                chatMessagesDiv.innerHTML = '';
-                const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                // Sort by timestamp in memory
-                messages.sort((a, b) => a.timestamp - b.timestamp);
-                messages.forEach(msg => {
-                    const msgElement = document.createElement('div');
-                    msgElement.className = 'flex flex-col';
-                    msgElement.innerHTML = `<span class="font-bold text-yellow">${msg.sender}:</span><span>${msg.text}</span>`;
-                    chatMessagesDiv.appendChild(msgElement);
-                });
-                chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
-            });
-        }
-
-        // Event Listeners
-        window.onload = async () => {
+        startCamBtn.onclick = async () => {
+            startCamBtn.disabled = true;
             try {
-                // Initialize Firebase services first
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                console.log('Firebase initialized.');
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                remoteStream = new MediaStream();
 
-                // Set up the listener immediately
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        displayUserIdSpan.textContent = userId;
-                        console.log('User signed in:', userId);
-                        startListeners();
-                        updatePresence(usernameInput.value || `User ${userId.substring(0, 4)}`);
-                    } else {
-                        console.log('User not signed in. Attempting anonymous sign-in.');
-                        await signInAnonymously(auth);
-                    }
-                });
+                localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+                localVideo.srcObject = localStream;
+                remoteVideo.srcObject = remoteStream;
 
-                // Trigger the initial sign-in
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
-                // Start the local video stream
-                await startLocalStream();
-
-            } catch (e) {
-                console.error("Initialization failed:", e);
-                showAlert("Failed to initialize the app. Please check your connection.");
+                initialControls.classList.add('hidden');
+                callControls.classList.remove('hidden');
+                updateStatus("Camera active. Ready to create or join a call.");
+            } catch (error) {
+                console.error("Error accessing media devices.", error);
+                showNotification("Error: Could not access camera and microphone.", true);
+                startCamBtn.disabled = false;
             }
         };
 
-        usernameInput.addEventListener('input', () => {
-            const username = usernameInput.value.trim() || `User ${userId.substring(0, 4)}`;
-            updatePresence(username);
-        });
+        createCallBtn.onclick = async () => {
+            createCallBtn.disabled = true;
+            joinCallBtn.disabled = true;
+            updateStatus("Creating call...");
 
-        // Delegate click event for the dynamically added call buttons
-        userListDiv.addEventListener('click', (e) => {
-            if (e.target.classList.contains('call-btn')) {
-                const calleeId = e.target.getAttribute('data-user-id');
-                const calleeName = e.target.getAttribute('data-user-name');
-                createCall(calleeId, calleeName);
-            }
-        });
+            const callDocRef = doc(collection(db, 'calls'));
+            callId = callDocRef.id;
 
-        hangupBtn.addEventListener('click', endCall);
+            callIdDisplay.textContent = callId;
+            callIdDisplayWrapper.style.display = 'block';
 
-        chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const messageText = chatInput.value.trim();
-            if (messageText) {
-                await addDoc(collection(db, `/artifacts/${appId}/public/data/chat`), {
-                    sender: usernameInput.value || `User ${userId.substring(0, 4)}`,
-                    text: messageText,
-                    timestamp: serverTimestamp()
+            pc.onicecandidate = event => {
+                event.candidate && addDoc(collection(db, `calls/${callId}/offerCandidates`), event.candidate.toJSON());
+            };
+
+            const offerDescription = await pc.createOffer();
+            await pc.setLocalDescription(offerDescription);
+
+            const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
+            await setDoc(callDocRef, { offer });
+
+            updateStatus("Call created. Share the ID.");
+
+            unsubscribe = onSnapshot(doc(db, `calls/${callId}`), (snapshot) => {
+                const data = snapshot.data();
+                if (!pc.currentRemoteDescription && data?.answer) {
+                    const answerDescription = new RTCSessionDescription(data.answer);
+                    pc.setRemoteDescription(answerDescription);
+                }
+            });
+
+            onSnapshot(collection(db, `calls/${callId}/answerCandidates`), (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                 });
-                chatInput.value = '';
-            }
-        });
+            });
+            
+            callControls.classList.add('hidden');
+            hangupControls.classList.remove('hidden');
+        };
 
+        joinCallBtn.onclick = async () => {
+            callId = callIdInput.value.trim();
+            if (!callId) {
+                showNotification("Please enter a valid Call ID.", true);
+                return;
+            }
+            
+            createCallBtn.disabled = true;
+            joinCallBtn.disabled = true;
+            updateStatus("Joining call...");
+
+            const callDocRef = doc(db, `calls/${callId}`);
+            const callDocSnap = await getDoc(callDocRef);
+
+            if (!callDocSnap.exists()) {
+                showNotification("Invalid Call ID. Please check and try again.", true);
+                createCallBtn.disabled = false;
+                joinCallBtn.disabled = false;
+                updateStatus("Failed to join. Please try again.");
+                return;
+            }
+
+            pc.onicecandidate = event => {
+                event.candidate && addDoc(collection(db, `calls/${callId}/answerCandidates`), event.candidate.toJSON());
+            };
+
+            await pc.setRemoteDescription(new RTCSessionDescription(callDocSnap.data().offer));
+
+            const answerDescription = await pc.createAnswer();
+            await pc.setLocalDescription(answerDescription);
+
+            const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
+            await updateDoc(callDocRef, { answer });
+
+            onSnapshot(collection(db, `calls/${callId}/offerCandidates`), (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                });
+            });
+
+            callControls.classList.add('hidden');
+            hangupControls.classList.remove('hidden');
+        };
+        
+        hangupBtn.onclick = async () => {
+             if (unsubscribe) unsubscribe();
+
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
+            if (pc) pc.close();
+            
+            // A more robust cleanup
+            if (callId) {
+                const callDocRef = doc(db, 'calls', callId);
+                // Delete candidate subcollections
+                const offerCandidatesQuery = query(collection(callDocRef, 'offerCandidates'));
+                const answerCandidatesQuery = query(collection(callDocRef, 'answerCandidates'));
+                const [offerCandidatesSnap, answerCandidatesSnap] = await Promise.all([
+                    getDocs(offerCandidatesQuery),
+                    getDocs(answerCandidatesQuery)
+                ]);
+                
+                const deletePromises = [];
+                offerCandidatesSnap.forEach(doc => deletePromises.push(deleteDoc(doc.ref)));
+                answerCandidatesSnap.forEach(doc => deletePromises.push(deleteDoc(doc.ref)));
+                
+                await Promise.all(deletePromises);
+                await deleteDoc(callDocRef);
+            }
+
+            window.location.reload();
+        };
+
+        pc.ontrack = (event) => {
+            event.streams[0].getTracks().forEach((track) => remoteStream.addTrack(track));
+            updateStatus("Connected!");
+        };
+
+        copyBtn.onclick = () => {
+            navigator.clipboard.writeText(callId).then(() => {
+                showNotification("Call ID copied to clipboard!");
+                copyBtn.textContent = "Copied!";
+                setTimeout(() => { copyBtn.textContent = "Copy ID"; }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                showNotification("Failed to copy ID.", true);
+            });
+        };
     </script>
 </body>
 </html>
+
