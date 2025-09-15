@@ -1,685 +1,598 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teacher Office Hours</title>
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video Conferencing Platform</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for a clean look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons for UI elements -->
+    <script src="https://unpkg.com/lucide-react@0.292.0/dist/lucide-react.min.js"></script>
+
     <style>
-        :root {
-            --bg0: #282828;
-            --bg1: #3c3836;
-            --bg3: #a89984;
-            --fg0: #fbf1c7;
-            --fg1: #ebdbb2;
-            --red: #fb4934;
-            --green: #b8bb26;
-            --yellow: #fabd2f;
-            --blue: #83a598;
-            --purple: #d3869b;
-            --aqua: #8ec07c;
-            --orange: #fe8019;
-            --gray: #928374;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
         body {
-            background-color: var(--bg0);
-            color: var(--fg1);
-            font-family: 'JetBrains Mono', monospace;
-            padding: 20px;
-            margin: 0;
-            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 15px;
-        }
-
-        h1, h2, h3 {
-            color: var(--fg0);
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        #login {
-            max-width: 400px;
-            margin: 50px auto;
-            background: var(--bg1);
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        }
-
-        #login input[type="text"] {
-            background: var(--bg0);
-            border: 1px solid var(--gray);
-            color: var(--fg1);
-            padding: 12px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            width: 100%;
-        }
-
-        #login label {
-            display: block;
-            margin-bottom: 15px;
-            color: var(--fg1);
-        }
-
-        #login button {
-            background: var(--green);
-            border: none;
-            color: var(--bg0);
-            padding: 12px 24px;
-            border-radius: 5px;
-            width: 100%;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        #login button:hover {
-            background: var(--aqua);
-        }
-
-        #lobby, #call {
-            display: none;
-            background: var(--bg1);
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            margin: 20px auto;
-            max-width: 800px;
-        }
-
-        #chat, #callChat {
-            height: 200px;
-            overflow-y: scroll;
-            border: 1px solid var(--gray);
-            padding: 15px;
-            margin: 15px 0;
-            background: var(--bg0);
-            border-radius: 5px;
-            font-size: 14px;
-        }
-
-        #callChat {
-            height: 150px;
-        }
-
-        #chat div, #callChat div {
-            margin-bottom: 5px;
-            color: var(--fg1);
-        }
-
-        #chatInput, #callChatInput {
-            background: var(--bg0);
-            border: 1px solid var(--gray);
-            color: var(--fg1);
-            padding: 12px;
-            border-radius: 5px;
-            margin-right: 10px;
-            flex: 1;
-        }
-
-        .user-list {
-            list-style: none;
-            padding: 0;
-            margin: 0 0 15px 0;
-            background: var(--bg0);
-            border-radius: 5px;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .user-list li {
-            padding: 12px;
-            border-bottom: 1px solid var(--gray);
-            color: var(--fg1);
-            transition: background 0.2s;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .user-list li:hover {
-            background: var(--blue);
-            color: var(--bg0);
-        }
-
-        .user-list li:last-child {
-            border-bottom: none;
-        }
-
-        .user-list li span {
-            cursor: pointer;
-        }
-
-        .kick-btn {
-            background: var(--red);
-            padding: 5px 10px;
-            font-size: 12px;
-        }
-
-        .kick-btn:hover {
-            background: #cc241d;
-        }
-
-        button {
-            background: var(--blue);
-            border: none;
-            color: var(--bg0);
-            padding: 10px 20px;
-            border-radius: 5px;
-            margin: 5px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-family: inherit;
-        }
-
-        button:hover {
-            background: var(--aqua);
-            transform: translateY(-1px);
-        }
-
-        button:disabled {
-            background: var(--gray);
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-success {
-            background: var(--green);
-        }
-
-        .btn-success:hover {
-            background: var(--aqua);
-        }
-
-        .btn-warning {
-            background: var(--yellow);
-            color: var(--bg0);
-        }
-
-        .btn-warning:hover {
-            background: var(--orange);
-        }
-
-        .btn-danger {
-            background: var(--red);
-        }
-
-        .btn-danger:hover {
-            background: #cc241d;
-        }
-
-        .btn-info {
-            background: var(--purple);
-        }
-
-        .btn-info:hover {
-            background: var(--aqua);
-        }
-
-        #teacherControls {
-            background: var(--bg0);
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        video {
-            background-color: var(--bg3);
-            border-radius: 10px;
-            margin: 10px;
-            width: calc(50% - 20px);
-            max-width: 400px;
-            height: auto;
-            aspect-ratio: 4/3;
-            object-fit: cover;
-        }
-
-        .video-container {
-            position: relative;
-            text-align: center;
-        }
-
-        .video-label {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: var(--fg0);
-            padding: 5px 10px;
-            border-radius: 3px;
-            font-size: 12px;
-        }
-
-        .control-group {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        [data-tooltip] {
-            position: relative;
-        }
-
-        [data-tooltip]:hover:after {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--bg1);
-            color: var(--fg0);
-            padding: 5px 10px;
-            border-radius: 3px;
-            font-size: 12px;
-            white-space: nowrap;
-            z-index: 10;
-        }
-
-        @media (max-width: 768px) {
-            video {
-                width: 100%;
-                max-width: none;
-            }
-
-            body {
-                padding: 10px;
-            }
-
-            #lobby, #call {
-                padding: 20px;
-                margin: 10px;
-            }
-        }
-
-        .chat-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* Style for the video elements */
+        #localVideo {
+            transform: scaleX(-1);
         }
     </style>
 </head>
-<body>
-    <div id="login" class="container fade-in">
-        <h2>Office Hours Login</h2>
-        <input type="text" id="userName" class="form-control" placeholder="Enter your name" required>
-        <label class="checkbox">
-            <input type="checkbox" id="isTeacher"> I am the teacher
-        </label>
-        <button onclick="joinLobby()" class="btn btn-primary btn-lg">Join Lobby</button>
-    </div>
+<body class="bg-gray-900 text-white">
+    <div id="root"></div>
 
-    <div id="lobby" class="container fade-in">
-        <h2>Lobby Chat</h2>
-        <ul id="userList" class="user-list"></ul>
-        <div id="chat"></div>
-        <div class="chat-row">
-            <input type="text" id="chatInput" class="form-control" placeholder="Type a message...">
-            <button onclick="sendChat()" class="btn btn-success">Send</button>
-        </div>
-        <div id="teacherControls" style="display:none;">
-            <h3>Teacher Controls</h3>
-            <div class="control-group">
-                <button onclick="leaveLobby()" class="btn btn-warning" data-tooltip="Leave the lobby and sign out">Leave Lobby</button>
-                <button onclick="endAllCalls()" class="btn btn-danger" data-tooltip="End all active calls">End All Calls</button>
-            </div>
-        </div>
-    </div>
+    <!-- React and Babel for JSX in the browser -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <div id="call" class="container fade-in">
-        <h2>1-on-1 Conference</h2>
-        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
-            <div class="video-container">
-                <video id="yourVideo" autoplay muted></video>
-                <div class="video-label" id="yourVideoLabel">You</div>
-            </div>
-            <div class="video-container">
-                <video id="remoteVideo" autoplay></video>
-                <div class="video-label" id="remoteVideoLabel">Other</div>
-            </div>
-        </div>
-        <div class="control-group">
-            <button onclick="toggleScreenShare()" id="screenBtn" class="btn btn-info" data-tooltip="Toggle screen sharing">Share Screen</button>
-            <button onclick="toggleMic()" id="micBtn" class="btn btn-info" data-tooltip="Toggle microphone">Mute Mic</button>
-            <button onclick="toggleVideo()" id="videoBtn" class="btn btn-info" data-tooltip="Toggle camera">Turn Off Video</button>
-            <button onclick="endCall()" class="btn btn-danger" data-tooltip="End the current call">End Call</button>
-        </div>
-        <div id="callChat"></div>
-        <div class="chat-row">
-            <input type="text" id="callChatInput" class="form-control" placeholder="Private chat during call...">
-            <button onclick="sendCallChat()" class="btn btn-success">Send</button>
-        </div>
-    </div>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getDatabase, ref, set, onValue, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
-            authDomain: "video-meeting-e73eb.firebaseapp.com",
-            projectId: "video-meeting-e73eb",
-            storageBucket: "video-meeting-e73eb.firebasestorage.app",
-            messagingSenderId: "80496795033",
-            appId: "1:80496795033:web:3ac35c631d76301f77c708",
-            measurementId: "G-SFPQ0PJRPG"
+        window.firebase = {
+            initializeApp,
+            getAuth, signInAnonymously, onAuthStateChanged,
+            getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, query, where, getDocs,
+            getDatabase, ref, set, onValue, onDisconnect, serverTimestamp
         };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database().ref();
-        const auth = firebase.auth();
+    </script>
 
-        let currentUser = null;
-        let isTeacher = false;
-        let pc = null;
-        let localStream = null;
-        let currentCallRoom = null;
-        let remoteUser = null;
-        let remoteUid = null;
-        let micEnabled = true;
-        let videoEnabled = true;
-        const LOBBY_ROOM = 'lobby';
-        const iceServers = [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun.services.mozilla.com' }
-        ];
+    <!-- Main Application Logic -->
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+        const {
+            initializeApp
+        } = window.firebase;
+        const {
+            getAuth,
+            signInAnonymously,
+            onAuthStateChanged
+        } = window.firebase;
+        const {
+            getFirestore,
+            collection,
+            doc,
+            setDoc,
+            getDoc,
+            addDoc,
+            onSnapshot,
+            updateDoc,
+            deleteDoc
+        } = window.firebase;
+        const {
+            getDatabase,
+            ref,
+            set,
+            onValue,
+            onDisconnect,
+            serverTimestamp
+        } = window.firebase;
 
-        function joinLobby() {
-            const name = document.getElementById('userName').value.trim();
-            if (!name) return alert('Enter a name');
-            isTeacher = document.getElementById('isTeacher').checked;
+        // --- IMPORTANT: Replace with your Firebase project configuration ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
+          authDomain: "video-meeting-e73eb.firebaseapp.com",
+          projectId: "video-meeting-e73eb",
+          storageBucket: "video-meeting-e73eb.firebasestorage.app",
+          messagingSenderId: "80496795033",
+          appId: "1:80496795033:web:3ac35c631d76301f77c708",
+          measurementId: "G-SFPQ0PJRPG"
+        };
 
-            auth.signInAnonymously().then(user => {
-                currentUser = name;
-                document.getElementById('login').style.display = 'none';
-                document.getElementById('lobby').style.display = 'block';
-                if (isTeacher) document.getElementById('teacherControls').style.display = 'block';
 
-                db.child(LOBBY_ROOM).child('users').child(user.user.uid).set({ name: currentUser });
-                db.child(LOBBY_ROOM).child('users').child(user.user.uid).onDisconnect().remove();
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const rtdb = getDatabase(app);
 
-                db.child(LOBBY_ROOM).child('users').on('child_added', (snap) => updateUserList());
-                db.child(LOBBY_ROOM).child('users').on('child_removed', (snap) => updateUserList());
+        // WebRTC configuration
+        const servers = {
+            iceServers: [
+                {
+                    urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+                },
+            ],
+            iceCandidatePoolSize: 10,
+        };
 
-                db.child(LOBBY_ROOM).child('messages').on('child_added', (snap) => {
-                    const msg = snap.val();
-                    addChatMessage(`${msg.from}: ${msg.text}`);
-                });
-            }).catch(err => alert('Authentication failed: ' + err.message));
-        }
+        const App = () => {
+            const [page, setPage] = useState('login'); // login, lobby, call
+            const [user, setUser] = useState(null);
+            const [callData, setCallData] = useState(null);
 
-        function updateUserList() {
-            db.child(LOBBY_ROOM).child('users').once('value', (snap) => {
-                const users = snap.val() || {};
-                const list = document.getElementById('userList');
-                list.innerHTML = '';
-                Object.entries(users).forEach(([uid, data]) => {
-                    if (data.name !== currentUser) {
-                        const li = document.createElement('li');
-                        const nameSpan = document.createElement('span');
-                        nameSpan.textContent = data.name;
-                        if (isTeacher) {
-                            nameSpan.onclick = () => initiateCall(data.name, uid);
-                            const kickBtn = document.createElement('button');
-                            kickBtn.className = 'kick-btn btn';
-                            kickBtn.textContent = 'Kick';
-                            kickBtn.setAttribute('data-tooltip', `Remove ${data.name} from lobby`);
-                            kickBtn.onclick = () => kickUser(uid);
-                            li.appendChild(nameSpan);
-                            li.appendChild(kickBtn);
-                        } else {
-                            li.appendChild(nameSpan);
-                        }
-                        list.appendChild(li);
+            useEffect(() => {
+                const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+                    if (currentUser && user?.username) {
+                        const enrichedUser = { ...user, uid: currentUser.uid };
+                        setUser(enrichedUser);
+                        setupPresence(enrichedUser);
+                    } else {
+                        setUser(null);
                     }
                 });
-            });
-        }
+                return () => unsubscribe();
+            }, [user?.username]);
+            
+            const setupPresence = (currentUser) => {
+                if(!currentUser) return;
+                const userStatusDatabaseRef = ref(rtdb, '/status/' + currentUser.uid);
+                const isOfflineForDatabase = {
+                    state: 'offline',
+                    last_changed: serverTimestamp(),
+                    username: currentUser.username,
+                    isAdmin: currentUser.isAdmin,
+                };
+                const isOnlineForDatabase = {
+                    state: 'online',
+                    last_changed: serverTimestamp(),
+                    username: currentUser.username,
+                    isAdmin: currentUser.isAdmin,
+                };
+                onValue(ref(rtdb, '.info/connected'), (snapshot) => {
+                    if (snapshot.val() === false) {
+                        return;
+                    }
+                    onDisconnect(userStatusDatabaseRef).set(isOfflineForDatabase).then(() => {
+                        set(userStatusDatabaseRef, isOnlineForDatabase);
+                    });
+                });
+            };
 
-        function kickUser(uid) {
-            if (!isTeacher) return;
-            db.child(LOBBY_ROOM).child('users').child(uid).remove().then(() => {
-                alert('User removed from lobby');
-            });
-        }
+            const handleLogin = async (username, isAdmin = false) => {
+                await signInAnonymously(auth);
+                const initialUser = { username, isAdmin };
+                // The onAuthStateChanged listener will enrich this user object with a UID
+                setUser(initialUser);
+                setPage('lobby');
+            };
 
-        function sendChat() {
-            const input = document.getElementById('chatInput');
-            const text = input.value.trim();
-            if (!text) return;
-            db.child(LOBBY_ROOM).child('messages').push({ from: currentUser, text, timestamp: Date.now() });
-            input.value = '';
-        }
+            const handleStartCall = (callee) => {
+                setCallData({ caller: user, callee });
+                setPage('call');
+            };
+            
+            const handleJoinCall = (callInfo) => {
+                setCallData(callInfo);
+                setPage('call');
+            };
 
-        function addChatMessage(msg) {
-            const chat = document.getElementById('chat');
-            chat.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${msg}</div>`;
-            chat.scrollTop = chat.scrollHeight;
-        }
+            const handleLeaveCall = () => {
+                setCallData(null);
+                setPage('lobby');
+            };
 
-        function initiateCall(parentName, parentUid) {
-            remoteUser = parentName;
-            remoteUid = parentUid;
-            currentCallRoom = `${auth.currentUser.uid}_${parentUid}`;
-            document.getElementById('lobby').style.display = 'none';
-            document.getElementById('call').style.display = 'block';
-            document.getElementById('yourVideoLabel').textContent = currentUser;
-            document.getElementById('remoteVideoLabel').textContent = parentName;
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-900">
+                    {page === 'login' && <Login onLogin={handleLogin} />}
+                    {page === 'lobby' && user && <Lobby user={user} onStartCall={handleStartCall} onJoinCall={handleJoinCall} />}
+                    {page === 'call' && user && callData && <VideoCallRoom user={user} callData={callData} onLeaveCall={handleLeaveCall} />}
+                </div>
+            );
+        };
 
-            pc = new RTCPeerConnection({ iceServers });
-            pc.onicecandidate = (event) => event.candidate && sendSignalingMessage('ice', event.candidate);
-            pc.ontrack = (event) => document.getElementById('remoteVideo').srcObject = event.streams[0];
+        const Login = ({ onLogin }) => {
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [showPassword, setShowPassword] = useState(false);
+            const [error, setError] = useState('');
 
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-                localStream = stream;
-                document.getElementById('yourVideo').srcObject = stream;
-                stream.getTracks().forEach(track => pc.addTrack(track, stream));
-                updateControlButtons();
-            }).catch(err => alert('Camera/mic access denied: ' + err.message));
-
-            pc.createOffer().then(offer => pc.setLocalDescription(offer)).then(() => {
-                sendSignalingMessage('sdp', pc.localDescription);
-            });
-
-            db.child('calls').child(currentCallRoom).on('child_added', (snap) => {
-                const msg = snap.val();
-                handleSignalingMessage(msg);
-                snap.ref.remove();
-            });
-
-            db.child('calls').child(currentCallRoom).child('callInitiated').set({ from: auth.currentUser.uid, to: parentUid, fromName: currentUser, toName: parentName });
-
-            db.child('calls').child(currentCallRoom).child('messages').on('child_added', (snap) => {
-                const msg = snap.val();
-                addCallChatMessage(`${msg.from}: ${msg.text}`);
-            });
-        }
-
-        if (!isTeacher) {
-            db.child('calls').on('child_added', (snap) => {
-                const data = snap.val();
-                if (data.callInitiated && data.callInitiated.to === auth.currentUser.uid && !currentCallRoom) {
-                    currentCallRoom = snap.key;
-                    remoteUser = data.callInitiated.fromName;
-                    remoteUid = data.callInitiated.from;
-                    alert(`Incoming call from ${remoteUser}`);
-                    joinCall();
+            useEffect(() => {
+                if (username.toLowerCase() === 'admin') {
+                    setShowPassword(true);
+                } else {
+                    setShowPassword(false);
+                    setPassword('');
                 }
-            });
-        }
+            }, [username]);
 
-        function joinCall() {
-            document.getElementById('lobby').style.display = 'none';
-            document.getElementById('call').style.display = 'block';
-            document.getElementById('yourVideoLabel').textContent = currentUser;
-            document.getElementById('remoteVideoLabel').textContent = remoteUser;
-
-            pc = new RTCPeerConnection({ iceServers });
-            pc.onicecandidate = (event) => event.candidate && sendSignalingMessage('ice', event.candidate);
-            pc.ontrack = (event) => document.getElementById('remoteVideo').srcObject = event.streams[0];
-
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-                localStream = stream;
-                document.getElementById('yourVideo').srcObject = stream;
-                stream.getTracks().forEach(track => pc.addTrack(track, stream));
-                updateControlButtons();
-            }).catch(err => alert('Camera/mic access denied: ' + err.message));
-
-            db.child('calls').child(currentCallRoom).on('child_added', (snap) => {
-                const msg = snap.val();
-                handleSignalingMessage(msg);
-                snap.ref.remove();
-            });
-
-            db.child('calls').child(currentCallRoom).child('messages').on('child_added', (snap) => {
-                const msg = snap.val();
-                addCallChatMessage(`${msg.from}: ${msg.text}`);
-            });
-        }
-
-        function sendSignalingMessage(type, data) {
-            if (currentCallRoom) {
-                db.child('calls').child(currentCallRoom).push({ type, data: JSON.stringify(data) });
-            }
-        }
-
-        function handleSignalingMessage(msg) {
-            const data = JSON.parse(msg.data);
-            if (msg.type === 'ice') {
-                pc.addIceCandidate(new RTCIceCandidate(data)).catch(err => console.error('ICE error:', err));
-            } else if (msg.type === 'sdp') {
-                if (data.type === 'offer') {
-                    pc.setRemoteDescription(new RTCSessionDescription(data)).then(() => pc.createAnswer()).then(answer => {
-                        pc.setLocalDescription(answer);
-                        sendSignalingMessage('sdp', answer);
-                    }).catch(err => console.error('SDP error:', err));
-                } else if (data.type === 'answer') {
-                    pc.setRemoteDescription(new RTCSessionDescription(data)).catch(err => console.error('SDP answer error:', err));
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                setError('');
+                if (!username.trim()) {
+                    setError('Username cannot be empty.');
+                    return;
                 }
-            }
-        }
+                if (username.toLowerCase() === 'admin') {
+                    if (password === 'max') {
+                        onLogin(username, true);
+                    } else {
+                        setError('Incorrect admin password.');
+                    }
+                } else {
+                    onLogin(username);
+                }
+            };
 
-        function sendCallChat() {
-            const input = document.getElementById('callChatInput');
-            const text = input.value.trim();
-            if (!text || !currentCallRoom) return;
-            db.child('calls').child(currentCallRoom).child('messages').push({ from: currentUser, text, timestamp: Date.now() });
-            input.value = '';
-        }
+            return (
+                <div className="w-full max-w-sm p-8 space-y-6 bg-gray-800 rounded-xl shadow-lg">
+                    <h1 className="text-3xl font-bold text-center text-white">Join Conference</h1>
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label htmlFor="username" className="text-sm font-medium text-gray-300">Username</label>
+                            <input
+                                id="username"
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full px-4 py-2 mt-2 text-white bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Enter your username"
+                            />
+                        </div>
+                        {showPassword && (
+                            <div className="transition-all duration-300">
+                                <label htmlFor="password"  className="text-sm font-medium text-gray-300">Admin Password</label>
+                                <input
+                                    id="password"
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full px-4 py-2 mt-2 text-white bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Enter password"
+                                />
+                            </div>
+                        )}
+                        {error && <p className="text-sm text-red-400">{error}</p>}
+                        <button type="submit" className="w-full px-4 py-2 font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors">
+                            Join Lobby
+                        </button>
+                    </form>
+                </div>
+            );
+        };
 
-        function addCallChatMessage(msg) {
-            const chat = document.getElementById('callChat');
-            chat.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${msg}</div>`;
-            chat.scrollTop = chat.scrollHeight;
-        }
+        const Lobby = ({ user, onStartCall, onJoinCall }) => {
+            const [users, setUsers] = useState([]);
+            const [messages, setMessages] = useState([]);
+            const [newMessage, setNewMessage] = useState('');
+            const chatEndRef = useRef(null);
+            
+            // Listen for incoming calls
+            useEffect(() => {
+                if (!user || user.isAdmin) return;
 
-        let screenSharing = false;
-        function toggleScreenShare() {
-            if (!localStream) return;
-            if (screenSharing) {
-                navigator.mediaDevices.getUserMedia({ video: videoEnabled, audio: micEnabled }).then(stream => replaceStream(stream));
-            } else {
-                navigator.mediaDevices.getDisplayMedia({ video: true }).then(stream => replaceStream(stream));
-            }
-            screenSharing = !screenSharing;
-            document.getElementById('screenBtn').textContent = screenSharing ? 'Stop Screen Share' : 'Share Screen';
-        }
+                const q = collection(db, 'calls');
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added') {
+                            const callData = change.doc.data();
+                            if (callData.callee.uid === user.uid && !callData.answer) {
+                                const confirmed = window.confirm(`Incoming call from ${callData.caller.username}. Do you want to accept?`);
+                                if (confirmed) {
+                                    onJoinCall({ ...callData, callId: change.doc.id });
+                                }
+                            }
+                        }
+                    });
+                });
+                return () => unsubscribe();
+            }, [user, onJoinCall]);
 
-        function toggleMic() {
-            if (!localStream) return;
-            micEnabled = !micEnabled;
-            localStream.getAudioTracks().forEach(track => track.enabled = micEnabled);
-            document.getElementById('micBtn').textContent = micEnabled ? 'Mute Mic' : 'Unmute Mic';
-            document.getElementById('micBtn').disabled = screenSharing;
-        }
 
-        function toggleVideo() {
-            if (!localStream) return;
-            videoEnabled = !videoEnabled;
-            localStream.getVideoTracks().forEach(track => track.enabled = videoEnabled);
-            document.getElementById('videoBtn').textContent = videoEnabled ? 'Turn Off Video' : 'Turn On Video';
-            document.getElementById('videoBtn').disabled = screenSharing;
-        }
+            // User presence listener
+            useEffect(() => {
+                const statusRef = ref(rtdb, 'status');
+                const unsubscribe = onValue(statusRef, (snapshot) => {
+                    const statuses = snapshot.val() || {};
+                    const onlineUsers = Object.entries(statuses)
+                        .filter(([, status]) => status.state === 'online')
+                        .map(([uid, status]) => ({ uid, ...status }));
+                    setUsers(onlineUsers);
+                });
+                return () => unsubscribe();
+            }, []);
 
-        function replaceStream(newStream) {
-            if (localStream) localStream.getTracks().forEach(track => track.stop());
-            localStream = newStream;
-            document.getElementById('yourVideo').srcObject = newStream;
-            const senders = pc.getSenders();
-            newStream.getTracks().forEach(track => {
-                const sender = senders.find(s => s.track.kind === track.kind);
-                if (sender) sender.replaceTrack(track);
-                else pc.addTrack(track, newStream);
-            });
-            micEnabled = newStream.getAudioTracks().length > 0 && micEnabled;
-            videoEnabled = newStream.getVideoTracks().length > 0 && videoEnabled;
-            updateControlButtons();
-        }
+            // Chat listener
+            useEffect(() => {
+                const chatRef = ref(rtdb, 'chat');
+                const unsubscribe = onValue(chatRef, (snapshot) => {
+                    const msgs = snapshot.val() || {};
+                    const formattedMessages = Object.values(msgs).sort((a, b) => a.timestamp - b.timestamp);
+                    setMessages(formattedMessages);
+                });
+                return () => unsubscribe();
+            }, []);
+            
+            useEffect(() => {
+                chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [messages]);
 
-        function updateControlButtons() {
-            document.getElementById('micBtn').textContent = micEnabled ? 'Mute Mic' : 'Unmute Mic';
-            document.getElementById('videoBtn').textContent = videoEnabled ? 'Turn Off Video' : 'Turn On Video';
-            document.getElementById('micBtn').disabled = screenSharing;
-            document.getElementById('videoBtn').disabled = screenSharing;
-        }
+            const handleSendMessage = (e) => {
+                e.preventDefault();
+                if (!newMessage.trim()) return;
+                const chatRef = ref(rtdb, `chat/${Date.now()}`);
+                set(chatRef, {
+                    username: user.username,
+                    message: newMessage,
+                    timestamp: serverTimestamp(),
+                    uid: user.uid
+                });
+                setNewMessage('');
+            };
 
-        function endCall() {
-            if (pc) pc.close();
-            if (localStream) localStream.getTracks().forEach(track => track.stop());
-            document.getElementById('call').style.display = 'none';
-            document.getElementById('lobby').style.display = 'block';
-            if (currentCallRoom) {
-                db.child('calls').child(currentCallRoom).remove();
-            }
-            currentCallRoom = null;
-            remoteUser = null;
-            remoteUid = null;
-            screenSharing = false;
-            micEnabled = true;
-            videoEnabled = true;
-            updateUserList();
-        }
+            return (
+                <div className="w-full max-w-6xl h-[80vh] flex space-x-4">
+                    {/* User List */}
+                    <div className="w-1/4 bg-gray-800 rounded-xl p-4 flex flex-col">
+                        <h2 className="text-xl font-bold mb-4 border-b border-gray-700 pb-2">Active Users ({users.length})</h2>
+                        <ul className="space-y-2 overflow-y-auto">
+                            {users.map((u) => (
+                                <li key={u.uid} className="flex items-center justify-between p-2 bg-gray-700 rounded-md">
+                                    <span className={`font-medium ${u.uid === user.uid ? 'text-blue-400' : ''}`}>
+                                        {u.username} {u.uid === user.uid ? '(You)' : ''}
+                                    </span>
+                                    {user.isAdmin && u.uid !== user.uid && (
+                                        <button onClick={() => onStartCall(u)} className="p-1.5 bg-green-500 rounded-full hover:bg-green-600">
+                                            <lucide-react.Phone size={16} />
+                                        </button>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    {/* Chat Area */}
+                    <div className="w-3/4 bg-gray-800 rounded-xl flex flex-col p-4">
+                        <h2 className="text-xl font-bold mb-4 border-b border-gray-700 pb-2">Lobby Chat</h2>
+                        <div className="flex-1 overflow-y-auto mb-4 pr-2 space-y-4">
+                            {messages.map((msg, index) => (
+                                <div key={index} className={`flex ${msg.uid === user.uid ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`p-3 rounded-lg max-w-md ${msg.uid === user.uid ? 'bg-blue-600' : 'bg-gray-700'}`}>
+                                        <p className="text-xs text-gray-300 font-semibold">{msg.username}</p>
+                                        <p className="text-white">{msg.message}</p>
+                                    </div>
+                                </div>
+                            ))}
+                            <div ref={chatEndRef} />
+                        </div>
+                        <form onSubmit={handleSendMessage} className="flex space-x-2">
+                            <input
+                                type="text"
+                                value={newMessage}
+                                onChange={(e) => setNewMessage(e.target.value)}
+                                className="flex-1 px-4 py-2 text-white bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Type a message..."
+                            />
+                            <button type="submit" className="px-4 py-2 font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                Send
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
 
-        function endAllCalls() {
-            if (!isTeacher) return;
-            db.child('calls').remove().then(() => {
-                alert('All active calls have been terminated');
-            });
-            endCall();
-        }
+        const VideoCallRoom = ({ user, callData, onLeaveCall }) => {
+            const localVideoRef = useRef();
+            const remoteVideoRef = useRef();
+            const pc = useRef(new RTCPeerConnection(servers));
+            
+            const [localStream, setLocalStream] = useState(null);
+            const [remoteStream, setRemoteStream] = useState(null);
+            const [callId, setCallId] = useState(null);
+            
+            const [isMuted, setIsMuted] = useState(false);
+            const [isVideoOff, setIsVideoOff] = useState(false);
 
-        function leaveLobby() {
-            db.child(LOBBY_ROOM).child('users').child(auth.currentUser.uid).remove();
-            if (currentCallRoom) {
-                db.child('calls').child(currentCallRoom).remove();
-            }
-            auth.signOut().then(() => location.reload());
-        }
+            const isCaller = user.uid === callData.caller.uid;
 
-        document.getElementById('chatInput').addEventListener('keypress', (e) => e.key === 'Enter' && sendChat());
-        document.getElementById('callChatInput').addEventListener('keypress', (e) => e.key === 'Enter' && sendCallChat());
+            // Setup streams and peer connection
+            const setupStreamsAndPC = useCallback(async () => {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                setLocalStream(stream);
+                
+                stream.getTracks().forEach((track) => {
+                    pc.current.addTrack(track, stream);
+                });
+    
+                pc.current.ontrack = (event) => {
+                    setRemoteStream(event.streams[0]);
+                };
+
+                if (localVideoRef.current) {
+                  localVideoRef.current.srcObject = stream;
+                }
+
+            }, []);
+            
+            // Hangup logic
+            const hangUp = useCallback(async () => {
+                localStream?.getTracks().forEach((track) => track.stop());
+                pc.current.close();
+                if(callId) {
+                    const callDocRef = doc(db, 'calls', callId);
+                    const callDoc = await getDoc(callDocRef);
+                    if (callDoc.exists()) {
+                       await deleteDoc(callDocRef);
+                    }
+                }
+                onLeaveCall();
+            }, [localStream, callId, onLeaveCall]);
+
+            // Call logic (creating and answering)
+            useEffect(() => {
+                const startCall = async () => {
+                    await setupStreamsAndPC();
+                    const callDocRef = doc(collection(db, 'calls'));
+                    setCallId(callDocRef.id);
+                    
+                    const callerCandidatesCollection = collection(callDocRef, 'callerCandidates');
+                    const calleeCandidatesCollection = collection(callDocRef, 'calleeCandidates');
+                    
+                    pc.current.onicecandidate = (event) => {
+                        event.candidate && addDoc(callerCandidatesCollection, event.candidate.toJSON());
+                    };
+                    
+                    const offerDescription = await pc.current.createOffer();
+                    await pc.current.setLocalDescription(offerDescription);
+                    
+                    const offer = {
+                        sdp: offerDescription.sdp,
+                        type: offerDescription.type,
+                    };
+                    
+                    await setDoc(callDocRef, { offer, caller: callData.caller, callee: callData.callee });
+                    
+                    // Listen for answer
+                    const unsubscribe = onSnapshot(callDocRef, (snapshot) => {
+                        const data = snapshot.data();
+                        if (!pc.current.currentRemoteDescription && data?.answer) {
+                            const answerDescription = new RTCSessionDescription(data.answer);
+                            pc.current.setRemoteDescription(answerDescription);
+                        }
+                    });
+
+                    // Listen for ICE candidates from callee
+                    const unsubscribeCandidates = onSnapshot(calleeCandidatesCollection, (snapshot) => {
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === 'added') {
+                                const candidate = new RTCIceCandidate(change.doc.data());
+                                pc.current.addIceCandidate(candidate);
+                            }
+                        });
+                    });
+                    
+                    return () => {
+                        unsubscribe();
+                        unsubscribeCandidates();
+                    };
+                };
+
+                const answerCall = async () => {
+                    await setupStreamsAndPC();
+                    const callDocRef = doc(db, 'calls', callData.callId);
+                    setCallId(callData.callId);
+
+                    const callerCandidatesCollection = collection(callDocRef, 'callerCandidates');
+                    const calleeCandidatesCollection = collection(callDocRef, 'calleeCandidates');
+
+                    pc.current.onicecandidate = (event) => {
+                        event.candidate && addDoc(calleeCandidatesCollection, event.candidate.toJSON());
+                    };
+
+                    const callDoc = await getDoc(callDocRef);
+                    const callInfo = callDoc.data();
+                    
+                    await pc.current.setRemoteDescription(new RTCSessionDescription(callInfo.offer));
+
+                    const answerDescription = await pc.current.createAnswer();
+                    await pc.current.setLocalDescription(answerDescription);
+
+                    const answer = {
+                        type: answerDescription.type,
+                        sdp: answerDescription.sdp,
+                    };
+
+                    await updateDoc(callDocRef, { answer });
+                    
+                    // Listen for ICE candidates from caller
+                    const unsubscribe = onSnapshot(callerCandidatesCollection, (snapshot) => {
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === 'added') {
+                                const candidate = new RTCIceCandidate(change.doc.data());
+                                pc.current.addIceCandidate(candidate);
+                            }
+                        });
+                    });
+
+                    return () => unsubscribe();
+                };
+
+                if (isCaller) {
+                    startCall();
+                } else {
+                    answerCall();
+                }
+
+                // Listener to detect if the other user hangs up
+                if(callId || callData.callId){
+                    const currentCallId = callId || callData.callId;
+                    const callDocRef = doc(db, 'calls', currentCallId);
+                    const unsubscribeHangup = onSnapshot(callDocRef, (doc) => {
+                        if (!doc.exists()) {
+                            hangUp();
+                        }
+                    });
+                    return () => unsubscribeHangup();
+                }
+
+            }, [isCaller, setupStreamsAndPC, hangUp, callData]);
+            
+            useEffect(() => {
+                if (localStream) {
+                    localVideoRef.current.srcObject = localStream;
+                }
+            }, [localStream]);
+            
+            useEffect(() => {
+                if (remoteStream) {
+                    remoteVideoRef.current.srcObject = remoteStream;
+                }
+            }, [remoteStream]);
+
+            const toggleMute = () => {
+                localStream.getAudioTracks().forEach(track => {
+                    track.enabled = !track.enabled;
+                    setIsMuted(!track.enabled);
+                });
+            };
+
+            const toggleVideo = () => {
+                localStream.getVideoTracks().forEach(track => {
+                    track.enabled = !track.enabled;
+                    setIsVideoOff(!track.enabled);
+                });
+            };
+
+            return (
+                <div className="w-full h-screen flex flex-col items-center justify-center bg-gray-900 p-4 relative">
+                    <div className="relative w-full h-full max-w-6xl rounded-xl overflow-hidden shadow-2xl">
+                        {/* Remote Video */}
+                        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover bg-gray-800" />
+                        
+                        {/* Local Video */}
+                        <div className="absolute top-4 right-4 w-1/4 max-w-[250px] rounded-lg overflow-hidden border-2 border-gray-700 shadow-lg">
+                           <video ref={localVideoRef} id="localVideo" autoPlay playsInline muted className="w-full h-full object-cover bg-gray-700" />
+                        </div>
+
+                        {!remoteStream && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
+                                <div className="text-center">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto"></div>
+                                    <p className="mt-4 text-xl">Connecting to {isCaller ? callData.callee.username : callData.caller.username}...</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Controls */}
+                    <div className="absolute bottom-6 flex items-center space-x-4 bg-gray-800 bg-opacity-70 p-4 rounded-full">
+                        <button onClick={toggleMute} className={`p-3 rounded-full transition-colors ${isMuted ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-600 hover:bg-gray-500'}`}>
+                            {isMuted ? <lucide-react.MicOff size={24} /> : <lucide-react.Mic size={24} />}
+                        </button>
+                        <button onClick={toggleVideo} className={`p-3 rounded-full transition-colors ${isVideoOff ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-600 hover:bg-gray-500'}`}>
+                           {isVideoOff ? <lucide-react.VideoOff size={24} /> : <lucide-react.Video size={24} />}
+                        </button>
+                        <button onClick={hangUp} className="p-3 bg-red-600 hover:bg-red-700 rounded-full">
+                            <lucide-react.PhoneOff size={24} />
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
