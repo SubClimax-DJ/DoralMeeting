@@ -10,115 +10,114 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+        .conference-bg {
+            background-color: #1a1a1a;
+        }
         .chat-bubble {
             max-width: 75%;
         }
         .chat-bubble-me {
-            background-color: #458588; /* Gruvbox Blue */
-            color: #282828;
+            background-color: #3b82f6; /* Tailwind blue-500 */
         }
         .chat-bubble-other {
-            background-color: #7c6f64; /* Gruvbox Gray */
-            color: #ebdbb2;
+            background-color: #4b5563; /* Tailwind gray-600 */
         }
         /* Custom scrollbar for chat */
         .chat-messages::-webkit-scrollbar {
             width: 8px;
         }
         .chat-messages::-webkit-scrollbar-track {
-            background: #282828;
+            background: #2d3748; /* Tailwind gray-800 */
         }
         .chat-messages::-webkit-scrollbar-thumb {
-            background: #665c54;
+            background: #4a5568; /* Tailwind gray-700 */
             border-radius: 4px;
         }
         #screen-share-placeholder {
-            background-color: #1d2021;
-            background-image: repeating-linear-gradient(45deg, #3c3836 25%, transparent 25%, transparent 75%, #3c3836 75%, #3c3836), repeating-linear-gradient(45deg, #3c3836 25%, #1d2021 25%, #1d2021 75%, #3c3836 75%, #3c3836);
+            background-image: repeating-linear-gradient(45deg, #2d3748 25%, transparent 25%, transparent 75%, #2d3748 75%, #2d3748), repeating-linear-gradient(45deg, #2d3748 25%, #1f2937 25%, #1f2937 75%, #2d3748 75%, #2d3748);
             background-position: 0 0, 10px 10px;
             background-size: 20px 20px;
-            border: 2px dashed #665c54;
         }
     </style>
 </head>
-<body class="bg-[#282828] text-[#ebdbb2] antialiased">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 antialiased">
 
     <!-- App Container -->
     <div id="app" class="h-screen w-screen flex items-center justify-center transition-opacity duration-500">
 
         <!-- Login View -->
-        <div id="login-view" class="w-full max-w-md p-8 bg-[#3c3836] rounded-2xl shadow-xl border border-[#504945]">
-            <h1 class="text-3xl font-bold text-center mb-2 text-[#ebdbb2]">Office Hours</h1>
-            <p class="text-center text-[#a89984] mb-8">Please enter your name to join the lobby.</p>
+        <div id="login-view" class="w-full max-w-md p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
+            <h1 class="text-3xl font-bold text-center mb-2 text-gray-900 dark:text-white">Office Hours</h1>
+            <p class="text-center text-gray-600 dark:text-gray-400 mb-8">Please enter your name to join the lobby.</p>
             <form id="login-form" class="space-y-6">
                 <div>
-                    <label for="name" class="text-sm font-medium text-[#d5c4a1]">Your Name</label>
-                    <input type="text" id="name" name="name" class="mt-1 block w-full px-4 py-3 bg-[#504945] border border-[#665c54] rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#83a598] focus:border-transparent text-[#ebdbb2] placeholder:text-[#a89984]" placeholder="e.g., Jane Doe" required>
+                    <label for="name" class="text-sm font-medium text-gray-700 dark:text-gray-300">Your Name</label>
+                    <input type="text" id="name" name="name" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="e.g., Jane Doe" required>
                 </div>
-                <button type="submit" class="w-full bg-[#458588] hover:bg-[#83a598] text-[#282828] font-bold py-3 px-4 rounded-lg shadow-lg transform hover:scale-105 transition-transform duration-150 ease-in-out">
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform hover:scale-105 transition-transform duration-150 ease-in-out">
                     Join Waiting Room
                 </button>
             </form>
-             <p class="text-xs text-center text-[#a89984] mt-4">Teacher: Enter your name and add "(Teacher)"</p>
+             <p class="text-xs text-center text-gray-500 dark:text-gray-400 mt-4">Teacher: Enter your name and add "(Teacher)"</p>
         </div>
 
         <!-- Lobby View -->
-        <div id="lobby-view" class="hidden h-screen w-screen flex flex-col p-4 md:p-6 lg:p-8 bg-[#282828]">
+        <div id="lobby-view" class="hidden h-screen w-screen flex flex-col p-4 md:p-6 lg:p-8 bg-gray-100 dark:bg-gray-900">
             <header class="mb-6 flex justify-between items-center">
                 <div>
-                    <h1 class="text-3xl font-bold text-[#ebdbb2]">Lobby</h1>
-                    <p class="text-[#a89984]">Please wait for the teacher to start the conference.</p>
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Lobby</h1>
+                    <p class="text-gray-600 dark:text-gray-400">Please wait for the teacher to start the conference.</p>
                 </div>
-                 <button id="leave-lobby-btn" class="bg-[#cc241d] hover:bg-[#fb4934] text-[#ebdbb2] font-bold py-2 px-4 rounded-lg shadow-md transition-transform duration-150 hover:scale-105">
+                 <button id="leave-lobby-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform duration-150 hover:scale-105">
                     Leave
                 </button>
             </header>
             <div class="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6 h-full overflow-hidden">
                 <!-- Parents List -->
-                <div class="lg:col-span-1 bg-[#3c3836] border border-[#504945] rounded-2xl shadow-lg p-6 flex flex-col h-full">
-                    <h2 class="text-xl font-semibold mb-4 border-b border-[#504945] pb-3 text-[#ebdbb2]">Waiting Parents</h2>
+                <div class="lg:col-span-1 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col h-full">
+                    <h2 class="text-xl font-semibold mb-4 border-b border-gray-200 dark:border-gray-700 pb-3">Waiting Parents</h2>
                     <ul id="parents-list" class="space-y-3 overflow-y-auto flex-grow pr-2">
                         <!-- Parent items will be injected here -->
                     </ul>
                 </div>
                 <!-- Lobby Chat -->
-                <div class="lg:col-span-2 bg-[#3c3836] border border-[#504945] rounded-2xl shadow-lg p-6 flex flex-col h-full">
-                    <h2 class="text-xl font-semibold mb-4 border-b border-[#504945] pb-3 text-[#ebdbb2]">Lobby Chat</h2>
-                    <div id="lobby-chat-messages" class="flex-grow space-y-4 overflow-y-auto p-4 bg-[#282828] rounded-lg mb-4 chat-messages">
+                <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col h-full">
+                    <h2 class="text-xl font-semibold mb-4 border-b border-gray-200 dark:border-gray-700 pb-3">Lobby Chat</h2>
+                    <div id="lobby-chat-messages" class="flex-grow space-y-4 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg mb-4 chat-messages">
                         <!-- Chat messages will be injected here -->
                     </div>
                     <form id="lobby-chat-form" class="flex items-center gap-4">
-                        <input type="text" id="lobby-chat-input" class="flex-grow px-4 py-2 bg-[#504945] border border-[#665c54] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#83a598] text-[#ebdbb2] placeholder:text-[#a89984]" placeholder="Type a message..." required>
-                        <button type="submit" class="bg-[#458588] hover:bg-[#83a598] text-[#282828] font-bold py-2 px-4 rounded-lg shadow-md transition-transform duration-150 hover:scale-105">Send</button>
+                        <input type="text" id="lobby-chat-input" class="flex-grow px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type a message..." required>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform duration-150 hover:scale-105">Send</button>
                     </form>
                 </div>
             </div>
         </div>
 
         <!-- Conference View -->
-        <div id="conference-view" class="hidden h-screen w-screen flex flex-col bg-[#1d2021]">
-            <header class="p-4 flex justify-between items-center bg-[#3c3836] shadow-md border-b border-[#504945]">
-                <h1 class="text-2xl font-bold text-[#ebdbb2]">1-on-1 Conference</h1>
-                <button id="leave-conference-btn" class="bg-[#cc241d] hover:bg-[#fb4934] text-[#ebdbb2] font-bold py-2 px-4 rounded-lg shadow-md transition-transform duration-150 hover:scale-105">
+        <div id="conference-view" class="hidden h-screen w-screen flex flex-col bg-gray-200 dark:conference-bg">
+            <header class="p-4 flex justify-between items-center bg-white dark:bg-gray-800 shadow-md">
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">1-on-1 Conference</h1>
+                <button id="leave-conference-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform duration-150 hover:scale-105">
                     End Conference
                 </button>
             </header>
             <main class="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-hidden">
                 <!-- Screen Share Area -->
-                <div class="lg:col-span-2 bg-[#3c3836] border border-[#504945] rounded-xl shadow-lg flex flex-col items-center justify-center p-4">
-                    <div id="screen-share-placeholder" class="w-full h-full rounded-lg flex items-center justify-center">
-                        <p class="text-[#a89984] text-lg">Screen Sharing Area</p>
+                <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center p-4">
+                    <div id="screen-share-placeholder" class="w-full h-full bg-gray-100 dark:bg-gray-900/50 rounded-lg flex items-center justify-center">
+                        <p class="text-gray-500 dark:text-gray-400 text-lg">Screen Sharing Area</p>
                     </div>
                 </div>
                 <!-- Conference Chat -->
-                <div class="lg:col-span-1 bg-[#3c3836] border border-[#504945] rounded-xl shadow-lg flex flex-col h-full">
-                     <h2 class="text-lg font-semibold p-4 border-b border-[#504945] text-[#ebdbb2]">Private Chat</h2>
-                    <div id="conference-chat-messages" class="flex-grow space-y-4 overflow-y-auto p-4 bg-[#282828] chat-messages">
+                <div class="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg flex flex-col h-full">
+                     <h2 class="text-lg font-semibold p-4 border-b border-gray-200 dark:border-gray-700">Private Chat</h2>
+                    <div id="conference-chat-messages" class="flex-grow space-y-4 overflow-y-auto p-4 bg-gray-100 dark:bg-gray-900/50 chat-messages">
                         <!-- Private chat messages will be injected here -->
                     </div>
-                    <form id="conference-chat-form" class="p-4 border-t border-[#504945] flex items-center gap-4">
-                        <input type="text" id="conference-chat-input" class="flex-grow px-4 py-2 bg-[#504945] border border-[#665c54] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#83a598] text-[#ebdbb2] placeholder:text-[#a89984]" placeholder="Type a message..." required>
-                        <button type="submit" class="bg-[#458588] hover:bg-[#83a598] text-[#282828] font-bold py-2 px-4 rounded-lg shadow-md transition-transform duration-150 hover:scale-105">Send</button>
+                    <form id="conference-chat-form" class="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center gap-4">
+                        <input type="text" id="conference-chat-input" class="flex-grow px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type a message..." required>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform duration-150 hover:scale-105">Send</button>
                     </form>
                 </div>
             </main>
@@ -372,10 +371,10 @@
             list.innerHTML = '';
             users.filter(u => !u.isTeacher && u.status === 'lobby').forEach(user => {
                 const li = document.createElement('li');
-                li.className = 'flex items-center justify-between p-3 bg-[#504945] rounded-lg';
+                li.className = 'flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg';
                 li.innerHTML = `
                     <span class="font-medium">${user.name}</span>
-                    ${state.isTeacher ? `<button data-uid="${user.uid}" class="start-conf-btn bg-[#98971a] hover:bg-[#b8bb26] text-[#282828] text-sm font-bold py-1 px-3 rounded-md shadow transition-transform duration-150 hover:scale-105">Start Meeting</button>` : ''}
+                    ${state.isTeacher ? `<button data-uid="${user.uid}" class="start-conf-btn bg-green-500 hover:bg-green-600 text-white text-sm font-bold py-1 px-3 rounded-md shadow transition-transform duration-150 hover:scale-105">Start Meeting</button>` : ''}
                 `;
                 list.appendChild(li);
             });
@@ -429,4 +428,3 @@
     </script>
 </body>
 </html>
-
