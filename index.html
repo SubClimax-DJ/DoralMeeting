@@ -45,8 +45,9 @@
         let peer = null;
         let currentCall = null;
         let activeRoomId = null;
+        let incomingCallRoomId = null;
 
-        const VERSION = "v1.1";
+        const VERSION = "v1.3";
 
         // This ensures the global variables are accessible
         var __app_id = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
@@ -73,6 +74,7 @@
         const roomsCountDisplay = document.getElementById('rooms-count');
         const adminSection = document.getElementById('admin-section');
         const messageBox = document.getElementById('message-box');
+        const modalOverlay = document.getElementById('modal-overlay');
 
         // --- Utility Functions ---
         const showView = (view) => {
@@ -132,11 +134,24 @@
             if (peer) peer.destroy();
             peer = new Peer(peerId, { debug: 3 });
             peer.on('open', (id) => console.log('My Peer ID is:', id));
+            
+            // Handle incoming calls
             peer.on('call', async (call) => {
                 currentCall = call;
                 callStatus.textContent = "Incoming Call...";
-                document.getElementById('modal-overlay').classList.remove('hidden');
+                
+                // Find the room ID from the caller's peer ID
+                const roomQuery = query(collection(db, getRoomsCollectionPath()), where("peerId", "==", call.peer));
+                const roomSnapshot = await getDocs(roomQuery);
+                if (!roomSnapshot.empty) {
+                    incomingCallRoomId = roomSnapshot.docs[0].id;
+                    modalOverlay.classList.remove('hidden');
+                } else {
+                    console.error("No room found for incoming call from peer:", call.peer);
+                    displayMessage("Incoming call from an unknown room. Ignoring.", GRUVBOX_COLORS.yellow);
+                }
             });
+
             peer.on('error', (err) => {
                 console.error("PeerJS error:", err);
                 displayMessage("A PeerJS error occurred: " + err.message, GRUVBOX_COLORS.red);
@@ -156,6 +171,11 @@
                     remoteVideo.play();
                 });
                 call.on('close', () => endCall());
+                call.on('error', (err) => {
+                    console.error("Call error:", err);
+                    displayMessage("Call failed: " + err.message, GRUVBOX_COLORS.red);
+                    endCall();
+                });
                 
                 callStatus.textContent = "Calling " + peerIdToCall + "...";
                 showView('call');
@@ -168,7 +188,6 @@
         const answerCall = async (roomId) => {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-
                 currentCall.answer(localStream);
                 activeRoomId = roomId;
 
@@ -177,9 +196,14 @@
                     remoteVideo.play();
                 });
                 currentCall.on('close', () => endCall());
+                currentCall.on('error', (err) => {
+                    console.error("Call error:", err);
+                    displayMessage("Call failed: " + err.message, GRUVBOX_COLORS.red);
+                    endCall();
+                });
                 
                 showView('call');
-                document.getElementById('modal-overlay').classList.add('hidden');
+                modalOverlay.classList.add('hidden');
             } catch (err) {
                 console.error("Failed to get local stream or answer call:", err);
                 displayMessage("Failed to answer call. " + err.message + ". Please allow camera and mic permissions.", GRUVBOX_COLORS.red);
@@ -187,7 +211,9 @@
         };
 
         const endCall = async () => {
-            if (currentCall) currentCall.close();
+            if (currentCall) {
+                currentCall.close();
+            }
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
                 localStream = null;
@@ -199,7 +225,9 @@
                 activeRoomId = null;
             }
 
-            peer.destroy();
+            if (peer) {
+                peer.destroy();
+            }
             initializePeer(getUserId());
             showView('lobby');
             callStatus.textContent = "";
@@ -219,7 +247,6 @@
                 localStorage.setItem('gruvbox_username', username);
                 showView('loading');
                 try {
-                    // Use anonymous sign-in to prevent custom token errors
                     await signInAnonymously(auth);
                 } catch (error) {
                     console.error("Firebase auth error:", error);
@@ -277,22 +304,6 @@
             }
         };
         
-        const handleAddRooms = async () => {
-            const username = localStorage.getItem('gruvbox_username') || 'Anonymous';
-            const rooms = new Array(5).fill(null).map(() => {
-                const roomRef = doc(collection(db, getRoomsCollectionPath()));
-                return setDoc(roomRef, {
-                    creatorId: getUserId(),
-                    creatorName: username,
-                    createdAt: serverTimestamp(),
-                    status: 'waiting',
-                    peerId: peer.id
-                });
-            });
-            await Promise.all(rooms);
-            displayMessage("Added 5 new rooms.", GRUVBOX_COLORS.green);
-        };
-        
         const handleCopyRoomId = () => {
             const roomId = document.getElementById('created-room-id').textContent;
             if (roomId) {
@@ -306,21 +317,25 @@
         };
 
         const handleModalAccept = () => {
-            const roomId = document.getElementById('join-room-input').value.trim();
-            answerCall(roomId);
+            if (incomingCallRoomId) {
+                answerCall(incomingCallRoomId);
+            } else {
+                displayMessage("No incoming call to accept.", GRUVBOX_COLORS.yellow);
+                modalOverlay.classList.add('hidden');
+            }
         };
 
         const handleModalDecline = () => {
-            document.getElementById('modal-overlay').classList.add('hidden');
+            modalOverlay.classList.add('hidden');
             if (currentCall) currentCall.close();
             currentCall = null;
+            incomingCallRoomId = null;
         };
         
         // --- Document and Window Event Listeners ---
         document.getElementById('login-form').addEventListener('submit', handleLoginForm);
         document.getElementById('create-room-btn').addEventListener('click', handleCreateRoom);
         document.getElementById('join-room-btn').addEventListener('click', handleJoinRoom);
-        document.getElementById('add-rooms-btn').addEventListener('click', handleAddRooms);
         document.getElementById('clear-all-rooms-btn').addEventListener('click', deleteAllRooms);
         document.getElementById('delete-empty-rooms-btn').addEventListener('click', deleteEmptyRooms);
         document.getElementById('admin-toggle-btn').addEventListener('click', () => adminSection.classList.toggle('hidden'));
@@ -577,7 +592,6 @@
                 </div>
                 
                 <button id="create-room-btn" class="gruv-btn mt-4">Create New Room</button>
-                <button id="add-rooms-btn" class="gruv-btn mt-2">Add 5 Rooms</button>
             </div>
 
             <!-- Chat Panel -->
