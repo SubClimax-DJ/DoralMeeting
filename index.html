@@ -3,79 +3,533 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GruvBox Video Conference</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Gruvbox Video Conference</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome CDN for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            /* Gruvbox Dark Hard Palette */
-            --bg0-hard: #1d2021;
-            --bg0-soft: #32302f;
-            --bg1: #3c3836;
-            --bg4: #7c6f64;
-            --fg0: #fbf1c7;
-            --red: #cc241d;
-            --green: #98971a;
-            --yellow: #d79921;
-            --blue: #458588;
-            --purple: #b16286;
-        }
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getFirestore, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, addDoc, serverTimestamp, getDoc, getDocs, where, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
+        // Enable debug logging for Firestore
+        setLogLevel('debug');
+
+        // --- Configuration and Globals ---
+        const firebaseConfig = { 
+            apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ", 
+            authDomain: "video-meeting-e73eb.firebaseapp.com", 
+            projectId: "video-meeting-e73eb", 
+            storageBucket: "video-meeting-e73eb.firebasestorage.app", 
+            messagingSenderId: "80496795033", 
+            appId: "1:80496795033:web:3ac35c631d76301f77c708", 
+            measurementId: "G-SFPQ0PJRPG" 
+        };
+
+        const GRUVBOX_COLORS = {
+            bg: '#282828',
+            fg: '#d5c4a1',
+            gray: '#504945',
+            gray_light: '#665c54',
+            red: '#ea6962',
+            green: '#a9b665',
+            yellow: '#e78a4e',
+            blue: '#7daea3',
+            purple: '#d3869b',
+            aqua: '#89b482',
+            orange: '#d79921',
+        };
+
+        // --- App State and Variables ---
+        let localStream = null;
+        let peer = null;
+        let currentCall = null;
+        let activeRoomId = null;
+        let incomingCallRoomId = null;
+
+        const VERSION = "v1.6";
+
+        // This ensures the global variables are accessible
+        var __app_id = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+        var __initial_auth_token = typeof window.__initial_auth_token !== 'undefined' ? window.__initial_auth_token : null;
+        
+        // --- Firebase Initialization ---
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // --- DOM Elements ---
+        const loginScreen = document.getElementById('login-screen');
+        const lobbyScreen = document.getElementById('lobby-screen');
+        const callScreen = document.getElementById('call-screen');
+        const usernameInput = document.getElementById('username-input');
+        const usernameDisplay = document.getElementById('username-display');
+        const userIdDisplay = document.getElementById('user-id-display');
+        const lobbyChatMessages = document.getElementById('lobby-chat-messages');
+        const lobbyChatInput = document.getElementById('lobby-chat-input');
+        const roomsList = document.getElementById('rooms-list');
+        const remoteVideo = document.getElementById('remote-video');
+        const copyRoomIdBtn = document.getElementById('copy-room-id-btn');
+        const callStatus = document.getElementById('call-status');
+        const roomsCountDisplay = document.getElementById('rooms-count');
+        const adminSection = document.getElementById('admin-section');
+        const messageBox = document.getElementById('message-box');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalText = document.getElementById('modal-text');
+
+        // --- Utility Functions ---
+        const showView = (view) => {
+            loginScreen.classList.add('hidden');
+            lobbyScreen.classList.add('hidden');
+            callScreen.classList.add('hidden');
+            document.getElementById('loading-spinner').classList.add('hidden');
+            switch (view) {
+                case 'login': loginScreen.classList.remove('hidden'); break;
+                case 'lobby': lobbyScreen.classList.remove('hidden'); break;
+                case 'call': callScreen.classList.remove('hidden'); break;
+                case 'loading': document.getElementById('loading-spinner').classList.remove('hidden'); break;
+            }
+        };
+
+        const displayMessage = (message, color = GRUVBOX_COLORS.fg) => {
+            messageBox.textContent = message;
+            messageBox.style.color = color;
+            messageBox.classList.remove('hidden');
+            setTimeout(() => messageBox.classList.add('hidden'), 5000);
+        };
+        
+        const getUserId = () => auth.currentUser?.uid || crypto.randomUUID();
+
+        // --- Firebase/Firestore Functions ---
+        const getChatCollectionPath = () => `/artifacts/${__app_id}/public/data/chat`;
+        const getRoomsCollectionPath = () => `/artifacts/${__app_id}/public/data/rooms`;
+        const getMyRoomDocPath = (roomId) => `/artifacts/${__app_id}/public/data/rooms/${roomId}`;
+        
+        const deleteAllRooms = async () => {
+            const querySnapshot = await getDocs(collection(db, getRoomsCollectionPath()));
+            const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+            await Promise.all(deletePromises);
+            displayMessage("All rooms have been cleared.", GRUVBOX_COLORS.green);
+        };
+        
+        const deleteEmptyRooms = async () => {
+            const emptyRoomsQuery = query(collection(db, getRoomsCollectionPath()), where("status", "==", "waiting"));
+            const querySnapshot = await getDocs(emptyRoomsQuery);
+            const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+            await Promise.all(deletePromises);
+            displayMessage("All empty rooms have been cleared.", GRUVBOX_COLORS.green);
+        };
+
+        const deleteRoom = async (roomId) => {
+            try {
+                await deleteDoc(doc(db, getMyRoomDocPath(roomId)));
+                displayMessage(`Room ${roomId} deleted.`, GRUVBOX_COLORS.green);
+            } catch (e) {
+                console.error("Error deleting room:", e);
+                displayMessage("Failed to delete room.", GRUVBOX_COLORS.red);
+            }
+        };
+        
+        // --- PeerJS and Call Functions ---
+        const initializePeer = (peerId) => {
+            if (peer) peer.destroy();
+            peer = new Peer(peerId, { debug: 3 });
+            peer.on('open', (id) => console.log('My Peer ID is:', id));
+            
+            // Handle incoming calls
+            peer.on('call', async (call) => {
+                currentCall = call;
+                callStatus.textContent = "Incoming Call...";
+                
+                // Find the room ID by looking for the caller's peerId in the room document
+                const roomQuery = query(collection(db, getRoomsCollectionPath()), where("joinerPeerId", "==", call.peer));
+                const roomSnapshot = await getDocs(roomQuery);
+
+                if (!roomSnapshot.empty) {
+                    incomingCallRoomId = roomSnapshot.docs[0].id;
+                    modalText.textContent = `Incoming call from ${roomSnapshot.docs[0].data().joinerName}!`;
+                    modalOverlay.classList.remove('hidden');
+                } else {
+                    console.error("No room found for incoming call from peer:", call.peer);
+                    displayMessage("Incoming call from an unknown room. Ignoring.", GRUVBOX_COLORS.yellow);
+                }
+            });
+
+            peer.on('error', (err) => {
+                console.error("PeerJS error:", err);
+                displayMessage("A PeerJS error occurred: " + err.message, GRUVBOX_COLORS.red);
+            });
+        };
+
+        const startCall = async (peerIdToCall, roomId) => {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const call = peer.call(peerIdToCall, localStream);
+                currentCall = call;
+                activeRoomId = roomId;
+
+                call.on('stream', (remoteStream) => {
+                    remoteVideo.srcObject = remoteStream;
+                    remoteVideo.play();
+                });
+                call.on('close', () => endCall());
+                call.on('error', (err) => {
+                    console.error("Call error:", err);
+                    displayMessage("Call failed: " + err.message, GRUVBOX_COLORS.red);
+                    endCall();
+                });
+                
+                callStatus.textContent = "Calling " + peerIdToCall + "...";
+                showView('call');
+            } catch (err) {
+                console.error("Failed to get local stream or make call:", err);
+                displayMessage("Failed to start call. " + err.message + ". Please allow camera and mic permissions.", GRUVBOX_COLORS.red);
+            }
+        };
+
+        const answerCall = async () => {
+            if (!currentCall || !incomingCallRoomId) {
+                displayMessage("No incoming call to accept.", GRUVBOX_COLORS.yellow);
+                modalOverlay.classList.add('hidden');
+                return;
+            }
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                currentCall.answer(localStream);
+                activeRoomId = incomingCallRoomId;
+
+                currentCall.on('stream', (remoteStream) => {
+                    remoteVideo.srcObject = remoteStream;
+                    remoteVideo.play();
+                });
+                currentCall.on('close', () => endCall());
+                currentCall.on('error', (err) => {
+                    console.error("Call error:", err);
+                    displayMessage("Call failed: " + err.message, GRUVBOX_COLORS.red);
+                    endCall();
+                });
+                
+                showView('call');
+                modalOverlay.classList.add('hidden');
+            } catch (err) {
+                console.error("Failed to get local stream or answer call:", err);
+                displayMessage("Failed to answer call. " + err.message + ". Please allow camera and mic permissions.", GRUVBOX_COLORS.red);
+                modalOverlay.classList.add('hidden');
+            } finally {
+                incomingCallRoomId = null;
+            }
+        };
+
+        const endCall = async () => {
+            if (currentCall) {
+                currentCall.close();
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            if (remoteVideo.srcObject) remoteVideo.srcObject = null;
+            
+            if (activeRoomId) {
+                await deleteDoc(doc(db, getMyRoomDocPath(activeRoomId)));
+                activeRoomId = null;
+            }
+
+            if (peer) {
+                peer.destroy();
+            }
+            initializePeer(getUserId());
+            showView('lobby');
+            callStatus.textContent = "";
+
+            document.getElementById('room-id-display-container').classList.add('hidden');
+            document.getElementById('created-room-id').textContent = "";
+            document.getElementById('create-room-btn').classList.remove('hidden');
+            document.getElementById('lobby-footer').classList.remove('hidden');
+            document.getElementById('join-room-container').classList.remove('hidden');
+        };
+
+        // --- Event Handlers ---
+        const handleLoginForm = async (e) => {
+            e.preventDefault();
+            const username = usernameInput.value.trim();
+            if (username) {
+                localStorage.setItem('gruvbox_username', username);
+                showView('loading');
+                try {
+                    await signInAnonymously(auth);
+                } catch (error) {
+                    console.error("Firebase auth error:", error);
+                    displayMessage('Failed to authenticate. Please try again later.');
+                    showView('login');
+                }
+            }
+        };
+        
+        const handleCreateRoom = async () => {
+            const username = localStorage.getItem('gruvbox_username') || 'Anonymous';
+            const roomRef = doc(collection(db, getRoomsCollectionPath()));
+            const roomId = roomRef.id;
+            try {
+                await setDoc(roomRef, {
+                    creatorId: getUserId(),
+                    creatorName: username,
+                    createdAt: serverTimestamp(),
+                    status: 'waiting',
+                    creatorPeerId: peer.id
+                });
+                displayMessage(`Room created with ID: ${roomId}`, GRUVBOX_COLORS.green);
+                
+                document.getElementById('created-room-id').textContent = roomId;
+                document.getElementById('room-id-display-container').classList.remove('hidden');
+                document.getElementById('create-room-btn').classList.add('hidden');
+                document.getElementById('lobby-footer').classList.add('hidden');
+                document.getElementById('join-room-container').classList.add('hidden');
+            } catch (e) {
+                console.error("Error creating room:", e);
+                displayMessage("Failed to create room.", GRUVBOX_COLORS.red);
+            }
+        };
+
+        const handleJoinRoom = async () => {
+            const roomIdToJoin = document.getElementById('join-room-input').value.trim();
+            if (roomIdToJoin) {
+                const roomDocRef = doc(db, getMyRoomDocPath(roomIdToJoin));
+                
+                try {
+                    await runTransaction(db, async (transaction) => {
+                        const roomDoc = await transaction.get(roomDocRef);
+                        if (!roomDoc.exists() || roomDoc.data().status !== 'waiting') {
+                            throw new Error("Room not found or already in call.");
+                        }
+
+                        const roomData = roomDoc.data();
+                        
+                        // Atomically update the room to prevent multiple joins
+                        transaction.update(roomDocRef, {
+                            joinerId: getUserId(),
+                            joinerName: localStorage.getItem('gruvbox_username') || 'Anonymous',
+                            status: 'in-call',
+                            joinedAt: serverTimestamp(),
+                            joinerPeerId: peer.id
+                        });
+
+                        // Start the call outside the transaction
+                        startCall(roomData.creatorPeerId, roomIdToJoin);
+                    });
+                } catch (e) {
+                    console.error("Error joining room:", e);
+                    displayMessage(e.message, GRUVBOX_COLORS.red);
+                }
+            }
+        };
+        
+        const handleCopyRoomId = () => {
+            const roomId = document.getElementById('created-room-id').textContent;
+            if (roomId) {
+                navigator.clipboard.writeText(roomId)
+                    .then(() => displayMessage('Room ID copied to clipboard!', GRUVBOX_COLORS.green))
+                    .catch(err => {
+                        console.error('Failed to copy text: ', err);
+                        displayMessage('Failed to copy ID to clipboard.', GRUVBOX_COLORS.red);
+                    });
+            }
+        };
+
+        const handleModalAccept = () => {
+            answerCall();
+        };
+
+        const handleModalDecline = () => {
+            modalOverlay.classList.add('hidden');
+            if (currentCall) currentCall.close();
+            currentCall = null;
+            incomingCallRoomId = null;
+        };
+        
+        // --- Document and Window Event Listeners ---
+        document.getElementById('login-form').addEventListener('submit', handleLoginForm);
+        document.getElementById('create-room-btn').addEventListener('click', handleCreateRoom);
+        document.getElementById('join-room-btn').addEventListener('click', handleJoinRoom);
+        document.getElementById('clear-all-rooms-btn').addEventListener('click', deleteAllRooms);
+        document.getElementById('delete-empty-rooms-btn').addEventListener('click', deleteEmptyRooms);
+        document.getElementById('admin-toggle-btn').addEventListener('click', () => adminSection.classList.toggle('hidden'));
+        document.getElementById('lobby-chat-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = lobbyChatInput.value.trim();
+            if (message) {
+                const username = localStorage.getItem('gruvbox_username') || 'Anonymous';
+                try {
+                    await addDoc(collection(db, getChatCollectionPath()), {
+                        userId: getUserId(),
+                        username: username,
+                        message: message,
+                        timestamp: serverTimestamp()
+                    });
+                    lobbyChatInput.value = '';
+                } catch (e) {
+                    console.error("Error sending message:", e);
+                    displayMessage("Failed to send message.", GRUVBOX_COLORS.red);
+                }
+            }
+        });
+        document.getElementById('end-call-btn').addEventListener('click', endCall);
+        document.getElementById('modal-accept-btn').addEventListener('click', handleModalAccept);
+        document.getElementById('modal-decline-btn').addEventListener('click', handleModalDecline);
+        copyRoomIdBtn.addEventListener('click', handleCopyRoomId);
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                const username = localStorage.getItem('gruvbox_username') || 'Anonymous';
+                usernameDisplay.textContent = username;
+                userIdDisplay.textContent = getUserId();
+                document.getElementById('version-display').textContent = `Version: ${VERSION}`;
+                initializePeer(getUserId());
+                showView('lobby');
+                
+                // Real-time chat listener
+                onSnapshot(query(collection(db, getChatCollectionPath())), (snapshot) => {
+                    lobbyChatMessages.innerHTML = '';
+                    snapshot.docs.sort((a,b) => a.data().timestamp?.seconds - b.data().timestamp?.seconds).forEach(doc => {
+                        const data = doc.data();
+                        const messageElement = document.createElement('div');
+                        messageElement.classList.add('mb-1');
+                        messageElement.innerHTML = `<span class="font-bold text-gruv-blue">[${data.username}]</span>: ${data.message}`;
+                        lobbyChatMessages.appendChild(messageElement);
+                    });
+                    lobbyChatMessages.scrollTop = lobbyChatMessages.scrollHeight;
+                });
+
+                // Real-time rooms listener
+                onSnapshot(query(collection(db, getRoomsCollectionPath())), (snapshot) => {
+                    roomsList.innerHTML = '';
+                    roomsCountDisplay.textContent = `(${snapshot.docs.length})`;
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        const roomElement = document.createElement('div');
+                        roomElement.classList.add('flex', 'justify-between', 'items-center', 'py-2', 'px-4', 'bg-gruv-gray-light', 'rounded-lg', 'mb-2');
+                        
+                        const deleteBtnHtml = `<button onclick="deleteRoom('${doc.id}')" class="bg-gruv-red text-gruv-bg font-bold py-2 px-4 rounded-full transition-colors hover:bg-gruv-yellow">Delete</button>`;
+                        
+                        const joinBtnHtml = data.status === 'waiting' ? `
+                            <button onclick="document.getElementById('join-room-input').value='${doc.id}'; document.getElementById('join-room-btn').click();" 
+                                class="bg-gruv-orange text-gruv-bg font-bold py-2 px-4 rounded-full transition-colors hover:bg-gruv-yellow">
+                                Join
+                            </button>` : '';
+
+                        roomElement.innerHTML = `
+                            <div>
+                                <span class="font-bold text-gruv-green">Room ID: ${doc.id}</span>
+                                <div class="text-gruv-aqua text-sm">Created by: ${data.creatorName}</div>
+                            </div>
+                            <div class="flex space-x-2">
+                                ${deleteBtnHtml}
+                                ${joinBtnHtml}
+                            </div>
+                        `;
+                        roomsList.appendChild(roomElement);
+                    });
+                });
+
+            } else {
+                showView('login');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedUsername = localStorage.getItem('gruvbox_username');
+            if (savedUsername) {
+                usernameInput.value = savedUsername;
+                showView('loading');
+                try {
+                    signInAnonymously(auth);
+                } catch (error) {
+                    console.error("Firebase auth error:", error);
+                    displayMessage('Failed to authenticate. Please try again later.');
+                    showView('login');
+                }
+            } else {
+                showView('login');
+            }
+        });
+        
+        window.deleteRoom = deleteRoom;
+        window.deleteAllRooms = deleteAllRooms;
+        window.deleteEmptyRooms = deleteEmptyRooms;
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg0-hard);
-            color: var(--fg0);
+            background-color: #282828;
+            color: #d5c4a1;
         }
 
-        .gruvbox-card {
-            background-color: var(--bg1);
-            border: 2px solid var(--bg4);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
+        .gruv-bg { background-color: #282828; }
+        .gruv-fg { color: #d5c4a1; }
+        .gruv-gray { background-color: #504945; }
+        .gruv-gray-light { background-color: #665c54; }
+        .gruv-red { color: #ea6962; }
+        .gruv-green { color: #a9b665; }
+        .gruv-yellow { color: #e78a4e; }
+        .gruv-blue { color: #7daea3; }
+        .gruv-purple { color: #d3869b; }
+        .gruv-aqua { color: #89b482; }
+        .gruv-orange { background-color: #d79921; }
 
-        .gruvbox-input {
-            background-color: var(--bg0-soft);
-            border: 1px solid var(--bg4);
-            color: var(--fg0);
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-        }
+        .gruv-border { border-color: #504945; }
 
-        .gruvbox-btn {
-            background-color: var(--blue);
-            color: var(--fg0);
+        .gruv-btn {
+            background-color: #7daea3;
+            color: #282828;
             font-weight: bold;
-            padding: 0.5rem 1rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            transition-property: background-color;
+            transition-duration: 300ms;
+        }
+        .gruv-btn:hover {
+            background-color: #89b482;
+        }
+
+        .gruv-input {
+            background-color: #3c3836;
+            color: #d5c4a1;
             border-radius: 0.5rem;
-            transition: background-color 0.2s;
-            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border: 2px solid #504945;
         }
 
-        .gruvbox-btn:hover:not(:disabled) {
-            background-color: var(--yellow);
-            color: var(--bg0-hard);
+        .chat-box {
+            background-color: #3c3836;
+            border-radius: 1rem;
+            border: 2px solid #504945;
         }
-
-        .gruvbox-btn:disabled {
-            background-color: var(--bg4);
-            cursor: not-allowed;
-            opacity: 0.7;
+        
+        /* Custom scrollbar for chat box */
+        .chat-box::-webkit-scrollbar {
+            width: 8px;
         }
-
+        .chat-box::-webkit-scrollbar-track {
+            background: #3c3836;
+        }
+        .chat-box::-webkit-scrollbar-thumb {
+            background-color: #504945;
+            border-radius: 4px;
+        }
+        
+        /* New styling to fix the video display */
         .video-container {
             position: relative;
             width: 100%;
-            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
-            background-color: var(--bg0-soft);
-            border: 1px solid var(--bg4);
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            border-radius: 1rem;
+            border: 3px solid #d79921;
+            overflow: hidden;
+            background-color: #3c3836;
         }
-        
         .video-container video {
             position: absolute;
             top: 0;
@@ -83,547 +537,125 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: 0.5rem;
-        }
-
-        #local-video {
-            transform: scaleX(-1);
-        }
-
-        .user-info {
-            background-color: var(--bg0-soft);
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            border: 1px solid var(--bg4);
-        }
-
-        .chat-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            max-height: 400px;
-        }
-
-        .message-list {
-            flex-grow: 1;
-            overflow-y: auto;
-        }
-        .message {
-            background-color: var(--bg0-soft);
-            padding: 0.5rem;
-            border-radius: 0.5rem;
         }
     </style>
 </head>
-<body class="p-4 md:p-8 flex items-center justify-center min-h-screen">
+<body class="gruv-bg flex items-center justify-center min-h-screen p-4">
 
-    <!-- Main Container -->
-    <div class="gruvbox-card w-full max-w-6xl rounded-xl p-6 md:p-8 flex flex-col lg:flex-row gap-6">
+    <!-- Overall Container -->
+    <div class="max-w-4xl w-full">
 
-        <!-- Video & Controls Section -->
-        <div class="flex-1 flex flex-col gap-6">
-            <h1 class="text-3xl font-bold text-center">GruvBox Connect</h1>
-
-            <!-- Username Input Section -->
-            <div id="username-section" class="flex flex-col md:flex-row items-center gap-4 p-4 rounded-xl gruvbox-card">
-                <input type="text" id="username-input" placeholder="Enter your username" class="gruvbox-input w-full md:flex-1 text-center" />
-                <button id="set-username-btn" class="gruvbox-btn w-full md:w-auto">
-                    <i class="fa-solid fa-user-check"></i> Set Username
-                </button>
-            </div>
+        <!-- Login Screen -->
+        <div id="login-screen" class="bg-gruv-gray p-8 rounded-2xl shadow-lg transition-opacity duration-500">
+            <h1 class="text-3xl font-bold text-center gruv-fg mb-6">Welcome to Gruvbox Chat</h1>
+            <p class="text-center text-gruv-aqua mb-8">Enter a username to join the lobby.</p>
+            <form id="login-form" class="flex flex-col gap-4">
+                <input id="username-input" type="text" placeholder="Your Username" class="gruv-input" required>
+                <button type="submit" class="gruv-btn mt-4">Join Lobby</button>
+            </form>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Local Video -->
-                <div class="video-container rounded-xl overflow-hidden">
-                    <video id="local-video" autoplay muted playsinline class="shadow-lg"></video>
-                    <span class="absolute bottom-2 left-2 px-2 py-1 bg-black bg-opacity-50 text-white text-xs rounded-md">You</span>
+            <button id="admin-toggle-btn" class="gruv-btn mt-4 bg-gruv-yellow hover:bg-gruv-orange">Admin Mode</button>
+            
+            <div id="admin-section" class="hidden mt-4 pt-4 border-t-2 border-gruv-gray-light">
+                <h3 class="text-xl font-bold gruv-red mb-4 text-center">Admin Controls</h3>
+                <button id="delete-empty-rooms-btn" class="gruv-btn bg-gruv-red hover:bg-gruv-yellow mb-2 w-full">Delete Empty Rooms</button>
+                <button id="clear-all-rooms-btn" class="gruv-btn bg-gruv-red hover:bg-gruv-yellow w-full">Clear All Rooms</button>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading-spinner" class="hidden flex flex-col items-center justify-center text-gruv-fg p-8">
+            <svg class="animate-spin h-10 w-10 text-gruv-orange" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-4 text-gruv-fg">Loading...</p>
+        </div>
+
+        <!-- Lobby Screen -->
+        <div id="lobby-screen" class="hidden grid md:grid-cols-2 gap-8 w-full">
+            
+            <!-- Rooms & Users Panel -->
+            <div class="bg-gruv-gray p-6 rounded-2xl shadow-lg flex flex-col">
+                <div class="mb-4">
+                    <h2 class="text-2xl font-bold gruv-fg">Lobby</h2>
+                    <p class="text-sm text-gruv-fg mt-2">
+                        Welcome, <span id="username-display" class="font-bold text-gruv-orange"></span>!
+                    </p>
+                    <p class="text-sm text-gruv-fg">
+                        Your User ID: <span id="user-id-display" class="font-bold text-gruv-aqua"></span>
+                    </p>
+                    <p id="version-display" class="text-xs text-gruv-fg mt-1 opacity-75"></p>
                 </div>
-                <!-- Remote Video -->
-                <div class="video-container rounded-xl overflow-hidden">
-                    <video id="remote-video" autoplay playsinline class="shadow-lg"></video>
-                    <span class="absolute bottom-2 left-2 px-2 py-1 bg-black bg-opacity-50 text-white text-xs rounded-md">Guest</span>
+                
+                <div id="room-id-display-container" class="hidden bg-gruv-gray-light p-4 rounded-lg mb-4">
+                    <p class="text-gruv-green font-bold">Your Room ID: <span id="created-room-id" class="text-gruv-fg"></span></p>
+                    <button id="copy-room-id-btn" class="mt-2 text-sm bg-gruv-blue text-gruv-bg font-bold py-1 px-3 rounded-full hover:bg-gruv-aqua transition-colors">Copy</button>
                 </div>
+                
+                <h3 class="text-xl font-bold text-gruv-yellow mb-4">
+                    Available Rooms 
+                    <span id="rooms-count" class="text-gruv-fg text-sm"></span>
+                </h3>
+                <div id="rooms-list" class="flex-grow overflow-y-auto mb-4">
+                    <!-- Room list will be populated by JS -->
+                </div>
+                
+                <div id="join-room-container" class="flex flex-col sm:flex-row gap-2">
+                    <input id="join-room-input" type="text" placeholder="Enter Room ID" class="gruv-input flex-grow">
+                    <button id="join-room-btn" class="gruv-btn bg-gruv-purple hover:bg-gruv-red flex-shrink-0">Join Room</button>
+                </div>
+                
+                <button id="create-room-btn" class="gruv-btn mt-4">Create New Room</button>
             </div>
 
-            <!-- Call Controls -->
-            <div class="flex flex-col md:flex-row items-center justify-center gap-4 mt-4">
-                <button id="start-cam-btn" class="gruvbox-btn flex-1 md:flex-none" disabled>
-                    <i class="fa-solid fa-video"></i> Start Camera
-                </button>
-
-                <div class="flex flex-1 md:flex-row flex-col gap-4 w-full md:w-auto">
-                    <input type="text" id="call-id-input" placeholder="Enter Call ID" class="gruvbox-input w-full md:flex-1 text-center" disabled />
-                    <button id="create-call-btn" class="gruvbox-btn" disabled>
-                        <i class="fa-solid fa-plus"></i> Create
-                    </button>
-                    <button id="join-call-btn" class="gruvbox-btn" disabled>
-                        <i class="fa-solid fa-right-to-bracket"></i> Join
-                    </button>
+            <!-- Chat Panel -->
+            <div class="bg-gruv-gray p-6 rounded-2xl shadow-lg flex flex-col">
+                <h3 class="text-2xl font-bold gruv-fg mb-4">Lobby Chat</h3>
+                <div id="lobby-chat-messages" class="chat-box flex-grow p-4 mb-4 overflow-y-auto h-64">
+                    <!-- Chat messages will be populated by JS -->
                 </div>
-
-                <button id="hangup-btn" class="gruvbox-btn flex-1 md:flex-none bg-red-700 hover:bg-red-500" disabled>
-                    <i class="fa-solid fa-phone-slash"></i> Hang Up
-                </button>
+                <form id="lobby-chat-form" class="flex gap-2">
+                    <input id="lobby-chat-input" type="text" placeholder="Type a message..." class="gruv-input flex-grow">
+                    <button type="submit" class="gruv-btn bg-gruv-blue hover:bg-gruv-aqua">Send</button>
+                </form>
             </div>
-
-            <div class="user-info text-sm text-center">
-                <p><strong>Your User ID:</strong> <span id="user-id-display" class="font-mono text-xs">Waiting for Auth...</span></p>
-                <p><strong>Current Call ID:</strong> <span id="current-call-id-display" class="font-mono text-xs text-yellow-500">None</span></p>
-                <p><strong>Your Username:</strong> <span id="username-display" class="font-mono text-xs text-green-500">None</span></p>
-                <button id="copy-btn" class="mt-2 gruvbox-btn bg-gray-600 hover:bg-gray-400 text-xs py-1 px-2" disabled>Copy Call ID</button>
+            <div id="lobby-footer" class="md:col-span-2 text-center mt-4">
+                <span class="text-gruv-red font-bold">Note:</span> Your room will be visible to everyone and will be automatically deleted when the call ends.
             </div>
         </div>
         
-        <!-- Chat Section -->
-        <div class="flex-1 flex flex-col gap-4">
-            <h2 class="text-xl font-bold text-center">Chat</h2>
-            <div id="chat-messages" class="gruvbox-card p-4 rounded-xl flex-1 overflow-y-auto">
-                <p class="text-xs text-center text-gray-400">Join a call to start chatting...</p>
+        <!-- Video Call Screen -->
+        <div id="call-screen" class="hidden flex flex-col items-center p-6 bg-gruv-gray rounded-2xl shadow-lg">
+            <div id="video-chat-section" class="grid grid-cols-1 gap-4 w-full">
+                <div class="video-container shadow-xl">
+                    <video id="remote-video" autoplay playsinline></video>
+                </div>
             </div>
-            <div class="flex gap-2">
-                <input type="text" id="chat-input" placeholder="Type a message..." class="gruvbox-input flex-grow" disabled>
-                <button id="send-chat-btn" class="gruvbox-btn" disabled>
-                    <i class="fa-solid fa-paper-plane"></i>
-                </button>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6 w-full">
+                <span id="call-status" class="gruv-fg"></span>
+                <button id="end-call-btn" class="gruv-btn bg-gruv-red hover:bg-gruv-yellow">End Call</button>
+            </div>
+        </div>
+        
+        <!-- Message Box -->
+        <div id="message-box" class="hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gruv-gray-light p-4 rounded-lg shadow-lg text-center z-50">
+            <!-- Message will be displayed here -->
+        </div>
+
+        <!-- Call Request Modal -->
+        <div id="modal-overlay" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+            <div class="bg-gruv-gray p-8 rounded-lg text-center shadow-2xl">
+                <h3 class="text-xl font-bold gruv-fg mb-4">Incoming Call Request!</h3>
+                <p id="modal-text" class="mb-6 text-gruv-fg">Do you want to accept the call?</p>
+                <div class="flex justify-center gap-4">
+                    <button id="modal-accept-btn" class="gruv-btn bg-gruv-green hover:bg-gruv-aqua">Accept</button>
+                    <button id="modal-decline-btn" class="gruv-btn bg-gruv-red hover:bg-gruv-yellow">Decline</button>
+                </div>
             </div>
         </div>
 
     </div>
 
-    <!-- Modal for copy feedback -->
-    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center transition-opacity duration-300">
-        <div class="bg-blue-800 text-white p-6 rounded-lg text-center shadow-lg">
-            <p id="modal-text" class="text-lg">Call ID copied to clipboard!</p>
-        </div>
-    </div>
-
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, onSnapshot, collection, query, serverTimestamp, orderBy, getDocs, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
-
-        // Global variables for Firebase and WebRTC
-        let localStream;
-        let remoteStream;
-        let peerConnection;
-        let db;
-        let auth;
-        let callId;
-        let userId;
-        let username = "";
-
-        // Firebase Config from user
-        const firebaseConfig = {
-            apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
-            authDomain: "video-meeting-e73eb.firebaseapp.com",
-            projectId: "video-meeting-e73eb",
-            storageBucket: "video-meeting-e73eb.firebasestorage.app",
-            messagingSenderId: "80496795033",
-            appId: "1:80496795033:web:3ac35c631d76301f77c708",
-            measurementId: "G-SFPQ0PJRPG"
-        };
-        
-        // Canvas-provided global variables
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // HTML element references
-        const localVideo = document.getElementById('local-video');
-        const remoteVideo = document.getElementById('remote-video');
-        const startCamBtn = document.getElementById('start-cam-btn');
-        const createCallBtn = document.getElementById('create-call-btn');
-        const joinCallBtn = document.getElementById('join-call-btn');
-        const hangupBtn = document.getElementById('hangup-btn');
-        const callIdInput = document.getElementById('call-id-input');
-        const userIdDisplay = document.getElementById('user-id-display');
-        const currentCallIdDisplay = document.getElementById('current-call-id-display');
-        const usernameInput = document.getElementById('username-input');
-        const setUsernameBtn = document.getElementById('set-username-btn');
-        const usernameDisplay = document.getElementById('username-display');
-        const copyBtn = document.getElementById('copy-btn');
-        const chatInput = document.getElementById('chat-input');
-        const sendChatBtn = document.getElementById('send-chat-btn');
-        const chatMessages = document.getElementById('chat-messages');
-        const modal = document.getElementById('modal');
-        const modalText = document.getElementById('modal-text');
-        
-        // Disable buttons initially
-        startCamBtn.disabled = true;
-        createCallBtn.disabled = true;
-        joinCallBtn.disabled = true;
-        hangupBtn.disabled = true;
-        chatInput.disabled = true;
-        sendChatBtn.disabled = true;
-
-        // WebRTC Config
-        const servers = {
-            iceServers: [
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-            ],
-        };
-
-        // --- Firebase Initialization and Auth ---
-        async function initializeFirebase() {
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                getAnalytics(app); // Ensure analytics is initialized
-                console.log("Firebase initialized successfully.");
-
-                // Sign in with the provided custom token, or anonymously if it fails.
-                if (initialAuthToken) {
-                    try {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                        console.log("Successfully signed in with custom token.");
-                    } catch (error) {
-                        console.error("Custom token sign-in failed. Falling back to anonymous auth.", error);
-                        // Fallback to anonymous sign-in
-                        await signInAnonymously(auth);
-                        console.log("Successfully signed in anonymously.");
-                    }
-                } else {
-                    await signInAnonymously(auth);
-                    console.log("No custom token provided. Successfully signed in anonymously.");
-                }
-
-            } catch (error) {
-                console.error("Error initializing Firebase:", error);
-                userIdDisplay.textContent = "Error!";
-            }
-        }
-        
-        // Listen for auth state changes to update the UI
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                userId = user.uid;
-                userIdDisplay.textContent = userId;
-                startCamBtn.disabled = false;
-                console.log("Auth state changed. User ID:", userId);
-            } else {
-                userId = null;
-                userIdDisplay.textContent = "Not authenticated";
-                startCamBtn.disabled = true;
-                console.log("Auth state changed. User is signed out.");
-            }
-        });
-        
-        initializeFirebase();
-
-        // --- UI Functions ---
-        function showModal(message, duration = 2000) {
-            modalText.textContent = message;
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }, duration);
-        }
-
-        // --- Username Logic ---
-        function setUsername() {
-            const inputUsername = usernameInput.value.trim();
-            if (inputUsername.length > 0) {
-                username = inputUsername;
-                usernameDisplay.textContent = username;
-                usernameInput.disabled = true;
-                setUsernameBtn.disabled = true;
-                createCallBtn.disabled = false;
-                joinCallBtn.disabled = false;
-                copyBtn.disabled = false;
-                showModal(`Username "${username}" set!`, 2000);
-            } else {
-                showModal("Please enter a username.", 2000);
-            }
-        }
-
-        // --- WebRTC Logic ---
-        async function startWebcam() {
-            if (!username) {
-                showModal("Please set a username first.", 3000);
-                return;
-            }
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                localVideo.srcObject = localStream;
-                startCamBtn.disabled = true;
-                hangupBtn.disabled = false;
-                
-            } catch (error) {
-                console.error("Error accessing webcam:", error);
-            }
-        }
-
-        async function createCall() {
-            if (!localStream) {
-                showModal("Please start your camera first.", 3000);
-                return;
-            }
-
-            createCallBtn.disabled = true;
-            joinCallBtn.disabled = true;
-            callIdInput.disabled = true;
-            
-            const callDocRef = doc(collection(db, `artifacts/${appId}/public/data/calls`));
-            callId = callDocRef.id;
-            currentCallIdDisplay.textContent = callId;
-            
-            const offerCandidates = collection(db, `artifacts/${appId}/public/data/calls/${callId}/offerCandidates`);
-            const answerCandidates = collection(db, `artifacts/${appId}/public/data/calls/${callId}/answerCandidates`);
-
-            peerConnection = new RTCPeerConnection(servers);
-            setupPeerConnection(offerCandidates, answerCandidates);
-
-            localStream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, localStream);
-            });
-
-            const offerDescription = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offerDescription);
-
-            const offer = {
-                sdp: offerDescription.sdp,
-                type: offerDescription.type
-            };
-
-            await setDoc(callDocRef, { offer });
-            console.log("Call created with ID:", callId);
-        }
-
-        async function joinCall() {
-            if (!localStream) {
-                showModal("Please start your camera first.", 3000);
-                return;
-            }
-
-            const inputCallId = callIdInput.value.trim();
-            if (!inputCallId) {
-                showModal("Please enter a call ID.", 3000);
-                return;
-            }
-
-            callId = inputCallId;
-            const callDocRef = doc(db, `artifacts/${appId}/public/data/calls`, callId);
-            const callDoc = await getDoc(callDocRef);
-
-            if (!callDoc.exists()) {
-                showModal("Invalid Call ID", 3000);
-                return;
-            }
-
-            createCallBtn.disabled = true;
-            joinCallBtn.disabled = true;
-            callIdInput.disabled = true;
-            currentCallIdDisplay.textContent = callId;
-            chatInput.disabled = false;
-            sendChatBtn.disabled = false;
-
-            const offerCandidates = collection(db, `artifacts/${appId}/public/data/calls/${callId}/offerCandidates`);
-            const answerCandidates = collection(db, `artifacts/${appId}/public/data/calls/${callId}/answerCandidates`);
-
-            peerConnection = new RTCPeerConnection(servers);
-            setupPeerConnection(offerCandidates, answerCandidates);
-
-            localStream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, localStream);
-            });
-
-            const offerDescription = callDoc.data().offer;
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(offerDescription));
-
-            const answerDescription = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answerDescription);
-
-            const answer = {
-                sdp: answerDescription.sdp,
-                type: answerDescription.type
-            };
-            await updateDoc(callDocRef, { answer });
-        }
-
-        function setupPeerConnection(offerCandidatesRef, answerCandidatesRef) {
-            remoteStream = new MediaStream();
-            remoteVideo.srcObject = remoteStream;
-
-            peerConnection.ontrack = event => {
-                event.streams[0].getTracks().forEach(track => {
-                    remoteStream.addTrack(track);
-                });
-            };
-
-            peerConnection.onicecandidate = event => {
-                event.candidate && addDoc(
-                    (peerConnection.localDescription.type === 'offer') ? offerCandidatesRef : answerCandidatesRef,
-                    event.candidate.toJSON()
-                );
-            };
-
-            // Listen for remote candidates
-            onSnapshot(offerCandidatesRef, snapshot => {
-                snapshot.docChanges().forEach(async change => {
-                    if (change.type === 'added' && peerConnection.localDescription.type !== 'offer') {
-                        const candidate = new RTCIceCandidate(change.doc.data());
-                        try {
-                            await peerConnection.addIceCandidate(candidate);
-                        } catch (error) {
-                            console.error("Error adding offer candidate:", error);
-                        }
-                    }
-                });
-            });
-
-            onSnapshot(answerCandidatesRef, snapshot => {
-                snapshot.docChanges().forEach(async change => {
-                    if (change.type === 'added' && peerConnection.localDescription.type !== 'answer') {
-                        const candidate = new RTCIceCandidate(change.doc.data());
-                        try {
-                            await peerConnection.addIceCandidate(candidate);
-                        } catch (error) {
-                            console.error("Error adding answer candidate:", error);
-                        }
-                    }
-                });
-            });
-
-            // Listen for remote description (answer)
-            const callDocRef = doc(db, `artifacts/${appId}/public/data/calls`, callId);
-            onSnapshot(callDocRef, async snapshot => {
-                const data = snapshot.data();
-                if (peerConnection.localDescription.type === 'offer' && data?.answer) {
-                    const answerDescription = new RTCSessionDescription(data.answer);
-                    await peerConnection.setRemoteDescription(answerDescription);
-                }
-            });
-            
-            chatInput.disabled = false;
-            sendChatBtn.disabled = false;
-            listenForChatMessages();
-        }
-
-        async function hangUp() {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localVideo.srcObject = null;
-            }
-            if (remoteStream) {
-                remoteStream.getTracks().forEach(track => track.stop());
-                remoteVideo.srcObject = null;
-            }
-            if (peerConnection) {
-                peerConnection.close();
-            }
-            
-            // Clean up Firestore data
-            if (callId) {
-                const callDocRef = doc(db, `artifacts/${appId}/public/data/calls`, callId);
-                const offerCandidatesRef = collection(db, `artifacts/${appId}/public/data/calls/${callId}/offerCandidates`);
-                const answerCandidatesRef = collection(db, `artifacts/${appId}/public/data/calls/${callId}/answerCandidates`);
-                
-                const deleteDocs = async (colRef) => {
-                    const docs = await getDocs(colRef);
-                    docs.forEach(d => deleteDoc(d.ref));
-                };
-                
-                // deleteDocs(offerCandidatesRef);
-                // deleteDocs(answerCandidatesRef);
-                // deleteDoc(callDocRef);
-                // Not deleting for demo purpose, to allow re-joining, but this is how you would clean up.
-            }
-
-            // Reset UI
-            startCamBtn.disabled = false;
-            createCallBtn.disabled = false;
-            joinCallBtn.disabled = false;
-            hangupBtn.disabled = true;
-            callIdInput.disabled = false;
-            callIdInput.value = '';
-            currentCallIdDisplay.textContent = "None";
-            chatInput.disabled = true;
-            sendChatBtn.disabled = true;
-            chatMessages.innerHTML = '<p class="text-xs text-center text-gray-400">Join a call to start chatting...</p>';
-        }
-
-        // --- Chat Logic ---
-        async function sendMessage() {
-            if (chatInput.value.trim() === "" || !callId || !userId || !username) return;
-
-            const chatRef = collection(db, `artifacts/${appId}/public/data/chats`);
-            await addDoc(chatRef, {
-                callId: callId,
-                userId: userId,
-                username: username,
-                message: chatInput.value.trim(),
-                timestamp: serverTimestamp()
-            });
-            chatInput.value = "";
-        }
-
-        function listenForChatMessages() {
-            const chatRef = collection(db, `artifacts/${appId}/public/data/chats`);
-            const chatQuery = query(
-                chatRef,
-                where("callId", "==", callId),
-                orderBy("timestamp")
-            );
-
-            onSnapshot(chatQuery, (snapshot) => {
-                chatMessages.innerHTML = '';
-                if (snapshot.docs.length === 0) {
-                    chatMessages.innerHTML = '<p class="text-xs text-center text-gray-400">No messages yet...</p>';
-                    return;
-                }
-                snapshot.docs.forEach(doc => {
-                    const msg = doc.data();
-                    const isSelf = msg.userId === userId;
-                    const messageElement = document.createElement('div');
-                    messageElement.className = `message mb-2 p-2 rounded-lg text-sm ${isSelf ? 'bg-blue-700 ml-auto' : 'bg-gray-600 mr-auto'}`;
-                    messageElement.innerHTML = `
-                        <p class="font-bold text-xs">${isSelf ? 'You' : msg.username || msg.userId.substring(0, 8)}</p>
-                        <p>${msg.message}</p>
-                    `;
-                    chatMessages.appendChild(messageElement);
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                });
-            });
-        }
-        
-        // --- Event Listeners ---
-        setUsernameBtn.addEventListener('click', setUsername);
-        usernameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                setUsername();
-            }
-        });
-        startCamBtn.addEventListener('click', startWebcam);
-        createCallBtn.addEventListener('click', createCall);
-        joinCallBtn.addEventListener('click', joinCall);
-        hangupBtn.addEventListener('click', hangUp);
-        sendChatBtn.addEventListener('click', sendMessage);
-        
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
-
-        copyBtn.addEventListener('click', () => {
-            if (callId) {
-                const tempInput = document.createElement('input');
-                tempInput.value = callId;
-                document.body.appendChild(tempInput);
-                tempInput.select();
-                document.execCommand('copy');
-                document.body.removeChild(tempInput);
-                showModal("Call ID copied!", 2000);
-            } else {
-                showModal("No active call ID to copy.", 2000);
-            }
-        });
-
-    </script>
 </body>
 </html>
