@@ -97,7 +97,25 @@
     </style>
 </head>
 <body class="p-4 md:p-8">
-    <div class="container bg-[var(--bg-light)] p-6 md:p-8 rounded-xl shadow-2xl space-y-6">
+    <!-- Login Screen -->
+    <div id="login-screen" class="container bg-[var(--bg-light)] p-6 md:p-8 rounded-xl shadow-2xl space-y-6">
+        <div class="flex flex-col items-center justify-center text-center">
+            <h1 class="text-3xl md:text-4xl font-extrabold title">
+                <span class="text-gruvbox">Gruvbox</span> Video Conference
+            </h1>
+            <p class="text-gruvbox mt-2 text-sm md:text-base">Welcome! Please enter a nickname to get started.</p>
+        </div>
+        <div class="flex flex-col items-center space-y-4">
+            <input type="text" id="nickname-input" class="input-gruvbox w-full md:w-64 px-4 py-2 rounded-lg text-center" placeholder="Your Nickname">
+            <button id="start-app-btn" class="btn btn-green w-full md:w-auto">Start Conference</button>
+        </div>
+        <div id="login-status" class="mt-4 w-full text-center">
+            <p class="text-gruvbox text-sm md:text-base">Connecting to server...</p>
+        </div>
+    </div>
+
+    <!-- Main Conference Screen (initially hidden) -->
+    <div id="conference-screen" class="container bg-[var(--bg-light)] p-6 md:p-8 rounded-xl shadow-2xl space-y-6 hidden">
         <div class="flex flex-col items-center justify-center text-center">
             <h1 class="text-3xl md:text-4xl font-extrabold title">
                 <span class="text-gruvbox">Gruvbox</span> Video Conference
@@ -108,11 +126,11 @@
         <div id="video-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="flex flex-col items-center">
                 <video id="localVideo" class="w-full h-64 md:h-80" autoplay muted playsinline></video>
-                <p class="text-gruvbox mt-2">Your Camera</p>
+                <p id="local-video-label" class="text-gruvbox mt-2">Your Camera</p>
             </div>
             <div class="flex flex-col items-center">
                 <video id="remoteVideo" class="w-full h-64 md:h-80" autoplay playsinline></video>
-                <p class="text-gruvbox mt-2">Remote Camera</p>
+                <p id="remote-video-label" class="text-gruvbox mt-2">Remote Camera</p>
             </div>
         </div>
 
@@ -182,10 +200,19 @@
         let db = null;
         let auth = null;
         let userId = null;
+        let userNickname = null;
 
         // --- DOM Elements ---
+        const loginScreen = document.getElementById('login-screen');
+        const conferenceScreen = document.getElementById('conference-screen');
+        const nicknameInput = document.getElementById('nickname-input');
+        const startAppBtn = document.getElementById('start-app-btn');
+        const loginStatus = document.getElementById('login-status');
+        
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
+        const localVideoLabel = document.getElementById('local-video-label');
+        const remoteVideoLabel = document.getElementById('remote-video-label');
         const startCallBtn = document.getElementById('start-call-btn');
         const hangUpBtn = document.getElementById('hang-up-btn');
         const statusMessage = document.getElementById('status-message');
@@ -211,21 +238,54 @@
                 }
                 userId = auth.currentUser.uid;
                 console.log("Firebase initialized. User ID:", userId);
+                
+                // Check if user has a stored nickname
+                const userDocRef = doc(db, `artifacts/${__app_id}/public/data/users/${userId}`);
+                const userDoc = await getDoc(userDocRef);
 
-                const urlParams = new URLSearchParams(window.location.search);
-                const urlCallId = urlParams.get('id');
-
-                if (urlCallId) {
-                    await handleJoinCall(urlCallId);
+                if (userDoc.exists()) {
+                    userNickname = userDoc.data().nickname;
+                    loginStatus.textContent = `Welcome back, ${userNickname}!`;
+                    showConferenceScreen();
                 } else {
-                    statusMessage.textContent = 'Firebase connected. Click "Start Call" to begin or join a room below.';
-                    startCallBtn.disabled = false;
-                    setupRoomsList();
+                    loginStatus.textContent = 'Ready. Please enter your nickname.';
+                    startAppBtn.disabled = false;
                 }
-
             } catch (error) {
                 console.error("Error initializing Firebase:", error);
-                statusMessage.textContent = 'Error connecting to Firebase. Please check console for details.';
+                loginStatus.textContent = 'Error connecting to Firebase. Please check console for details.';
+            }
+        }
+
+        // --- User Login Flow ---
+        async function handleLogin() {
+            const nickname = nicknameInput.value.trim();
+            if (nickname.length === 0) {
+                loginStatus.textContent = 'Please enter a nickname.';
+                return;
+            }
+            userNickname = nickname;
+            
+            // Save the nickname to Firestore
+            const userDocRef = doc(db, `artifacts/${__app_id}/public/data/users/${userId}`);
+            await setDoc(userDocRef, { nickname: userNickname });
+
+            showConferenceScreen();
+        }
+
+        function showConferenceScreen() {
+            loginScreen.classList.add('hidden');
+            conferenceScreen.classList.remove('hidden');
+            localVideoLabel.textContent = userNickname;
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlCallId = urlParams.get('id');
+
+            if (urlCallId) {
+                handleJoinCall(urlCallId);
+            } else {
+                statusMessage.textContent = 'Firebase connected. Click "Start Call" to begin or join a room below.';
+                startCallBtn.disabled = false;
+                setupRoomsList();
             }
         }
         
@@ -246,6 +306,8 @@
             peerConnection.ontrack = (event) => {
                 console.log("Remote track received:", event.track);
                 remoteVideo.srcObject = event.streams[0];
+                const remoteData = JSON.parse(event.streams[0].id);
+                remoteVideoLabel.textContent = remoteData.nickname;
             };
 
             peerConnection.onicecandidate = async (event) => {
@@ -258,7 +320,9 @@
 
         async function startLocalStream() {
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                stream.id = JSON.stringify({ userId: userId, nickname: userNickname }); // Add nickname to stream
+                localStream = stream;
                 localVideo.srcObject = localStream;
                 startCallBtn.disabled = true;
                 hangUpBtn.disabled = false;
@@ -279,6 +343,8 @@
             }
             localVideo.srcObject = null;
             remoteVideo.srcObject = null;
+            localVideoLabel.textContent = userNickname;
+            remoteVideoLabel.textContent = 'Remote Camera';
             startCallBtn.disabled = false;
             hangUpBtn.disabled = true;
             statusMessage.textContent = 'Call ended. Ready to start or join a new one.';
@@ -310,7 +376,7 @@
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
             
-            await setDoc(callDoc, { offer: offer.toJSON(), createdAt: new Date() });
+            await setDoc(callDoc, { offer: offer.toJSON(), createdAt: new Date(), creatorNickname: userNickname });
             statusMessage.textContent = 'Call created. Share the link above and wait for someone to join...';
 
             onSnapshot(callDoc, async (snapshot) => {
@@ -378,6 +444,7 @@
                 let hasRooms = false;
                 roomsContainer.innerHTML = '';
                 snapshot.forEach(doc => {
+                    const roomData = doc.data();
                     const roomDiv = document.createElement('div');
                     roomDiv.className = 'room-item';
                     roomDiv.innerHTML = `
@@ -395,6 +462,7 @@
         }
 
         // --- Event Listeners ---
+        startAppBtn.onclick = handleLogin;
         hangUpBtn.onclick = endCall;
         
         copyUrlBtn.onclick = () => {
