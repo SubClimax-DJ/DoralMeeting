@@ -1,387 +1,508 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Screen Share</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Gruvbox Dark Theme Colors */
-        :root {
-            --bg: #282828;
-            --bg-alt: #3c3836;
-            --fg: #ebdbb2;
-            --gray: #928374;
-            --red: #fb4934;
-            --green: #b8bb26;
-            --yellow: #fabd2f;
-            --blue: #83a598;
-            --purple: #d3869b;
-            --aqua: #8ec07c;
-        }
+import React, { useState, useEffect, useRef } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { getDatabase, ref, onValue, set, remove } from 'firebase/database';
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg);
-            color: var(--fg);
-        }
-        .video-placeholder {
-            background-color: var(--bg);
-            border: 2px dashed var(--bg-alt);
-        }
-        #remoteScreen {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-        .lds-ring {
-          display: inline-block;
-          position: relative;
-          width: 80px;
-          height: 80px;
-        }
-        .lds-ring div {
-          box-sizing: border-box;
-          display: block;
-          position: absolute;
-          width: 64px;
-          height: 64px;
-          margin: 8px;
-          border: 8px solid var(--fg);
-          border-radius: 50%;
-          animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-          border-color: var(--fg) transparent transparent transparent;
-        }
-        .lds-ring div:nth-child(1) { animation-delay: -0.45s; }
-        .lds-ring div:nth-child(2) { animation-delay: -0.3s; }
-        .lds-ring div:nth-child(3) { animation-delay: -0.15s; }
-        @keyframes lds-ring {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-    </style>
-</head>
-<body class="flex flex-col items-center min-h-screen p-4">
+// Global variables provided by the environment
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
 
-    <div class="w-full max-w-6xl mx-auto">
-        <h1 class="text-3xl font-bold text-center mb-2 text-aqua" style="color: var(--aqua);">Simple Screen Share</h1>
-        <p class="text-center mb-6" style="color: var(--gray);">Share your screen with another person using a Room ID.</p>
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const rtdb = getDatabase(app);
+const auth = getAuth(app);
 
-        <!-- Room Connection UI -->
-        <div id="room-ui" class="p-6 rounded-lg shadow-xl mb-6 flex flex-col items-center justify-center gap-4" style="background-color: var(--bg-alt);">
-            <p id="auth-status" class="font-mono text-center mb-2" style="color: var(--yellow);">Authenticating...</p>
-            <button id="createRoomBtn" disabled class="w-full sm:w-auto text-white font-bold py-3 px-6 rounded-lg transition-colors opacity-50 cursor-not-allowed" style="background-color: var(--blue);">Create Room</button>
-            <div class="font-mono text-center my-2 sm:my-0" style="color: var(--gray);">OR</div>
-            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <input type="text" id="roomIdInput" placeholder="Enter Room ID to Join" class="w-full sm:w-64 text-white border rounded-lg px-4 py-3 focus:outline-none focus:ring-2" style="background-color: var(--bg); border-color: #504945; --tw-ring-color: var(--aqua);">
-                <button id="joinRoomBtn" disabled class="text-black font-bold py-3 px-6 rounded-lg transition-colors opacity-50 cursor-not-allowed" style="background-color: var(--green);">Join Room</button>
-            </div>
-             <!-- Available Rooms List -->
-            <div id="room-list-container" class="w-full mt-4 pt-4 border-t" style="border-color: #504945;">
-                <h3 class="text-lg font-semibold text-center mb-2" style="color: var(--fg);">Available Rooms</h3>
-                <div id="room-list" class="max-h-40 overflow-y-auto space-y-2">
-                    <p id="no-rooms-msg" class="text-center" style="color: var(--gray);">No active rooms found.</p>
-                </div>
-            </div>
-        </div>
+// WebRTC STUN servers
+const servers = {
+  iceServers: [
+    {
+      urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+    },
+  ],
+  iceCandidatePoolSize: 10,
+};
 
-        <!-- Info and Controls -->
-        <div id="session-info" class="hidden text-center mb-4 p-4 rounded-lg" style="background-color: var(--bg-alt);">
-            <p style="color: var(--gray);">Your User ID: <span id="userId" class="font-mono" style="color: var(--fg);"></span></p>
-            <p style="color: var(--green);">Connected to Room: <span id="roomIdDisplay" class="font-mono" style="color: var(--aqua);"></span></p>
-            <div id="error-message" class="my-2 font-semibold" style="color: var(--red);"></div>
-            <div id="controls" class="mt-4 flex justify-center gap-4">
-                <button id="startShareBtn" class="text-white font-bold py-2 px-5 rounded-lg transition-colors" style="background-color: var(--blue);">Start Sharing</button>
-                <button id="stopShareBtn" class="hidden text-white font-bold py-2 px-5 rounded-lg transition-colors" style="background-color: var(--red);">Stop Sharing</button>
-            </div>
-        </div>
+// Global WebRTC variables
+let pc = new RTCPeerConnection(servers);
+let localStream = null;
+let remoteStream = null;
 
-        <!-- Screen Display Area -->
-        <div class="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <!-- Remote Screen -->
-            <div class="rounded-lg shadow-xl p-4 flex flex-col items-center justify-center aspect-video" style="background-color: var(--bg-alt);">
-                <h2 class="text-lg font-semibold mb-2" style="color: var(--gray);">Remote Screen</h2>
-                <div id="remoteScreenContainer" class="w-full h-full flex items-center justify-center video-placeholder rounded-md">
-                     <div id="waiting-message" style="color: var(--gray);">Waiting for other user to share...</div>
-                     <div id="loading-spinner" class="hidden lds-ring"><div></div><div></div><div></div><div></div></div>
-                     <img id="remoteScreen" class="hidden rounded-md"/>
-                </div>
-            </div>
-            <!-- Local Preview -->
-            <div class="rounded-lg shadow-xl p-4 flex flex-col items-center justify-center aspect-video" style="background-color: var(--bg-alt);">
-                <h2 class="text-lg font-semibold mb-2" style="color: var(--gray);">Your Preview</h2>
-                <div class="w-full h-full flex items-center justify-center video-placeholder rounded-md">
-                    <video id="localVideo" class="rounded-md" autoplay muted playsinline style="max-width: 100%; max-height:100%"></video>
-                </div>
-            </div>
-        </div>
-    </div>
+const App = () => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [lobbyMessages, setLobbyMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [activeUsers, setActiveUsers] = useState({});
+  const [callState, setCallState] = useState('idle'); // 'idle', 'ringing', 'calling', 'in_call'
+  const [callingUser, setCallingUser] = useState(null);
+  const [callId, setCallId] = useState('');
+  const [callOffer, setCallOffer] = useState(null);
+  const [showCallNotification, setShowCallNotification] = useState(false);
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isMicOn, setIsMicOn] = useState(true);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [showAlert, setShowAlert] = useState(false);
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, updateDoc, serverTimestamp, collection, query, getDocs, deleteDoc, where, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+  // Refs for video elements
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const callDocRef = useRef(null);
 
-        // --- Firebase Configuration ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        let firebaseConfig;
+  // Auth state listener and Firebase initialization
+  useEffect(() => {
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setIsLoggedIn(true);
+        // The isAdmin flag is set when the admin signs in.
+        // We'll use a custom claim to make this secure in a real application.
+        // For this demo, we'll store it client-side.
+        if (user.uid === 'admin') { // This check is a placeholder for a more robust admin check
+          setIsAdmin(true);
+        }
+        setIsAuthReady(true);
+
+        // Update user presence in Realtime Database
+        const userRef = ref(rtdb, `users/${user.uid}`);
+        await set(userRef, {
+          username: user.displayName,
+          isAdmin: user.uid === 'admin',
+          timestamp: new Date().toISOString()
+        });
+
+        // Remove user from presence on disconnect
+        userRef.onDisconnect().remove();
+
+      } else {
+        setIsLoggedIn(false);
+        setIsAuthReady(true);
+      }
+    });
+
+    if (initialAuthToken) {
+      signInWithCustomToken(auth, initialAuthToken).catch(e => {
+        console.error("Custom token sign-in failed:", e);
+        signInAnonymously(auth);
+      });
+    } else {
+      signInAnonymously(auth);
+    }
+  }, []);
+
+  // Lobby logic: Fetch users and chat messages
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    // Listen for active users from Realtime Database
+    const usersRef = ref(rtdb, 'users');
+    const unsubscribeUsers = onValue(usersRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const users = Object.keys(data).reduce((acc, uid) => {
+          if (uid !== auth.currentUser.uid) {
+            acc[uid] = data[uid];
+          }
+          return acc;
+        }, {});
+        setActiveUsers(users);
+      } else {
+        setActiveUsers({});
+      }
+    });
+
+    // Listen for lobby chat messages from Firestore
+    const lobbyRef = collection(db, 'lobbyChat');
+    const unsubscribeChat = onSnapshot(lobbyRef, (snapshot) => {
+      const messages = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })).sort((a, b) => a.timestamp - b.timestamp);
+      setLobbyMessages(messages);
+    });
+
+    return () => {
+      unsubscribeUsers();
+      unsubscribeChat();
+    };
+  }, [isLoggedIn]);
+
+  // Handle call state changes and WebRTC setup
+  useEffect(() => {
+    // This effect runs only when a call is initiated or received.
+    const handleCallStateChange = async () => {
+      if (callState === 'calling' || callState === 'ringing') {
         try {
-            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "DEMO", authDomain: "DEMO", projectId: "DEMO" };
-        } catch (e) {
-            console.error("Firebase config parsing error:", e);
-            firebaseConfig = { apiKey: "DEMO", authDomain: "DEMO", projectId: "DEMO" };
-        }
+          // Get local media stream
+          localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = localStream;
+          }
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
+          // Add local tracks to peer connection
+          localStream.getTracks().forEach((track) => {
+            pc.addTrack(track, localStream);
+          });
 
-        // --- DOM Elements ---
-        const createRoomBtn = document.getElementById('createRoomBtn');
-        const joinRoomBtn = document.getElementById('joinRoomBtn');
-        const roomIdInput = document.getElementById('roomIdInput');
-        const startShareBtn = document.getElementById('startShareBtn');
-        const stopShareBtn = document.getElementById('stopShareBtn');
-        const localVideo = document.getElementById('localVideo');
-        const remoteScreen = document.getElementById('remoteScreen');
-        const roomUi = document.getElementById('room-ui');
-        const sessionInfo = document.getElementById('session-info');
-        const roomIdDisplay = document.getElementById('roomIdDisplay');
-        const userIdDisplay = document.getElementById('userId');
-        const remoteScreenContainer = document.getElementById('remoteScreenContainer');
-        const waitingMessage = document.getElementById('waiting-message');
-        const loadingSpinner = document.getElementById('loading-spinner');
-        const roomList = document.getElementById('room-list');
-        const noRoomsMsg = document.getElementById('no-rooms-msg');
-        const authStatus = document.getElementById('auth-status');
-        const errorMessage = document.getElementById('error-message');
-
-        // --- App State ---
-        let currentRoomId = null;
-        let userId = null;
-        let localStream = null;
-        let captureInterval = null;
-        let firestoreUnsubscribe = null;
-        const ROOM_COLLECTION = `artifacts/${appId}/public/data/screenshare`;
-
-        // --- Core Functions ---
-        async function initializeAuth() {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                userId = auth.currentUser.uid;
-                userIdDisplay.textContent = userId;
-
-                // Enable controls on successful auth
-                createRoomBtn.disabled = false;
-                joinRoomBtn.disabled = false;
-                createRoomBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                createRoomBtn.style.backgroundColor = 'var(--blue)';
-                joinRoomBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                joinRoomBtn.style.backgroundColor = 'var(--green)';
-                authStatus.textContent = 'Ready to connect!';
-                authStatus.style.color = 'var(--green)';
-                setTimeout(() => { authStatus.classList.add('hidden'); }, 3000);
-                
-                // Once authenticated, start services
-                listenToAvailableRooms();
-                autoDeleteStaleRooms();
-            } catch (error) {
-                console.error("Authentication failed:", error);
-                // --- MORE DETAILED LOGGING ---
-                console.error("Firebase Auth Error Code:", error.code);
-                console.error("Firebase Auth Error Message:", error.message);
-                // -----------------------------
-                userIdDisplay.textContent = "Error: Could not authenticate.";
-                authStatus.textContent = 'Authentication failed. Please refresh.';
-                authStatus.style.color = 'var(--red)';
+          // Handle remote stream
+          pc.ontrack = (event) => {
+            remoteStream = event.streams[0];
+            if (remoteVideoRef.current) {
+              remoteVideoRef.current.srcObject = remoteStream;
             }
-        }
+          };
 
-        function generateRoomId() {
-            return Math.random().toString(36).substring(2, 8).toUpperCase();
-        }
-
-        async function createRoom() {
-            if (!userId) {
-                console.error("Authentication not complete. Create button should be disabled.");
-                return;
+          // Handle ICE candidates
+          pc.onicecandidate = async (event) => {
+            if (event.candidate) {
+              const candidate = event.candidate.toJSON();
+              await addDoc(collection(callDocRef.current, 'iceCandidates'), candidate);
             }
-            const newRoomId = generateRoomId();
-            const roomRef = doc(db, ROOM_COLLECTION, newRoomId);
-            const now = serverTimestamp();
-            await setDoc(roomRef, {
-                createdAt: now,
-                lastActivity: now,
-                sharerId: null,
-                frame: null,
+          };
+
+          // Admin initiates the call
+          if (callState === 'calling') {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            // Set the document ID for the call
+            const newCallDocRef = doc(db, 'calls', callId);
+            callDocRef.current = newCallDocRef;
+            await setDoc(newCallDocRef, {
+              adminId: auth.currentUser.uid,
+              clientId: callingUser.id,
+              offer: {
+                type: offer.type,
+                sdp: offer.sdp,
+              },
+              status: 'ringing',
+              timestamp: Date.now(),
             });
-            joinRoom(newRoomId);
-        }
 
-        async function joinRoom(roomIdToJoin) {
-            if (!roomIdToJoin) {
-                alert("Please enter a Room ID.");
-                return;
-            }
-            const roomRef = doc(db, ROOM_COLLECTION, roomIdToJoin);
-            const roomSnap = await getDoc(roomRef);
-
-            if (!roomSnap.exists()) {
-                alert("Room not found. Please check the ID or it may have been deleted.");
-                return;
-            }
-
-            currentRoomId = roomIdToJoin;
-            roomUi.classList.add('hidden');
-            sessionInfo.classList.remove('hidden');
-            roomIdDisplay.textContent = currentRoomId;
-
-            listenToRoomChanges();
-        }
-
-        function listenToRoomChanges() {
-            if (firestoreUnsubscribe) firestoreUnsubscribe();
-            const roomRef = doc(db, ROOM_COLLECTION, currentRoomId);
-            
-            firestoreUnsubscribe = onSnapshot(roomRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    const frameData = data.frame;
-                    const sharerId = data.sharerId;
-
-                    if (frameData && sharerId !== userId) {
-                        waitingMessage.classList.add('hidden');
-                        loadingSpinner.classList.add('hidden');
-                        remoteScreen.classList.remove('hidden');
-                        remoteScreen.src = frameData;
-                    } else if (!frameData) {
-                         waitingMessage.classList.remove('hidden');
-                         remoteScreen.classList.add('hidden');
-                    }
-                } else {
-                    // Room was deleted
-                    alert("The room has been closed.");
-                    window.location.reload();
-                }
+            // Listen for answer
+            onSnapshot(newCallDocRef, async (snapshot) => {
+              const data = snapshot.data();
+              if (data?.answer && !pc.currentRemoteDescription) {
+                const answer = new RTCSessionDescription(data.answer);
+                await pc.setRemoteDescription(answer);
+              }
             });
-        }
 
-        function listenToAvailableRooms() {
-            const roomsRef = collection(db, ROOM_COLLECTION);
-            onSnapshot(query(roomsRef), (snapshot) => {
-                roomList.innerHTML = ''; // Clear current list
-                if (snapshot.empty) {
-                    roomList.appendChild(noRoomsMsg);
-                } else {
-                    snapshot.forEach((doc) => {
-                        const roomEl = document.createElement('button');
-                        roomEl.className = 'w-full text-left p-2 rounded-md transition-colors';
-                        roomEl.style.backgroundColor = 'var(--bg)';
-                        roomEl.textContent = `Room: ${doc.id}`;
-                        roomEl.onmouseover = () => roomEl.style.backgroundColor = 'var(--aqua)';
-                        roomEl.onmouseout = () => roomEl.style.backgroundColor = 'var(--bg)';
-                        roomEl.onclick = () => joinRoom(doc.id);
-                        roomList.appendChild(roomEl);
-                    });
-                }
+          // Client receives the call
+          } else if (callState === 'ringing' && callOffer) {
+            await pc.setRemoteDescription(new RTCSessionDescription(callOffer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            await updateDoc(callDocRef.current, {
+              answer: {
+                type: answer.type,
+                sdp: answer.sdp,
+              },
+              status: 'in_call'
             });
-        }
+          }
 
-        async function autoDeleteStaleRooms() {
-            const roomsRef = collection(db, ROOM_COLLECTION);
-            const twoMinutesAgo = Timestamp.fromMillis(Date.now() - 2 * 60 * 1000);
-            const q = query(roomsRef, where("lastActivity", "<", twoMinutesAgo));
-
-            const snapshot = await getDocs(q);
-            snapshot.forEach(async (document) => {
-                console.log(`Deleting stale room: ${document.id}`);
-                await deleteDoc(doc(db, ROOM_COLLECTION, document.id));
+          // Listen for ICE candidates
+          onSnapshot(collection(callDocRef.current, 'iceCandidates'), (snapshot) => {
+            snapshot.docChanges().forEach(async (change) => {
+              if (change.type === 'added') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                await pc.addIceCandidate(candidate);
+              }
             });
+          });
+
+          setCallState('in_call');
+
+        } catch (error) {
+          console.error("Error setting up video call:", error);
+          handleCallEnd();
         }
+      }
+    };
 
-        async function startSharing() {
-            try {
-                localStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { cursor: "always" },
-                    audio: false
-                });
-                localVideo.srcObject = localStream;
-                startShareBtn.classList.add('hidden');
-                stopShareBtn.classList.remove('hidden');
+    handleCallStateChange();
 
-                const roomRef = doc(db, ROOM_COLLECTION, currentRoomId);
-                await updateDoc(roomRef, { sharerId: userId, lastActivity: serverTimestamp() });
+    return () => {
+      // Clean up on component unmount
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+      if (pc) {
+        pc.close();
+        pc = new RTCPeerConnection(servers);
+      }
+    };
+  }, [callState, callId, callOffer]);
 
-                // Start capturing frames
-                captureInterval = setInterval(captureAndSendFrame, 750); // ~1.3 FPS
+  // Listen for incoming calls for regular users
+  useEffect(() => {
+    if (isAdmin || !isLoggedIn || !isAuthReady) return;
 
-            } catch (err) {
-                console.error("Error starting screen share:", err);
-                errorMessage.textContent = "Could not start screen share. Please grant permission and try again.";
-                setTimeout(() => { errorMessage.textContent = ''; }, 5000);
-                stopSharing();
-            }
+    const q = collection(db, 'calls');
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const callData = change.doc.data();
+          if (callData.clientId === auth.currentUser.uid && callData.status === 'ringing') {
+            setCallId(change.doc.id);
+            setCallOffer(callData.offer);
+            setCallingUser({ id: callData.adminId, username: 'Admin' });
+            setShowCallNotification(true);
+            setCallState('ringing');
+          }
         }
+      });
+    });
 
-        function stopSharing() {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
-            if (captureInterval) {
-                clearInterval(captureInterval);
-                captureInterval = null;
-            }
-            localStream = null;
-            localVideo.srcObject = null;
-            startShareBtn.classList.remove('hidden');
-            stopShareBtn.classList.add('hidden');
+    return () => unsubscribe();
+  }, [isLoggedIn, isAdmin, isAuthReady]);
 
-            const roomRef = doc(db, ROOM_COLLECTION, currentRoomId);
-            updateDoc(roomRef, { frame: null, sharerId: null, lastActivity: serverTimestamp() });
-        }
-        
-        function captureAndSendFrame() {
-            if (!localStream || !localStream.active || localVideo.paused || localVideo.ended || localVideo.videoWidth === 0) {
-                stopSharing();
-                return;
-            }
-            
-            try {
-                const canvas = document.createElement('canvas');
-                // Reduce resolution for performance
-                const scale = 0.5; 
-                canvas.width = localVideo.videoWidth * scale;
-                canvas.height = localVideo.videoHeight * scale;
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (username.toLowerCase() === 'admin' && password === 'max') {
+      // For this demo, we'll use a placeholder UID for admin. In a real app, Firebase Auth handles this.
+      auth.currentUser.updateProfile({ displayName: 'Admin' });
+      setIsAdmin(true);
+      setIsLoggedIn(true);
+    } else if (username && username.toLowerCase() !== 'admin') {
+      auth.currentUser.updateProfile({ displayName: username });
+      setIsLoggedIn(true);
+    } else {
+      setAlertMessage("Invalid username or password.");
+      setShowAlert(true);
+    }
+  };
 
-                const ctx = canvas.getContext('2d');
-                // Draw the current frame from the <video> element onto the canvas
-                ctx.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
-                
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.4); 
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (newMessage.trim() === '') return;
 
-                const roomRef = doc(db, ROOM_COLLECTION, currentRoomId);
-                updateDoc(roomRef, { frame: dataUrl, lastActivity: serverTimestamp() });
-            } catch (error) {
-                console.error('Frame capture error: ', error);
-            }
-        }
+    await addDoc(collection(db, 'lobbyChat'), {
+      username: auth.currentUser.displayName,
+      message: newMessage,
+      timestamp: Date.now(),
+    });
+    setNewMessage('');
+  };
 
+  const handleInitiateCall = (user) => {
+    setCallState('calling');
+    setCallingUser(user);
+    setCallId(`${auth.currentUser.uid}-${user.id}`);
+  };
 
-        // --- Event Listeners ---
-        createRoomBtn.addEventListener('click', createRoom);
-        joinRoomBtn.addEventListener('click', () => joinRoom(roomIdInput.value.trim()));
-        startShareBtn.addEventListener('click', startSharing);
-        stopShareBtn.addEventListener('click', stopSharing);
+  const handleCallEnd = async () => {
+    // Stop tracks
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+    }
+    // Close peer connection
+    if (pc) {
+      pc.close();
+      pc = new RTCPeerConnection(servers);
+    }
+    // Clear Firestore call document
+    if (callDocRef.current) {
+      await deleteDoc(callDocRef.current);
+    }
 
-        // --- Initialization ---
-        initializeAuth();
+    setCallState('idle');
+    setCallingUser(null);
+    setCallId('');
+    setCallOffer(null);
+    setShowCallNotification(false);
+  };
 
-    </script>
-</body>
-</html>
+  const toggleCamera = () => {
+    localStream.getVideoTracks()[0].enabled = !isCameraOn;
+    setIsCameraOn(!isCameraOn);
+  };
 
+  const toggleMic = () => {
+    localStream.getAudioTracks()[0].enabled = !isMicOn;
+    setIsMicOn(!isMicOn);
+  };
 
+  const renderLobby = () => (
+    <div className="flex flex-col h-full bg-gray-900 text-white p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-3xl font-bold text-gray-200">VideoConf Doral</h1>
+        <div className="flex items-center space-x-2">
+          <span className="text-lg">Logged in as: <span className="font-semibold text-green-400">{auth.currentUser?.displayName}</span></span>
+          <span className="text-sm text-gray-400">({auth.currentUser?.uid})</span>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4 overflow-hidden">
+        {/* Active Users */}
+        <div className="bg-gray-800 rounded-lg p-4 flex-none lg:w-1/4 flex flex-col overflow-y-auto">
+          <h2 className="text-xl font-semibold mb-2 text-gray-300">Active Users</h2>
+          <ul className="space-y-2">
+            {Object.entries(activeUsers).map(([uid, user]) => (
+              <li key={uid} className="bg-gray-700 p-3 rounded-md flex justify-between items-center">
+                <span className="text-gray-200">{user.username}</span>
+                {isAdmin && (
+                  <button
+                    onClick={() => handleInitiateCall({ id: uid, username: user.username })}
+                    className="ml-2 px-3 py-1 bg-purple-500 hover:bg-purple-600 rounded-lg text-white font-medium text-sm transition-colors duration-200"
+                  >
+                    Call
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Chat Area */}
+        <div className="flex-1 bg-gray-800 rounded-lg p-4 flex flex-col">
+          <h2 className="text-xl font-semibold mb-2 text-gray-300">Lobby Chat</h2>
+          <div className="flex-1 overflow-y-auto space-y-3 pb-4">
+            {lobbyMessages.map((msg, index) => (
+              <div key={index} className="flex flex-col">
+                <span className="text-gray-400 text-sm">{msg.username} <span className="text-xs text-gray-500">{new Date(msg.timestamp).toLocaleTimeString()}</span></span>
+                <p className="text-gray-100">{msg.message}</p>
+              </div>
+            ))}
+          </div>
+          <form onSubmit={handleSendMessage} className="flex mt-4">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Send a message..."
+              className="flex-1 p-2 rounded-lg bg-gray-700 text-gray-200 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+            <button
+              type="submit"
+              className="ml-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 rounded-lg text-white font-medium transition-colors duration-200"
+            >
+              Send
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {showCallNotification && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-8 rounded-lg shadow-lg text-center">
+            <h3 className="text-2xl font-bold mb-4">Incoming Call</h3>
+            <p className="text-lg">You have an incoming call from <span className="font-semibold text-green-400">{callingUser?.username}</span></p>
+            <div className="mt-6 flex justify-center space-x-4">
+              <button
+                onClick={() => setShowCallNotification(false)}
+                className="px-6 py-2 bg-green-500 hover:bg-green-600 rounded-full text-white font-bold transition-colors duration-200"
+              >
+                Accept
+              </button>
+              <button
+                onClick={handleCallEnd}
+                className="px-6 py-2 bg-red-500 hover:bg-red-600 rounded-full text-white font-bold transition-colors duration-200"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderVideoCall = () => (
+    <div className="flex flex-col h-full bg-gray-900 p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-3xl font-bold text-gray-200">Video Call with <span className="text-green-400">{callingUser.username}</span></h1>
+      </div>
+      <div className="flex-1 relative flex items-center justify-center">
+        {/* Remote Video */}
+        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover rounded-lg"></video>
+
+        {/* Local Video */}
+        <video ref={localVideoRef} muted autoPlay playsInline className="absolute bottom-4 right-4 w-48 h-36 border-4 border-gray-700 rounded-lg shadow-lg"></video>
+      </div>
+
+      {/* Controls */}
+      <div className="flex justify-center space-x-4 mt-4">
+        <button onClick={toggleMic} className="p-3 rounded-full bg-gray-700 text-white hover:bg-gray-600 transition-colors duration-200">
+          {isMicOn ? <i className="fas fa-microphone"></i> : <i className="fas fa-microphone-slash"></i>}
+        </button>
+        <button onClick={toggleCamera} className="p-3 rounded-full bg-gray-700 text-white hover:bg-gray-600 transition-colors duration-200">
+          {isCameraOn ? <i className="fas fa-video"></i> : <i className="fas fa-video-slash"></i>}
+        </button>
+        <button onClick={handleCallEnd} className="p-3 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors duration-200">
+          <i className="fas fa-phone-slash"></i>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="h-screen w-screen bg-gray-900 font-sans text-white">
+      {/* Tailwind and Font Awesome */}
+      <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet" />
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+
+      {showAlert && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-sm text-center">
+            <h3 className="text-xl font-bold mb-2 text-red-400">Error</h3>
+            <p className="text-gray-300 mb-4">{alertMessage}</p>
+            <button onClick={() => setShowAlert(false)} className="px-4 py-2 bg-purple-500 rounded-md hover:bg-purple-600">Close</button>
+          </div>
+        </div>
+      )}
+
+      {!isLoggedIn || !isAuthReady ? (
+        <div className="flex items-center justify-center h-full bg-gray-900">
+          <div className="bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-md">
+            <div className="flex justify-center mb-6">
+              <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Company Logo" className="h-20" />
+            </div>
+            <h2 className="text-2xl font-bold text-center mb-6 text-gray-200">Join VideoConf Doral</h2>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setShowPassword(e.target.value.toLowerCase() === 'admin');
+                }}
+                placeholder="Enter your username"
+                className="w-full p-3 rounded-lg bg-gray-700 text-gray-200 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              {showPassword && (
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter admin password"
+                  className="w-full p-3 rounded-lg bg-gray-700 text-gray-200 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              )}
+              <button
+                type="submit"
+                className="w-full p-3 bg-purple-500 hover:bg-purple-600 rounded-lg text-white font-bold transition-colors duration-200"
+              >
+                Join
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : (
+        <div className="h-full">
+          {callState === 'idle' && renderLobby()}
+          {(callState === 'calling' || callState === 'ringing' || callState === 'in_call') && renderVideoCall()}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
