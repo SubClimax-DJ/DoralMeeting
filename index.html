@@ -34,6 +34,22 @@
             background-color: var(--bg);
             color: var(--fg);
             font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent scrollbars from the background */
+        }
+        /* New Background Logo Style */
+        body::before {
+            content: '';
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('https://i.postimg.cc/xdrNhMyP/image.png');
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: contain;
+            opacity: 0.03; /* Kept very subtle */
+            z-index: -1; /* Position behind all content */
         }
         /* Custom scrollbar for a better theme fit */
         ::-webkit-scrollbar {
@@ -85,6 +101,9 @@
             getDatabase, ref, onValue, set, onDisconnect, rtdbServerTimestamp, remove, push 
         } = window.firebaseSDK;
 
+        // --- VERSION COUNTER ---
+        const version = `v1.4 (Updated: 9/15/2025, 7:56 PM)`;
+
         // --- YOUR FIREBASE CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
@@ -101,6 +120,38 @@
         const auth = getAuth(app);
         const firestore = getFirestore(app);
         const db = getDatabase(app);
+
+        // --- HELPER FUNCTIONS ---
+        const getDeviceInfo = () => {
+            const ua = navigator.userAgent;
+            let device = "Unknown Device";
+            let browser = "Unknown Browser";
+
+            if (/Mobile|Android|iP(ad|hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)) {
+                device = "Mobile";
+            } else {
+                device = "Desktop";
+            }
+
+            if (ua.indexOf("Firefox") > -1) {
+                browser = "Firefox";
+            } else if (ua.indexOf("SamsungBrowser") > -1) {
+                browser = "Samsung Internet";
+            } else if (ua.indexOf("Opera") > -1 || ua.indexOf("OPR") > -1) {
+                browser = "Opera";
+            } else if (ua.indexOf("Trident") > -1) {
+                browser = "Internet Explorer";
+            } else if (ua.indexOf("Edg") > -1) { // Edg for Chromium Edge
+                browser = "Edge";
+            } else if (ua.indexOf("Chrome") > -1) {
+                browser = "Chrome";
+            } else if (ua.indexOf("Safari") > -1) {
+                browser = "Safari";
+            }
+            
+            return `${device} - ${browser}`;
+        };
+
 
         // WebRTC STUN servers configuration
         const servers = {
@@ -175,9 +226,15 @@
             };
 
             return (
-                <div className="min-h-screen flex items-center justify-center bg-gruvbox-bg-dark p-4">
-                    <div className="w-full max-w-sm bg-[#1d2021] p-8 rounded-lg shadow-lg border border-[#3c3836]">
-                        <h2 className="text-3xl font-bold text-center text-[#ebdbb2] mb-6">Join Conference</h2>
+                <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
+                    <div className="w-full max-w-sm bg-[#1d2021] p-8 rounded-lg shadow-lg border border-[#3c3836] relative">
+                        <img 
+                            src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" 
+                            alt="Company Logo" 
+                            className="absolute top-4 right-4 h-10 w-auto rounded"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                        <h2 className="text-3xl font-bold text-center text-[#ebdbb2] mb-6 pt-8">Join Conference</h2>
                         <form onSubmit={handleJoin} className="space-y-6">
                             <div>
                                 <input
@@ -224,7 +281,12 @@
                 if (!appUser) return;
                 const presenceRef = ref(db, `status/${appUser.uid}`);
                 const allUsersRef = ref(db, 'status');
-                set(presenceRef, { username: appUser.username, isAdmin: appUser.isAdmin });
+                const deviceInfo = getDeviceInfo(); // Get device info on join
+                set(presenceRef, { 
+                    username: appUser.username, 
+                    isAdmin: appUser.isAdmin,
+                    deviceInfo: deviceInfo // Store it in Firebase
+                });
                 onDisconnect(presenceRef).remove();
                 const unsubscribe = onValue(allUsersRef, (snap) => {
                     const usersData = snap.val() || {};
@@ -331,16 +393,29 @@
             };
 
             return (
-                <div className="h-screen w-screen flex flex-col md:flex-row bg-[#1d2021]">
-                    <div className="w-full md:w-1/4 bg-[#282828] p-4 flex flex-col border-r border-[#3c3836] space-y-4">
+                <div className="h-screen w-screen flex flex-col md:flex-row bg-[#1d2021]/95 backdrop-blur-sm">
+                    <div className="w-full md:w-1/4 bg-[#282828]/90 p-4 flex flex-col border-r border-[#3c3836] space-y-4">
+                        <div className="flex justify-center mb-2">
+                            <img 
+                                src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" 
+                                alt="Company Logo"
+                                className="h-12 w-auto rounded-md"
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                            />
+                        </div>
                         <div className="flex-1 flex flex-col min-h-0">
                              <h2 className="text-xl font-bold text-[#ebdbb2] mb-4 border-b border-[#504945] pb-2">Active Users</h2>
                             <ul className="space-y-3 overflow-y-auto">
                                 {users.map(user => (
                                     <li key={user.uid} className="flex items-center justify-between p-2 rounded-md bg-[#1d2021] hover:bg-[#32302f] group">
-                                        <span className={`font-medium ${user.isAdmin ? 'text-[#b16286]' : 'text-[#ebdbb2]'}`}>
-                                            {user.username} {user.isAdmin && '(Admin)'}
-                                        </span>
+                                        <div>
+                                            <span className={`font-medium ${user.isAdmin ? 'text-[#b16286]' : 'text-[#ebdbb2]'}`}>
+                                                {user.username} {user.isAdmin && '(Admin)'}
+                                            </span>
+                                            {appUser.isAdmin && !user.isAdmin && user.deviceInfo && (
+                                                <p className="text-xs text-[#928374]">{user.deviceInfo}</p>
+                                            )}
+                                        </div>
                                         <div className="flex items-center space-x-2">
                                             {appUser.isAdmin && !user.isAdmin && (
                                                 <button onClick={() => handleStartCall(user)} className="text-xs bg-[#458588] text-[#1d2021] px-2 py-1 rounded-md hover:bg-[#689d6a]">Call</button>
@@ -389,7 +464,7 @@
                             </button>
                         </div>
                     </div>
-                    <div className="flex-1 flex flex-col p-4">
+                    <div className="flex-1 flex flex-col p-4 bg-transparent">
                         <h2 className="text-xl font-bold text-[#ebdbb2] mb-4 border-b border-[#504945] pb-2">Lobby Chat</h2>
                         <div className="flex-1 overflow-y-auto mb-4 pr-2">
                             {messages.map(msg => (
@@ -409,7 +484,7 @@
             );
         };
         
-        // 3. VIDEO ROOM COMPONENT - REBUILT FOR STABILITY
+        // 3. VIDEO ROOM COMPONENT
         const VideoRoomPage = ({ callId, setPage }) => {
             const { appUser } = useAuth();
             const localVideoRef = useRef(null);
@@ -627,6 +702,9 @@
             return (
                 <main>
                     {renderPage()}
+                    <div className="fixed bottom-2 left-2 text-xs text-gruvbox-gray opacity-50 z-50">
+                        {version}
+                    </div>
                 </main>
             );
         };
