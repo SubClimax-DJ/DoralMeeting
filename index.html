@@ -102,7 +102,7 @@
         } = window.firebaseSDK;
 
         // --- VERSION COUNTER ---
-        const version = `v1.7 (Updated: 9/15/2025, 8:19 PM)`;
+        const version = `v1.8 (Updated: 9/15/2025, 8:48 PM)`;
 
         // --- YOUR FIREBASE CONFIG ---
         const firebaseConfig = {
@@ -454,7 +454,7 @@
                                         {callLogs.length > 0 ? callLogs.map(log => (
                                             <li key={log.id} className="p-2 bg-[#1d2021] rounded-md">
                                                 <p><span className="font-semibold text-[#b16286]">{log.caller.username}</span> called <span className="font-semibold text-[#ebdbb2]">{log.callee.username}</span></p>
-                                                <p className="text-xs text-[#928374]">{(new Date(log.createdAt?.toDate())).toLocaleString()}</p>
+                                                <p className="text-xs text-[#928374]">{log.createdAt?.toDate() ? (new Date(log.createdAt.toDate())).toLocaleString() : 'Just now'}</p>
                                             </li>
                                         )) : <p className="text-xs text-[#928374]">No recent calls.</p>}
                                     </ul>
@@ -508,13 +508,19 @@
             const { appUser, logout } = useAuth();
             const localVideoRef = useRef(null);
             const remoteVideoRef = useRef(null);
-            
             const pc = useRef(null);
             const localStream = useRef(null);
             
+            // State for video controls
             const [isMuted, setIsMuted] = useState(false);
             const [isCameraOff, setIsCameraOff] = useState(false);
             const [status, setStatus] = useState('connecting');
+            
+            // State for in-call chat
+            const [messages, setMessages] = useState([]);
+            const [newMessage, setNewMessage] = useState('');
+            const [isChatVisible, setIsChatVisible] = useState(false);
+            const chatBottomRef = useRef(null);
 
             // This cleanup function is defined once and reused.
             const hangUpCleanup = () => {
@@ -574,24 +580,22 @@
                 };
                 
                 // This is the listener that handles call state for both users
-                const unsubscribe = onSnapshot(callDocRef, async (snapshot) => {
+                const unsubscribeCallState = onSnapshot(callDocRef, async (snapshot) => {
+                    if (!isMounted) return;
                     if (!snapshot.exists()) {
-                        // If the document is deleted, it means the call ended.
                         hangUpCleanup();
-                        if (isMounted) setPage('lobby');
+                        setPage('lobby');
                         return;
                     }
 
                     const data = snapshot.data();
 
-                    // Universal Hang Up: If status is 'ended', clean up and navigate away.
                     if (data?.status === 'ended') {
                         hangUpCleanup();
-                        if (isMounted) setPage('lobby');
+                        setPage('lobby');
                         return;
                     }
 
-                    // Callee logic: Answer the call when an offer is present
                     if (!appUser.isAdmin && data?.offer && !pc.current.remoteDescription) {
                         await pc.current.setRemoteDescription(new RTCSessionDescription(data.offer));
                         const answerDescription = await pc.current.createAnswer();
@@ -599,7 +603,6 @@
                         await updateDoc(callDocRef, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
                     }
 
-                    // Caller logic: Set the remote description when an answer is present
                     if (appUser.isAdmin && data?.answer && !pc.current.remoteDescription) {
                         await pc.current.setRemoteDescription(new RTCSessionDescription(data.answer));
                     }
@@ -607,6 +610,7 @@
 
                 // Start the call setup process
                 setupWebRTC().then(async () => {
+                    if (!isMounted) return;
                     setupSignaling();
                     if (appUser.isAdmin) {
                         const offerDescription = await pc.current.createOffer();
@@ -620,22 +624,52 @@
                 
                 return () => {
                     isMounted = false;
-                    unsubscribe();
+                    unsubscribeCallState();
                     hangUpCleanup();
                 };
-            }, []);
+            }, [callId, appUser.isAdmin, setPage]);
 
-            // Function for the End Call button
+            // Effect for fetching in-call chat messages
+            useEffect(() => {
+                if (!callId) return;
+                const messagesRef = collection(firestore, 'calls', callId, 'messages');
+                const q = query(messagesRef, orderBy('createdAt', 'asc'));
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setMessages(msgs);
+                });
+                return unsubscribe;
+            }, [callId]);
+            
+            // Effect to scroll chat to bottom
+            useEffect(() => {
+                if(isChatVisible){
+                    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }
+            }, [messages, isChatVisible]);
+
+            // Function to send a message
+            const handleSendMessage = async (e) => {
+                e.preventDefault();
+                if (newMessage.trim() === '' || !callId || !appUser) return;
+                const messagesRef = collection(firestore, 'calls', callId, 'messages');
+                await addDoc(messagesRef, {
+                    text: newMessage,
+                    username: appUser.username,
+                    uid: appUser.uid,
+                    createdAt: fsServerTimestamp()
+                });
+                setNewMessage('');
+            };
+
             const handleEndCallClick = async () => {
                 const callDocRef = doc(firestore, 'calls', callId);
                 await updateDoc(callDocRef, { status: 'ended' });
-                // The onSnapshot listener above will handle cleanup and navigation for both users.
             };
             
-            // Function for the emergency Logout button
             const handleLogoutFromCall = () => {
-                handleEndCallClick(); // Signal the end for the other user.
-                logout(); // Force this user to the login screen immediately.
+                handleEndCallClick();
+                logout();
             };
             
             const toggleMute = () => {
@@ -657,7 +691,7 @@
             };
 
             return (
-                <div className="relative h-screen w-screen bg-black flex items-center justify-center">
+                <div className="relative h-screen w-screen bg-black flex items-center justify-center overflow-hidden">
                     <video ref={remoteVideoRef} autoPlay playsInline className="h-full w-full object-cover" />
                     
                     {status === 'connecting' && (
@@ -670,21 +704,47 @@
                         </div>
                     )}
 
-                    <video ref={localVideoRef} autoPlay playsInline muted className="absolute bottom-6 right-6 w-1/4 max-w-xs rounded-lg border-2 border-[#458588] shadow-2xl" />
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/50 p-4 rounded-xl">
+                    <video ref={localVideoRef} autoPlay playsInline muted className="absolute bottom-24 md:bottom-6 right-6 w-1/3 max-w-xs rounded-lg border-2 border-[#458588] shadow-2xl" />
+                    
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 bg-black/50 p-3 md:p-4 rounded-xl">
                         <button onClick={toggleMute} className={`p-3 rounded-full transition-colors ${isMuted ? 'bg-[#cc241d]' : 'bg-[#458588] hover:bg-[#689d6a]'}`}>
                             {isMuted ? MuteIconOff : MuteIconOn}
                         </button>
                         <button onClick={toggleCamera} className={`p-3 rounded-full transition-colors ${isCameraOff ? 'bg-[#cc241d]' : 'bg-[#458588] hover:bg-[#689d6a]'}`}>
                            {isCameraOff ? CameraIconOff : CameraIconOn}
                         </button>
+                        <button onClick={() => setIsChatVisible(prev => !prev)} className={`p-3 rounded-full transition-colors ${isChatVisible ? 'bg-[#98971a]' : 'bg-[#458588] hover:bg-[#689d6a]'}`} title={isChatVisible ? "Hide Chat" : "Show Chat"}>
+                            {ChatIcon}
+                        </button>
                         <button onClick={handleEndCallClick} className="p-3 rounded-full bg-[#cc241d] hover:bg-red-500">
                            {EndCallIcon}
                         </button>
-                        {/* New Logout Button */}
-                         <button onClick={handleLogoutFromCall} className="p-3 rounded-full bg-[#d79921] hover:bg-yellow-600 ml-4" title="Emergency Logout">
-                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line></svg>
-                        </button>
+                         <button onClick={handleLogoutFromCall} className="p-3 rounded-full bg-[#d79921] hover:bg-yellow-600 ml-2 md:ml-4" title="Emergency Logout">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line></svg>
+                         </button>
+                    </div>
+                    
+                    {/* Chat Panel */}
+                    <div className={`absolute top-0 right-0 h-full w-full max-w-md bg-[#1d2021]/80 backdrop-blur-sm flex flex-col p-4 transition-transform duration-300 ease-in-out ${isChatVisible ? 'translate-x-0' : 'translate-x-full'}`}>
+                        <div className="flex items-center justify-between mb-4 border-b border-[#504945] pb-2">
+                            <h3 className="text-xl font-bold text-[#ebdbb2]">In-Call Chat</h3>
+                            <button onClick={() => setIsChatVisible(false)} className="text-[#a89984] hover:text-[#ebdbb2]">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto mb-4 pr-2">
+                            {messages.map(msg => (
+                                <div key={msg.id} className="mb-3">
+                                    <span className="font-bold text-[#689d6a]">{msg.username}: </span>
+                                    <span className="text-[#ebdbb2] break-words">{msg.text}</span>
+                                </div>
+                            ))}
+                            <div ref={chatBottomRef} />
+                        </div>
+                        <form onSubmit={handleSendMessage} className="flex gap-3">
+                            <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-1 px-4 py-2 bg-[#282828] text-[#ebdbb2] border-2 border-[#504945] rounded-md focus:outline-none focus:border-[#458588]" />
+                            <button type="submit" className="px-6 py-2 bg-[#458588] text-[#1d2021] font-bold rounded-md hover:bg-[#689d6a]">Send</button>
+                        </form>
                     </div>
                 </div>
             );
@@ -696,6 +756,7 @@
         const CameraIconOn = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>;
         const CameraIconOff = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><line x1="2" x2="22" y1="2" y2="22"></line><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16"></path><path d="M10.3 10.3a3 3 0 1 1 3.4 3.4"></path><path d="M22 13v-4a2 2 0 0 0-2-2h-3l-2.5-3z"></path></svg>;
         const EndCallIcon = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M12.22 12.22a3 3 0 0 1-.44 4.34l-1.37 1.37a2 2 0 0 1-2.83 0L6.21 16.56a2 2 0 0 1 0-2.83l1.37-1.37a3 3 0 0 1 4.34-.44z"></path><path d="m15.89 15.89-2.2-2.2"></path><path d="M21.17 4.83a2 2 0 0 0-2.83 0l-1.37 1.37a2 2 0 0 0 0 2.83l2.83 2.83a2 2 0 0 0 2.83 0l1.37-1.37a2 2 0 0 0 0-2.83L21.17 4.83z"></path></svg>;
+        const ChatIcon = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>;
 
         // --- MAIN APP COMPONENT ---
         const App = () => {
@@ -762,4 +823,3 @@
 
 </body>
 </html>
-
