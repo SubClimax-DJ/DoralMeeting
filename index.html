@@ -6,12 +6,28 @@
     <title>Simple Screen Share</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Gruvbox Dark Theme Colors */
+        :root {
+            --bg: #282828;
+            --bg-alt: #3c3836;
+            --fg: #ebdbb2;
+            --gray: #928374;
+            --red: #fb4934;
+            --green: #b8bb26;
+            --yellow: #fabd2f;
+            --blue: #83a598;
+            --purple: #d3869b;
+            --aqua: #8ec07c;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--fg);
         }
         .video-placeholder {
-            background-color: #2d3748;
-            border: 2px dashed #4a5568;
+            background-color: var(--bg);
+            border: 2px dashed var(--bg-alt);
         }
         #remoteScreen {
             max-width: 100%;
@@ -31,80 +47,69 @@
           width: 64px;
           height: 64px;
           margin: 8px;
-          border: 8px solid #fff;
+          border: 8px solid var(--fg);
           border-radius: 50%;
           animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-          border-color: #fff transparent transparent transparent;
+          border-color: var(--fg) transparent transparent transparent;
         }
-        .lds-ring div:nth-child(1) {
-          animation-delay: -0.45s;
-        }
-        .lds-ring div:nth-child(2) {
-          animation-delay: -0.3s;
-        }
-        .lds-ring div:nth-child(3) {
-          animation-delay: -0.15s;
-        }
+        .lds-ring div:nth-child(1) { animation-delay: -0.45s; }
+        .lds-ring div:nth-child(2) { animation-delay: -0.3s; }
+        .lds-ring div:nth-child(3) { animation-delay: -0.15s; }
         @keyframes lds-ring {
-          0% {
-            transform: rotate(0deg);
-          }
-          100% {
-            transform: rotate(360deg);
-          }
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white flex flex-col items-center min-h-screen p-4">
+<body class="flex flex-col items-center min-h-screen p-4">
 
     <div class="w-full max-w-6xl mx-auto">
-        <h1 class="text-3xl font-bold text-center mb-2">Simple Screen Share</h1>
-        <p class="text-center text-gray-400 mb-6">Share your screen with another person using a Room ID.</p>
+        <h1 class="text-3xl font-bold text-center mb-2 text-aqua" style="color: var(--aqua);">Simple Screen Share</h1>
+        <p class="text-center mb-6" style="color: var(--gray);">Share your screen with another person using a Room ID.</p>
 
         <!-- Room Connection UI -->
-        <div id="room-ui" class="bg-gray-800 p-6 rounded-lg shadow-xl mb-6 flex flex-col items-center justify-center gap-4">
-            <p id="auth-status" class="text-yellow-400 font-mono text-center mb-2">Authenticating...</p>
-            <button id="createRoomBtn" disabled class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors opacity-50 cursor-not-allowed">Create Room</button>
-            <div class="text-gray-400 font-mono text-center my-2 sm:my-0">OR</div>
+        <div id="room-ui" class="p-6 rounded-lg shadow-xl mb-6 flex flex-col items-center justify-center gap-4" style="background-color: var(--bg-alt);">
+            <p id="auth-status" class="font-mono text-center mb-2" style="color: var(--yellow);">Authenticating...</p>
+            <button id="createRoomBtn" disabled class="w-full sm:w-auto text-white font-bold py-3 px-6 rounded-lg transition-colors opacity-50 cursor-not-allowed" style="background-color: var(--blue);">Create Room</button>
+            <div class="font-mono text-center my-2 sm:my-0" style="color: var(--gray);">OR</div>
             <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <input type="text" id="roomIdInput" placeholder="Enter Room ID to Join" class="w-full sm:w-64 bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <button id="joinRoomBtn" disabled class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors opacity-50 cursor-not-allowed">Join Room</button>
+                <input type="text" id="roomIdInput" placeholder="Enter Room ID to Join" class="w-full sm:w-64 text-white border rounded-lg px-4 py-3 focus:outline-none focus:ring-2" style="background-color: var(--bg); border-color: #504945; --tw-ring-color: var(--aqua);">
+                <button id="joinRoomBtn" disabled class="text-black font-bold py-3 px-6 rounded-lg transition-colors opacity-50 cursor-not-allowed" style="background-color: var(--green);">Join Room</button>
             </div>
              <!-- Available Rooms List -->
-            <div id="room-list-container" class="w-full mt-4 pt-4 border-t border-gray-700">
-                <h3 class="text-lg font-semibold text-center text-gray-300 mb-2">Available Rooms</h3>
+            <div id="room-list-container" class="w-full mt-4 pt-4 border-t" style="border-color: #504945;">
+                <h3 class="text-lg font-semibold text-center mb-2" style="color: var(--fg);">Available Rooms</h3>
                 <div id="room-list" class="max-h-40 overflow-y-auto space-y-2">
-                    <!-- Room items will be injected here -->
-                    <p id="no-rooms-msg" class="text-gray-500 text-center">No active rooms found.</p>
+                    <p id="no-rooms-msg" class="text-center" style="color: var(--gray);">No active rooms found.</p>
                 </div>
             </div>
         </div>
 
         <!-- Info and Controls -->
-        <div id="session-info" class="hidden text-center mb-4 bg-gray-800 p-4 rounded-lg">
-            <p class="text-gray-400">Your User ID: <span id="userId" class="font-mono text-gray-300"></span></p>
-            <p class="text-green-400">Connected to Room: <span id="roomIdDisplay" class="font-mono text-green-300"></span></p>
-            <div id="error-message" class="text-red-400 my-2 font-semibold"></div>
+        <div id="session-info" class="hidden text-center mb-4 p-4 rounded-lg" style="background-color: var(--bg-alt);">
+            <p style="color: var(--gray);">Your User ID: <span id="userId" class="font-mono" style="color: var(--fg);"></span></p>
+            <p style="color: var(--green);">Connected to Room: <span id="roomIdDisplay" class="font-mono" style="color: var(--aqua);"></span></p>
+            <div id="error-message" class="my-2 font-semibold" style="color: var(--red);"></div>
             <div id="controls" class="mt-4 flex justify-center gap-4">
-                <button id="startShareBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-lg transition-colors">Start Sharing</button>
-                <button id="stopShareBtn" class="hidden bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-5 rounded-lg transition-colors">Stop Sharing</button>
+                <button id="startShareBtn" class="text-white font-bold py-2 px-5 rounded-lg transition-colors" style="background-color: var(--blue);">Start Sharing</button>
+                <button id="stopShareBtn" class="hidden text-white font-bold py-2 px-5 rounded-lg transition-colors" style="background-color: var(--red);">Stop Sharing</button>
             </div>
         </div>
 
         <!-- Screen Display Area -->
         <div class="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
             <!-- Remote Screen -->
-            <div class="bg-gray-800 rounded-lg shadow-xl p-4 flex flex-col items-center justify-center aspect-video">
-                <h2 class="text-lg font-semibold mb-2 text-gray-400">Remote Screen</h2>
+            <div class="rounded-lg shadow-xl p-4 flex flex-col items-center justify-center aspect-video" style="background-color: var(--bg-alt);">
+                <h2 class="text-lg font-semibold mb-2" style="color: var(--gray);">Remote Screen</h2>
                 <div id="remoteScreenContainer" class="w-full h-full flex items-center justify-center video-placeholder rounded-md">
-                     <div id="waiting-message" class="text-gray-500">Waiting for other user to share...</div>
+                     <div id="waiting-message" style="color: var(--gray);">Waiting for other user to share...</div>
                      <div id="loading-spinner" class="hidden lds-ring"><div></div><div></div><div></div><div></div></div>
                      <img id="remoteScreen" class="hidden rounded-md"/>
                 </div>
             </div>
             <!-- Local Preview -->
-            <div class="bg-gray-800 rounded-lg shadow-xl p-4 flex flex-col items-center justify-center aspect-video">
-                <h2 class="text-lg font-semibold mb-2 text-gray-400">Your Preview</h2>
+            <div class="rounded-lg shadow-xl p-4 flex flex-col items-center justify-center aspect-video" style="background-color: var(--bg-alt);">
+                <h2 class="text-lg font-semibold mb-2" style="color: var(--gray);">Your Preview</h2>
                 <div class="w-full h-full flex items-center justify-center video-placeholder rounded-md">
                     <video id="localVideo" class="rounded-md" autoplay muted playsinline style="max-width: 100%; max-height:100%"></video>
                 </div>
@@ -174,9 +179,11 @@
                 createRoomBtn.disabled = false;
                 joinRoomBtn.disabled = false;
                 createRoomBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                createRoomBtn.style.backgroundColor = 'var(--blue)';
                 joinRoomBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                joinRoomBtn.style.backgroundColor = 'var(--green)';
                 authStatus.textContent = 'Ready to connect!';
-                authStatus.className = 'text-green-400 font-mono text-center mb-2';
+                authStatus.style.color = 'var(--green)';
                 setTimeout(() => { authStatus.classList.add('hidden'); }, 3000);
                 
                 // Once authenticated, start services
@@ -186,7 +193,7 @@
                 console.error("Authentication failed:", error);
                 userIdDisplay.textContent = "Error: Could not authenticate.";
                 authStatus.textContent = 'Authentication failed. Please refresh.';
-                authStatus.className = 'text-red-500 font-mono text-center mb-2';
+                authStatus.style.color = 'var(--red)';
             }
         }
 
@@ -268,8 +275,11 @@
                 } else {
                     snapshot.forEach((doc) => {
                         const roomEl = document.createElement('button');
-                        roomEl.className = 'w-full text-left p-2 bg-gray-700 hover:bg-indigo-500 rounded-md transition-colors';
+                        roomEl.className = 'w-full text-left p-2 rounded-md transition-colors';
+                        roomEl.style.backgroundColor = 'var(--bg)';
                         roomEl.textContent = `Room: ${doc.id}`;
+                        roomEl.onmouseover = () => roomEl.style.backgroundColor = 'var(--aqua)';
+                        roomEl.onmouseout = () => roomEl.style.backgroundColor = 'var(--bg)';
                         roomEl.onclick = () => joinRoom(doc.id);
                         roomList.appendChild(roomEl);
                     });
@@ -369,6 +379,4 @@
     </script>
 </body>
 </html>
-
-
 
