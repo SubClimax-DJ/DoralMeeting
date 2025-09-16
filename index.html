@@ -102,7 +102,7 @@
         } = window.firebaseSDK;
 
         // --- VERSION COUNTER ---
-        const version = `v1.8 (Updated: 9/15/2025, 8:48 PM)`;
+        const version = `v1.9 (Debug Logging)`;
 
         // --- YOUR FIREBASE CONFIG ---
         const firebaseConfig = {
@@ -524,6 +524,7 @@
 
             // This cleanup function is defined once and reused.
             const hangUpCleanup = () => {
+                console.log("Cleaning up call resources.");
                 if (localStream.current) {
                     localStream.current.getTracks().forEach(track => track.stop());
                     localStream.current = null;
@@ -538,51 +539,71 @@
             useEffect(() => {
                 let isMounted = true;
                 const callDocRef = doc(firestore, 'calls', callId);
+                const role = appUser.isAdmin ? '[ADMIN]' : '[PEER]';
 
                 const setupWebRTC = async () => {
+                    console.log(`${role} Setting up WebRTC connection...`);
                     pc.current = new RTCPeerConnection(servers);
+                    
+                    console.log(`${role} Requesting media devices (camera/mic)...`);
                     localStream.current = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                     const remoteStream = new MediaStream();
 
                     if (localVideoRef.current) localVideoRef.current.srcObject = localStream.current;
                     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
 
+                    console.log(`${role} Adding local stream tracks to peer connection.`);
                     localStream.current.getTracks().forEach(track => pc.current.addTrack(track, localStream.current));
                     
                     pc.current.ontrack = event => {
+                        console.log(`${role} Received remote track.`);
                         event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
                     };
                     
                     pc.current.onconnectionstatechange = () => {
-                        if (pc.current?.connectionState === 'connected') {
+                        if (!pc.current) return;
+                        console.log(`${role} Connection State Change: ${pc.current.connectionState}`);
+                        if (pc.current.connectionState === 'connected') {
                             setStatus('connected');
                         }
+                    };
+
+                    pc.current.oniceconnectionstatechange = () => {
+                         if (!pc.current) return;
+                        console.log(`${role} ICE Connection State Change: ${pc.current.iceConnectionState}`);
                     };
                 };
 
                 const setupSignaling = () => {
+                    console.log(`${role} Setting up signaling listeners.`);
                     const callerCandidatesRef = collection(callDocRef, 'callerCandidates');
                     const calleeCandidatesRef = collection(callDocRef, 'calleeCandidates');
+                    const candidatesRef = appUser.isAdmin ? callerCandidatesRef : calleeCandidatesRef;
+                    const otherCandidatesRef = appUser.isAdmin ? calleeCandidatesRef : callerCandidatesRef;
 
                     pc.current.onicecandidate = event => {
                         if (event.candidate) {
-                           addDoc(appUser.isAdmin ? callerCandidatesRef : calleeCandidatesRef, event.candidate.toJSON());
+                            console.log(`${role} Generated ICE candidate. Sending...`, event.candidate.type);
+                            addDoc(candidatesRef, event.candidate.toJSON());
                         }
                     };
 
-                    onSnapshot(appUser.isAdmin ? calleeCandidatesRef : callerCandidatesRef, snapshot => {
+                    onSnapshot(otherCandidatesRef, snapshot => {
                         snapshot.docChanges().forEach(change => {
                             if (change.type === 'added') {
+                                console.log(`${role} Received new ICE candidate. Adding...`);
                                 pc.current?.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                             }
                         });
                     });
                 };
                 
-                // This is the listener that handles call state for both users
                 const unsubscribeCallState = onSnapshot(callDocRef, async (snapshot) => {
-                    if (!isMounted) return;
+                    if (!isMounted || !pc.current) return;
+                    console.log(`${role} Call document updated.`);
+
                     if (!snapshot.exists()) {
+                        console.log(`${role} Call document deleted. Ending call.`);
                         hangUpCleanup();
                         setPage('lobby');
                         return;
@@ -591,19 +612,26 @@
                     const data = snapshot.data();
 
                     if (data?.status === 'ended') {
+                        console.log(`${role} Call status is 'ended'. Cleaning up.`);
                         hangUpCleanup();
                         setPage('lobby');
                         return;
                     }
 
                     if (!appUser.isAdmin && data?.offer && !pc.current.remoteDescription) {
+                        console.log(`${role} Received offer. Setting remote description.`);
                         await pc.current.setRemoteDescription(new RTCSessionDescription(data.offer));
+                        
+                        console.log(`${role} Creating answer.`);
                         const answerDescription = await pc.current.createAnswer();
                         await pc.current.setLocalDescription(answerDescription);
+                        
+                        console.log(`${role} Sending answer to Firestore.`);
                         await updateDoc(callDocRef, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
                     }
 
                     if (appUser.isAdmin && data?.answer && !pc.current.remoteDescription) {
+                        console.log(`${role} Received answer. Setting remote description.`);
                         await pc.current.setRemoteDescription(new RTCSessionDescription(data.answer));
                     }
                 });
@@ -613,16 +641,20 @@
                     if (!isMounted) return;
                     setupSignaling();
                     if (appUser.isAdmin) {
+                        console.log(`${role} Creating offer.`);
                         const offerDescription = await pc.current.createOffer();
                         await pc.current.setLocalDescription(offerDescription);
+                        
+                        console.log(`${role} Sending offer to Firestore.`);
                         await updateDoc(callDocRef, { offer: { type: offerDescription.type, sdp: offerDescription.sdp } });
                     }
                 }).catch(err => {
-                    console.error("Failed to setup call:", err);
+                    console.error(`${role} Failed to setup call:`, err);
                     setStatus('failed');
                 });
                 
                 return () => {
+                    console.log(`${role} Unmounting VideoRoom component.`);
                     isMounted = false;
                     unsubscribeCallState();
                     hangUpCleanup();
@@ -823,3 +855,4 @@
 
 </body>
 </html>
+
