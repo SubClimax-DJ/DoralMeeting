@@ -191,6 +191,10 @@
                 autoDeleteStaleRooms();
             } catch (error) {
                 console.error("Authentication failed:", error);
+                // --- MORE DETAILED LOGGING ---
+                console.error("Firebase Auth Error Code:", error.code);
+                console.error("Firebase Auth Error Message:", error.message);
+                // -----------------------------
                 userIdDisplay.textContent = "Error: Could not authenticate.";
                 authStatus.textContent = 'Authentication failed. Please refresh.';
                 authStatus.style.color = 'var(--red)';
@@ -379,4 +383,5 @@
     </script>
 </body>
 </html>
+
 
