@@ -102,7 +102,7 @@
         } = window.firebaseSDK;
 
         // --- VERSION COUNTER ---
-        const version = `v1.9 (Debug Logging)`;
+        const version = `v2.0 (TURN Relay Added)`;
 
         // --- YOUR FIREBASE CONFIG ---
         const firebaseConfig = {
@@ -153,10 +153,20 @@
         };
 
 
-        // WebRTC STUN servers configuration
+        // WebRTC STUN & TURN servers configuration
         const servers = {
             iceServers: [
                 { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
+                {
+                    urls: 'turn:openrelay.metered.ca:80',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject',
+                },
+                 {
+                    urls: 'turn:openrelay.metered.ca:443',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject',
+                }
             ],
             iceCandidatePoolSize: 10,
         };
@@ -571,6 +581,11 @@
                     pc.current.oniceconnectionstatechange = () => {
                          if (!pc.current) return;
                         console.log(`${role} ICE Connection State Change: ${pc.current.iceConnectionState}`);
+                    };
+                    
+                    pc.current.onicegatheringstatechange = () => {
+                         if (!pc.current) return;
+                        console.log(`${role} ICE Gathering State Change: ${pc.current.iceGatheringState}`);
                     };
                 };
 
