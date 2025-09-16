@@ -342,12 +342,15 @@
         // --- WebRTC Call Logic ---
 
         async function startCall(calleeId, calleeUsername) {
+            console.log(`Starting call to ${calleeUsername} (${calleeId})`);
             currentCallId = (await addDoc(collection(db, 'calls'), { 
                 callerId: user.uid,
                 callerUsername: user.username,
                 calleeId: calleeId,
                 calleeUsername: calleeUsername,
             })).id;
+            
+            console.log(`Call document created with ID: ${currentCallId}`);
             
             showCall();
             setupPeerConnection();
@@ -362,19 +365,25 @@
 
             const callDoc = doc(db, 'calls', currentCallId);
             await updateDoc(callDoc, { offer: { sdp: offerDescription.sdp, type: offerDescription.type } });
+            console.log("Offer sent.");
 
             listenForAnswer(callDoc);
             listenForIceCandidates(callDoc, 'calleeCandidates', 'callerCandidates');
         }
         
         async function listenForCalls() {
+            console.log("Listening for incoming calls...");
             onSnapshot(collection(db, 'calls'), (snapshot) => {
                 snapshot.docChanges().forEach(async (change) => {
                     const callData = change.doc.data();
-                    // Check if this user is being called and there's an offer
-                    if (change.type === "added" && callData.calleeId === user.uid && callData.offer && !currentCallId) {
+                    const callId = change.doc.id;
+                    
+                    // A more robust check: Instead of only looking for `added` docs,
+                    // we check any document that is for us, has an offer, and that we're not already in a call.
+                    if (callData.calleeId === user.uid && callData.offer && !currentCallId) {
+                        console.log(`Incoming call detected from ${callData.callerUsername} with ID: ${callId}`);
                         incomingCallData = {
-                            id: change.doc.id,
+                            id: callId,
                             offer: callData.offer,
                             callerUsername: callData.callerUsername
                         };
@@ -386,6 +395,7 @@
         }
         
         async function answerCall(offer) {
+            console.log(`Answering call ID: ${currentCallId}`);
             showCall();
             setupPeerConnection();
             
@@ -401,6 +411,7 @@
 
             const callDoc = doc(db, 'calls', currentCallId);
             await updateDoc(callDoc, { answer: { sdp: answerDescription.sdp, type: answerDescription.type } });
+            console.log("Answer sent.");
             
             listenForIceCandidates(callDoc, 'callerCandidates', 'calleeCandidates');
         }
@@ -566,4 +577,5 @@
     </script>
 </body>
 </html>
+
 
