@@ -3,175 +3,575 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Console</title>
+    <title>Gruvbox Video Conference</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Gruvbox Dark Theme */
+        :root {
+            --bg: #282828;
+            --fg: #ebdbb2;
+            --red: #cc241d;
+            --green: #98971a;
+            --yellow: #d79921;
+            --blue: #458588;
+            --purple: #b16286;
+            --aqua: #689d6a;
+            --gray: #a89984;
+            --bg1: #3c3836;
+            --bg2: #504945;
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--fg);
+            font-family: 'Fira Code', 'monospace', sans-serif;
+        }
+
+        .gruvbox-input {
+            background-color: var(--bg1);
+            border: 1px solid var(--bg2);
+            color: var(--fg);
+            border-radius: 0.375rem; /* rounded-md */
+            padding: 0.75rem; /* p-3 */
+            width: 100%;
+        }
+
+        .gruvbox-input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 2px var(--bg1), 0 0 0 4px var(--blue);
+        }
+
+        .gruvbox-btn {
+            background-color: var(--blue);
+            color: var(--bg);
+            font-weight: bold;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        .gruvbox-btn:hover {
+            background-color: var(--aqua);
+        }
+        
+        .gruvbox-btn-red {
+            background-color: var(--red);
+        }
+        
+        .gruvbox-btn-red:hover {
+             background-color: #fb4934; /* light red */
+        }
+        
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: var(--bg1);
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: var(--bg2);
+            border-radius: 4px;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb:hover {
+            background: var(--gray);
+        }
+        
+        .hidden {
+            display: none;
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen">
+<body class="flex items-center justify-center min-h-screen">
 
-    <div id="app-container" class="w-full max-w-2xl mx-auto p-4">
-        <div class="bg-gray-800 rounded-lg shadow-xl p-6">
-            <h1 class="text-3xl font-bold text-center mb-6">Admin Console</h1>
-
-            <!-- Login -->
-            <div id="login-container" class="space-y-4">
-                <input type="password" id="password" placeholder="Enter Admin Password" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Login</button>
+    <!-- Login Page -->
+    <div id="login-page" class="w-full max-w-sm p-8 space-y-6 bg-transparent rounded-lg">
+        <h1 class="text-3xl font-bold text-center text-yellow-400">Join Call</h1>
+        <div class="space-y-4">
+            <div>
+                <label for="username" class="block mb-2 text-sm font-medium text-gray-400">Username</label>
+                <input type="text" id="username" class="gruvbox-input" placeholder="Enter your name">
             </div>
+            <div id="password-container" class="hidden">
+                <label for="password" class="block mb-2 text-sm font-medium text-gray-400">Password</label>
+                <input type="password" id="password" class="gruvbox-input" placeholder="Enter admin password">
+            </div>
+        </div>
+        <p id="login-error" class="text-red-500 text-sm text-center"></p>
+        <button id="join-btn" class="w-full gruvbox-btn">Join Lobby</button>
+    </div>
 
-            <!-- Admin Panel -->
-            <div id="admin-panel" class="hidden">
-                <h2 class="text-2xl font-bold mb-4">Create & Manage Calls</h2>
-
-                <!-- Create Call -->
-                <div class="space-y-4 mb-8">
-                     <input type="text" id="newCallId" placeholder="Enter New Call Name" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                     <button id="createCallBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Create Call</button>
-                </div>
-
-
-                <!-- Active Calls List -->
-                <div>
-                    <h3 class="text-xl font-semibold mb-3">Active Calls</h3>
-                    <div id="active-calls-list" class="space-y-2">
-                        <!-- Calls will be dynamically inserted here -->
-                         <p id="no-calls-msg" class="text-gray-400">No active calls.</p>
-                    </div>
-                </div>
-                 <button id="logoutBtn" class="mt-8 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Logout</button>
+    <!-- Lobby Page -->
+    <div id="lobby-page" class="hidden w-full h-screen max-w-6xl p-4 md:p-6 lg:p-8 flex flex-col md:flex-row gap-4">
+        <!-- Users List -->
+        <div class="w-full md:w-1/4 bg-black bg-opacity-20 rounded-lg p-4 flex flex-col">
+            <h2 class="text-xl font-bold mb-4 text-yellow-400 border-b-2 border-gray-700 pb-2">Active Users</h2>
+            <div id="user-list" class="flex-grow overflow-y-auto space-y-2">
+                <!-- User items will be injected here -->
+            </div>
+        </div>
+        <!-- Chat Area -->
+        <div class="w-full md:w-3/4 bg-black bg-opacity-20 rounded-lg p-4 flex flex-col h-full">
+            <h2 class="text-xl font-bold mb-4 text-yellow-400 border-b-2 border-gray-700 pb-2">Lobby Chat</h2>
+            <div id="chat-messages" class="flex-grow overflow-y-auto mb-4 p-2 chat-container">
+                <!-- Chat messages will be injected here -->
+            </div>
+            <div class="flex gap-2">
+                <input type="text" id="chat-input" class="gruvbox-input flex-grow" placeholder="Type a message...">
+                <button id="send-btn" class="gruvbox-btn">Send</button>
             </div>
         </div>
     </div>
 
+    <!-- Video Call Page -->
+    <div id="video-page" class="hidden w-screen h-screen flex flex-col items-center justify-center bg-black p-4">
+        <div class="relative w-full h-full max-w-6xl aspect-video">
+            <video id="remoteVideo" autoplay playsinline class="w-full h-full object-contain rounded-lg bg-black"></video>
+            <video id="localVideo" autoplay playsinline muted class="absolute bottom-4 right-4 w-1/4 max-w-xs h-auto rounded-lg border-2 border-gray-600"></video>
+        </div>
+        <div class="flex items-center justify-center space-x-4 mt-4 p-4 bg-gray-900 bg-opacity-50 rounded-full">
+            <button id="mic-btn" class="gruvbox-btn p-3 rounded-full">Mute Mic</button>
+            <button id="camera-btn" class="gruvbox-btn p-3 rounded-full">Cam Off</button>
+            <button id="hangup-btn" class="gruvbox-btn gruvbox-btn-red p-3 rounded-full">End Call</button>
+        </div>
+    </div>
+
+    <!-- Incoming Call Modal -->
+    <div id="incoming-call-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div class="bg-bg1 p-8 rounded-lg shadow-xl text-center space-y-4">
+            <h2 class="text-2xl font-bold text-yellow-400">Incoming Call</h2>
+            <p id="caller-info" class="text-gray-300">You have an incoming call.</p>
+            <div class="flex justify-center gap-4">
+                <button id="answer-btn" class="gruvbox-btn">Answer</button>
+                <button id="decline-btn" class="gruvbox-btn gruvbox-btn-red">Decline</button>
+            </div>
+        </div>
+    </div>
+
+
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection, deleteDoc, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getDatabase, ref, set, onValue, push, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "YOUR_API_KEY", authDomain: "...", projectId: "..." };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
+        // IMPORTANT: Replace with your actual Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
+            authDomain: "video-meeting-e73eb.firebaseapp.com",
+            projectId: "video-meeting-e73eb",
+            storageBucket: "video-meeting-e73eb.firebasestorage.app",
+            messagingSenderId: "80496795033",
+            appId: "1:80496795033:web:3ac35c631d76301f77c708",
+            measurementId: "G-SFPQ0PJRPG"
+        };
+        
+        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
         const auth = getAuth(app);
-        
-        // --- UI Elements ---
-        const loginContainer = document.getElementById('login-container');
-        const adminPanel = document.getElementById('admin-panel');
-        const loginBtn = document.getElementById('loginBtn');
+        const db = getFirestore(app);
+        const rtdb = getDatabase(app);
+
+        // DOM Elements
+        const loginPage = document.getElementById('login-page');
+        const lobbyPage = document.getElementById('lobby-page');
+        const videoPage = document.getElementById('video-page');
+
+        const usernameInput = document.getElementById('username');
         const passwordInput = document.getElementById('password');
-        const createCallBtn = document.getElementById('createCallBtn');
-        const newCallIdInput = document.getElementById('newCallId');
-        const activeCallsList = document.getElementById('active-calls-list');
-        const noCallsMsg = document.getElementById('no-calls-msg');
-        const logoutBtn = document.getElementById('logoutBtn');
+        const passwordContainer = document.getElementById('password-container');
+        const joinBtn = document.getElementById('join-btn');
+        const loginError = document.getElementById('login-error');
+
+        const userList = document.getElementById('user-list');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
         
-        // --- Admin Logic ---
-        const ADMIN_PASSWORD = "admin"; // In a real app, use a secure auth system.
-        let callsUnsubscribe;
-        
-        loginBtn.onclick = () => {
-            if (passwordInput.value === ADMIN_PASSWORD) {
-                loginContainer.classList.add('hidden');
-                adminPanel.classList.remove('hidden');
-                listenForActiveCalls();
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const micBtn = document.getElementById('mic-btn');
+        const cameraBtn = document.getElementById('camera-btn');
+        const hangupBtn = document.getElementById('hangup-btn');
+
+        // Modal elements
+        const incomingCallModal = document.getElementById('incoming-call-modal');
+        const callerInfo = document.getElementById('caller-info');
+        const answerBtn = document.getElementById('answer-btn');
+        const declineBtn = document.getElementById('decline-btn');
+
+
+        // State variables
+        let localStream;
+        let remoteStream;
+        let peerConnection;
+        let currentCallId;
+        let currentUser = null;
+        let currentUsername = '';
+        let isAdmin = false;
+
+        const servers = {
+            iceServers: [
+                { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
+            ],
+            iceCandidatePoolSize: 10,
+        };
+
+        // --- Login Logic ---
+        usernameInput.addEventListener('input', () => {
+            if (usernameInput.value.toLowerCase() === 'admin') {
+                passwordContainer.classList.remove('hidden');
             } else {
-                alert("Incorrect password.");
+                passwordContainer.classList.add('hidden');
             }
-        };
+        });
 
-        logoutBtn.onclick = () => {
-             if (callsUnsubscribe) {
-                callsUnsubscribe();
-             }
-             loginContainer.classList.remove('hidden');
-             adminPanel.classList.add('hidden');
-             passwordInput.value = '';
-        };
+        joinBtn.onclick = async () => {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            loginError.textContent = '';
 
-        createCallBtn.onclick = async () => {
-            const newCallId = newCallIdInput.value.trim();
-            if(!newCallId) {
-                alert("Please enter a name for the call.");
+            if (!username) {
+                loginError.textContent = 'Please enter a username.';
                 return;
             }
-            const callRef = doc(db, 'artifacts', appId, 'public', 'data', 'calls', newCallId);
-            // We set an empty object just to create the document
-            await setDoc(callRef, { createdAt: new Date() });
-            newCallIdInput.value = '';
+
+            if (username.toLowerCase() === 'admin') {
+                if (password === 'max') {
+                    isAdmin = true;
+                    currentUsername = 'Admin';
+                } else {
+                    loginError.textContent = 'Incorrect admin password.';
+                    return;
+                }
+            } else {
+                isAdmin = false;
+                currentUsername = username;
+            }
+            
+            await signIn();
         };
 
-        function listenForActiveCalls() {
-            const callsCollection = collection(db, 'artifacts', appId, 'public', 'data', 'calls');
-            callsUnsubscribe = onSnapshot(callsCollection, (snapshot) => {
-                activeCallsList.innerHTML = ''; // Clear the list
-                if (snapshot.empty) {
-                     activeCallsList.appendChild(noCallsMsg);
-                     noCallsMsg.classList.remove('hidden');
-                } else {
-                    noCallsMsg.classList.add('hidden');
-                    snapshot.forEach(doc => {
-                        renderCallItem(doc.id);
-                    });
+        async function signIn() {
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Anonymous sign-in failed", error);
+                loginError.textContent = 'Failed to connect. Please try again.';
+            }
+        }
+        
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                currentUser = user;
+                if(currentUsername){ // Ensure username is set before proceeding
+                    setupPresence();
+                    showLobby();
                 }
+            } else {
+                currentUser = null;
+                // Handle signed out state if necessary
+            }
+        });
+
+        // --- Presence and Lobby Logic ---
+        function setupPresence() {
+            const myStatusRef = ref(rtdb, 'status/' + currentUser.uid);
+            onValue(ref(rtdb, '.info/connected'), (snapshot) => {
+                if (snapshot.val() === false) {
+                    return;
+                }
+                onDisconnect(myStatusRef).remove().then(() => {
+                    set(myStatusRef, {
+                        online: true,
+                        username: currentUsername
+                    });
+                });
+            });
+
+             // Listen for status changes
+            const statusRef = ref(rtdb, 'status');
+            onValue(statusRef, (snapshot) => {
+                const users = snapshot.val();
+                updateUserList(users);
+            });
+        }
+        
+        function updateUserList(users) {
+            userList.innerHTML = '';
+            if(!users) return;
+
+            for (const uid in users) {
+                if (users[uid].online) {
+                    const userDiv = document.createElement('div');
+                    userDiv.className = 'p-2 rounded-md flex items-center justify-between';
+                    userDiv.innerHTML = `<span class="text-gray-300">${users[uid].username}</span>`;
+                    
+                    if (isAdmin && uid !== currentUser.uid) {
+                        const callBtn = document.createElement('button');
+                        callBtn.textContent = 'Call';
+                        callBtn.className = 'gruvbox-btn text-sm py-1 px-2';
+                        callBtn.onclick = () => startCall(uid);
+                        userDiv.appendChild(callBtn);
+                    } else if (uid === currentUser.uid){
+                         userDiv.innerHTML += '<span class="text-xs text-green-400 ml-2">(You)</span>';
+                    }
+
+                    userList.appendChild(userDiv);
+                }
+            }
+        }
+        
+        function showLobby() {
+            loginPage.classList.add('hidden');
+            videoPage.classList.add('hidden');
+            lobbyPage.classList.remove('hidden');
+            setupChat();
+            listenForCalls();
+        }
+
+        // --- Chat Logic ---
+        function setupChat() {
+            const chatRef = ref(rtdb, 'chat');
+            onValue(query(chatRef), (snapshot) => {
+                 chatMessages.innerHTML = '';
+                 snapshot.forEach((childSnapshot) => {
+                    const message = childSnapshot.val();
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'mb-2';
+                    messageDiv.innerHTML = `<strong style="color:var(--aqua);">${message.username}:</strong> <span class="text-gray-300">${message.text}</span>`;
+                    chatMessages.appendChild(messageDiv);
+                 });
+                 chatMessages.scrollTop = chatMessages.scrollHeight;
             });
         }
 
-        function renderCallItem(callId) {
-            const callElement = document.createElement('div');
-            callElement.className = 'bg-gray-700 p-3 rounded-lg flex justify-between items-center';
-            callElement.innerHTML = `
-                <span class="font-medium">${callId}</span>
-                <button data-id="${callId}" class="close-call-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-lg transition duration-300">Close Room</button>
-            `;
-            activeCallsList.appendChild(callElement);
-        }
-
-        activeCallsList.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('close-call-btn')) {
-                const callIdToDelete = e.target.dataset.id;
-                await closeCall(callIdToDelete);
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (text) {
+                const chatRef = ref(rtdb, 'chat');
+                await push(chatRef, {
+                    uid: currentUser.uid,
+                    username: currentUsername,
+                    text: text,
+                    timestamp: serverTimestamp()
+                });
+                chatInput.value = '';
             }
+        }
+        sendBtn.onclick = sendMessage;
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
         });
 
-        async function closeCall(callId) {
-            if (!callId) return;
-            const callRef = doc(db, 'artifacts', appId, 'public', 'data', 'calls', callId);
+
+        // --- WebRTC Call Logic ---
+        async function startCall(calleeUid) {
+            showVideoPage();
+
+            const callDocRef = doc(collection(db, 'calls'));
+            currentCallId = callDocRef.id;
+
+            peerConnection = new RTCPeerConnection(servers);
+            registerPeerConnectionListeners();
             
-            // Delete subcollections first
-            const offerCandidatesQuery = query(collection(callRef, 'offerCandidates'));
-            const answerCandidatesQuery = query(collection(callRef, 'answerCandidates'));
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
 
-            const offerCandidatesSnapshot = await getDocs(offerCandidatesQuery);
-            offerCandidatesSnapshot.forEach(async (doc) => await deleteDoc(doc.ref));
+            const offerCandidates = collection(callDocRef, 'offerCandidates');
+            const answerCandidates = collection(callDocRef, 'answerCandidates');
 
-            const answerCandidatesSnapshot = await getDocs(answerCandidatesQuery);
-            answerCandidatesSnapshot.forEach(async (doc) => await deleteDoc(doc.ref));
+            peerConnection.onicecandidate = event => {
+                if(event.candidate) {
+                    addDoc(offerCandidates, event.candidate.toJSON());
+                }
+            };
+            
+            const offerDescription = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offerDescription);
 
-            // Delete the main call document
-            await deleteDoc(callRef);
+            const offer = {
+                sdp: offerDescription.sdp,
+                type: offerDescription.type,
+            };
+
+            await setDoc(callDocRef, { offer, callerId: currentUser.uid, calleeId: calleeUid });
+
+            onSnapshot(callDocRef, (snapshot) => {
+                const data = snapshot.data();
+                if (!peerConnection.currentRemoteDescription && data?.answer) {
+                    const answerDescription = new RTCSessionDescription(data.answer);
+                    peerConnection.setRemoteDescription(answerDescription);
+                }
+            });
+
+            onSnapshot(answerCandidates, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'added') {
+                        const candidate = new RTCIceCandidate(change.doc.data());
+                        peerConnection.addIceCandidate(candidate);
+                    }
+                });
+            });
         }
         
-        // Anonymous sign-in for Firebase rules
-         onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    try {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } catch (error) {
-                        console.error("Error signing in with custom token:", error);
-                        await signInAnonymously(auth);
+        function listenForCalls() {
+            const callsQuery = query(collection(db, 'calls'), where("calleeId", "==", currentUser.uid));
+            onSnapshot(callsQuery, (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                     if (change.type === 'added') {
+                        const callData = change.doc.data();
+                        const callId = change.doc.id;
+                        
+                        // Simple check to prevent answering own call in dev
+                        if (callData.callerId === currentUser.uid) return;
+                        
+                        // Don't show modal if already in a call
+                        if (peerConnection) return;
+
+                        // Show incoming call modal instead of confirm()
+                        callerInfo.textContent = `Incoming call from Admin...`; // You might want to fetch caller username
+                        incomingCallModal.classList.remove('hidden');
+
+                        answerBtn.onclick = async () => {
+                            incomingCallModal.classList.add('hidden');
+                            currentCallId = callId;
+                            await answerCall(callData);
+                        };
+
+                        declineBtn.onclick = async () => {
+                            incomingCallModal.classList.add('hidden');
+                            // Optional: Update the call doc to show it was declined
+                            const callDocRef = doc(db, 'calls', callId);
+                            await updateDoc(callDocRef, { declined: true });
+                        };
                     }
-                } else {
-                    await signInAnonymously(auth);
+                });
+            });
+        }
+        
+        async function answerCall(callData) {
+            showVideoPage();
+            const callDocRef = doc(db, 'calls', currentCallId);
+            const offerCandidates = collection(callDocRef, 'offerCandidates');
+            const answerCandidates = collection(callDocRef, 'answerCandidates');
+
+            peerConnection = new RTCPeerConnection(servers);
+            registerPeerConnectionListeners();
+            
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+            
+            peerConnection.onicecandidate = event => {
+                if(event.candidate) {
+                    addDoc(answerCandidates, event.candidate.toJSON());
                 }
+            };
+            
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
+            
+            const answerDescription = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answerDescription);
+
+            const answer = {
+                type: answerDescription.type,
+                sdp: answerDescription.sdp,
+            };
+
+            await updateDoc(callDocRef, { answer });
+            
+            onSnapshot(offerCandidates, (snapshot) => {
+                 snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'added') {
+                        let data = change.doc.data();
+                        peerConnection.addIceCandidate(new RTCIceCandidate(data));
+                    }
+                });
+            });
+        }
+
+        async function showVideoPage() {
+            lobbyPage.classList.add('hidden');
+            loginPage.classList.add('hidden');
+            videoPage.classList.remove('hidden');
+
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            remoteStream = new MediaStream();
+
+            localVideo.srcObject = localStream;
+            remoteVideo.srcObject = remoteStream;
+
+            micBtn.textContent = 'Mute Mic';
+            cameraBtn.textContent = 'Cam Off';
+        }
+
+        function registerPeerConnectionListeners() {
+            peerConnection.oniceconnectionstatechange = () => {
+                console.log(`ICE state change: ${peerConnection.iceConnectionState}`);
+            };
+
+            peerConnection.ontrack = (event) => {
+                event.streams[0].getTracks().forEach((track) => {
+                    remoteStream.addTrack(track);
+                });
+            };
+        }
+        
+        hangupBtn.onclick = async () => {
+             if (peerConnection) {
+                peerConnection.close();
             }
-        });
+
+            localStream.getTracks().forEach(track => track.stop());
+
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
+
+            if (currentCallId) {
+                const callDocRef = doc(db, 'calls', currentCallId);
+                const offerCandidatesQuery = collection(callDocRef, 'offerCandidates');
+                const answerCandidatesQuery = collection(callDocRef, 'answerCandidates');
+                
+                const batch = writeBatch(db);
+                
+                const offerCandidatesSnapshot = await getDocs(offerCandidatesQuery);
+                offerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
+
+                const answerCandidatesSnapshot = await getDocs(answerCandidatesQuery);
+                answerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
+                
+                batch.delete(callDocRef);
+                await batch.commit();
+            }
+
+            peerConnection = null;
+            currentCallId = null;
+            showLobby();
+        };
+
+        // --- Media Controls ---
+        micBtn.onclick = () => {
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = !track.enabled;
+                micBtn.textContent = track.enabled ? 'Mute Mic' : 'Unmute';
+            });
+        };
+
+        cameraBtn.onclick = () => {
+            localStream.getVideoTracks().forEach(track => {
+                track.enabled = !track.enabled;
+                cameraBtn.textContent = track.enabled ? 'Cam Off' : 'Cam On';
+            });
+        };
+
     </script>
 </body>
 </html>
+
