@@ -316,7 +316,7 @@
                 const q = query(collection(firestore, 'calls'), where('callee.uid', '==', appUser.uid));
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     snapshot.docChanges().forEach((change) => {
-                        if (change.type === "added") {
+                        if (change.type === "added" && !change.doc.data().calleeLeft) {
                             setCallId(change.doc.id);
                             setPage('call');
                         }
@@ -370,7 +370,6 @@
                     caller: { uid: appUser.uid, username: appUser.username },
                     callee: { uid: targetUser.uid, username: targetUser.username },
                     createdAt: fsServerTimestamp(),
-                    status: 'ringing', // Initial status
                 });
                 setCallId(callDocRef.id);
                 setPage('call');
@@ -493,13 +492,17 @@
             
             const pc = useRef(null);
             const localStream = useRef(null);
+            const remoteStream = useRef(null);
+            const isCleaningUp = useRef(false);
             
             const [isMuted, setIsMuted] = useState(false);
             const [isCameraOff, setIsCameraOff] = useState(false);
             const [status, setStatus] = useState('connecting');
 
-            // This cleanup function is defined once and reused.
-            const hangUpCleanup = () => {
+            const cleanupLocalResources = () => {
+                if (isCleaningUp.current) return;
+                isCleaningUp.current = true;
+                console.log("Cleaning up local media resources...");
                 if (localStream.current) {
                     localStream.current.getTracks().forEach(track => track.stop());
                     localStream.current = null;
@@ -510,147 +513,141 @@
                 }
             };
 
-            // This is the primary effect for setting up the call and listeners.
-            useEffect(() => {
-                let isMounted = true;
+            const handleEndCall = async () => {
                 const callDocRef = doc(firestore, 'calls', callId);
+                if (appUser.isAdmin) {
+                    try {
+                        const callerCandidatesQuery = query(collection(callDocRef, 'callerCandidates'));
+                        const calleeCandidatesQuery = query(collection(callDocRef, 'calleeCandidates'));
+                        const [callerCandidates, calleeCandidates] = await Promise.all([getDocs(callerCandidatesQuery), getDocs(calleeCandidatesQuery)]);
+                        const deletePromises = [];
+                        callerCandidates.forEach(docSnap => deletePromises.push(deleteDoc(docSnap.ref)));
+                        calleeCandidates.forEach(docSnap => deletePromises.push(deleteDoc(docSnap.ref)));
+                        await Promise.all(deletePromises);
+                        await deleteDoc(callDocRef);
+                    } catch (error) {
+                        console.error("Error ending call:", error);
+                        cleanupLocalResources();
+                        setPage('lobby');
+                    }
+                } else {
+                    try {
+                        await updateDoc(callDocRef, { calleeLeft: true });
+                    } catch (error) {
+                        console.error("Error signaling end of call:", error);
+                        cleanupLocalResources();
+                        setPage('lobby');
+                    }
+                }
+            };
 
-                const setupWebRTC = async () => {
-                    pc.current = new RTCPeerConnection(servers);
-                    localStream.current = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    const remoteStream = new MediaStream();
-
-                    if (localVideoRef.current) localVideoRef.current.srcObject = localStream.current;
-                    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-
-                    localStream.current.getTracks().forEach(track => pc.current.addTrack(track, localStream.current));
-                    
-                    pc.current.ontrack = event => {
-                        event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
-                    };
-                    
-                    pc.current.onconnectionstatechange = () => {
-                        if (pc.current?.connectionState === 'connected') {
-                            setStatus('connected');
-                        }
-                    };
-                };
-
-                const setupSignaling = () => {
-                    const callerCandidatesRef = collection(callDocRef, 'callerCandidates');
-                    const calleeCandidatesRef = collection(callDocRef, 'calleeCandidates');
-
-                    pc.current.onicecandidate = event => {
-                        if (event.candidate) {
-                           addDoc(appUser.isAdmin ? callerCandidatesRef : calleeCandidatesRef, event.candidate.toJSON());
-                        }
-                    };
-
-                    onSnapshot(appUser.isAdmin ? calleeCandidatesRef : callerCandidatesRef, snapshot => {
-                        snapshot.docChanges().forEach(change => {
-                            if (change.type === 'added') {
-                                pc.current?.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-                            }
-                        });
-                    });
-                };
-                
-                // This is the listener that handles call state for both users
+            useEffect(() => {
+                const callDocRef = doc(firestore, 'calls', callId);
                 const unsubscribe = onSnapshot(callDocRef, async (snapshot) => {
                     const data = snapshot.data();
-
-                    // Universal Hang Up: If status is 'ended', clean up and navigate away.
-                    if (data?.status === 'ended') {
-                        hangUpCleanup();
-                        if (isMounted) setPage('lobby');
+                    if (!snapshot.exists()) {
+                        console.log("Call document deleted. Call is over.");
+                        cleanupLocalResources();
+                        setPage('lobby');
                         return;
                     }
-
-                    // Callee logic: Answer the call when an offer is present
-                    if (!appUser.isAdmin && data?.offer && !pc.current.remoteDescription) {
-                        await pc.current.setRemoteDescription(new RTCSessionDescription(data.offer));
-                        const answerDescription = await pc.current.createAnswer();
-                        await pc.current.setLocalDescription(answerDescription);
-                        await updateDoc(callDocRef, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
-                    }
-
-                    // Caller logic: Set the remote description when an answer is present
-                    if (appUser.isAdmin && data?.answer && !pc.current.remoteDescription) {
-                        await pc.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    if (appUser.isAdmin && data?.calleeLeft) {
+                        console.log("Callee has left. Admin is ending the call.");
+                        await handleEndCall();
                     }
                 });
+                return unsubscribe;
+            }, [callId, appUser.isAdmin]);
 
-                // Start the call setup process
-                setupWebRTC().then(async () => {
-                    setupSignaling();
+            useEffect(() => {
+                let signalingUnsubscribers = null;
+                const callDocRef = doc(firestore, 'calls', callId);
+
+                const setupCall = async () => {
+                    pc.current = new RTCPeerConnection(servers);
+                    localStream.current = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    remoteStream.current = new MediaStream();
+                    localStream.current.getTracks().forEach(track => pc.current.addTrack(track, localStream.current));
+                    pc.current.ontrack = event => event.streams[0].getTracks().forEach(track => remoteStream.current.addTrack(track));
+                    if (localVideoRef.current) localVideoRef.current.srcObject = localStream.current;
+                    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream.current;
+                    pc.current.onconnectionstatechange = () => {
+                        if (pc.current.connectionState === 'connected') setStatus('connected');
+                    };
+                };
+
+                const setupSignaling = async () => {
+                    const callerCandidatesRef = collection(callDocRef, 'callerCandidates');
+                    const calleeCandidatesRef = collection(callDocRef, 'calleeCandidates');
+                    pc.current.onicecandidate = event => {
+                        if (event.candidate) addDoc(appUser.isAdmin ? callerCandidatesRef : calleeCandidatesRef, event.candidate.toJSON());
+                    };
+                    const otherCandidatesRef = appUser.isAdmin ? calleeCandidatesRef : callerCandidatesRef;
+                    const iceUnsubscribe = onSnapshot(otherCandidatesRef, snapshot => snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added') pc.current.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                    }));
                     if (appUser.isAdmin) {
                         const offerDescription = await pc.current.createOffer();
                         await pc.current.setLocalDescription(offerDescription);
                         await updateDoc(callDocRef, { offer: { type: offerDescription.type, sdp: offerDescription.sdp } });
                     }
-                }).catch(err => {
-                    console.error("Failed to setup call:", err);
+                    const callUnsubscribe = onSnapshot(callDocRef, async (snapshot) => {
+                        const data = snapshot.data();
+                        if (!appUser.isAdmin && data?.offer && !pc.current.remoteDescription) {
+                            await pc.current.setRemoteDescription(new RTCSessionDescription(data.offer));
+                            const answerDescription = await pc.current.createAnswer();
+                            await pc.current.setLocalDescription(answerDescription);
+                            await updateDoc(callDocRef, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
+                        }
+                        if (appUser.isAdmin && data?.answer && !pc.current.remoteDescription) {
+                            await pc.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+                        }
+                    });
+                    return () => {
+                        iceUnsubscribe();
+                        callUnsubscribe();
+                    };
+                };
+                
+                setupCall().then(() => setupSignaling().then(cleanup => signalingUnsubscribers = cleanup)).catch(err => {
+                    console.error("Error setting up call:", err);
                     setStatus('failed');
                 });
-                
+
                 return () => {
-                    isMounted = false;
-                    unsubscribe();
-                    hangUpCleanup();
+                    if (signalingUnsubscribers) signalingUnsubscribers();
+                    cleanupLocalResources(); 
                 };
             }, []);
 
-            // Function for the End Call button
-            const handleEndCallClick = async () => {
-                const callDocRef = doc(firestore, 'calls', callId);
-                // The onSnapshot listener will handle cleanup and navigation for both users
-                await updateDoc(callDocRef, { status: 'ended' });
-
-                // The admin is also responsible for deleting the document after a delay
-                if (appUser.isAdmin) {
-                    setTimeout(async () => {
-                        const callerCandidatesQuery = query(collection(callDocRef, 'callerCandidates'));
-                        const calleeCandidatesQuery = query(collection(callDocRef, 'calleeCandidates'));
-                        const [callerDocs, calleeDocs] = await Promise.all([getDocs(callerCandidatesQuery), getDocs(calleeCandidatesQuery)]);
-                        callerDocs.forEach(d => deleteDoc(d.ref));
-                        calleeDocs.forEach(d => deleteDoc(d.ref));
-                        await deleteDoc(callDocRef);
-                    }, 2000);
-                }
-            };
-            
             const toggleMute = () => {
-                if (localStream.current) {
-                    localStream.current.getAudioTracks().forEach(track => {
-                        track.enabled = !track.enabled;
-                        setIsMuted(!track.enabled);
-                    });
-                }
+                if (!localStream.current) return;
+                localStream.current.getAudioTracks().forEach(track => {
+                    track.enabled = !track.enabled;
+                    setIsMuted(!track.enabled);
+                });
             };
 
             const toggleCamera = () => {
-                if (localStream.current) {
-                    localStream.current.getVideoTracks().forEach(track => {
-                        track.enabled = !track.enabled;
-                        setIsCameraOff(!track.enabled);
-                    });
-                }
+                if (!localStream.current) return;
+                localStream.current.getVideoTracks().forEach(track => {
+                    track.enabled = !track.enabled;
+                    setIsCameraOff(!track.enabled);
+                });
             };
 
             return (
                 <div className="relative h-screen w-screen bg-black flex items-center justify-center">
                     <video ref={remoteVideoRef} autoPlay playsInline className="h-full w-full object-cover" />
-                    
                     {status === 'connecting' && (
                         <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white">
                             <svg className="animate-spin h-12 w-12 text-white mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <p className="text-xl">Connecting...</p>
+                            <p className="text-xl">Connecting to user...</p>
                         </div>
                     )}
-
                     <video ref={localVideoRef} autoPlay playsInline muted className="absolute bottom-6 right-6 w-1/4 max-w-xs rounded-lg border-2 border-[#458588] shadow-2xl" />
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/50 p-4 rounded-xl">
                         <button onClick={toggleMute} className={`p-3 rounded-full transition-colors ${isMuted ? 'bg-[#cc241d]' : 'bg-[#458588] hover:bg-[#689d6a]'}`}>
@@ -659,7 +656,7 @@
                         <button onClick={toggleCamera} className={`p-3 rounded-full transition-colors ${isCameraOff ? 'bg-[#cc241d]' : 'bg-[#458588] hover:bg-[#689d6a]'}`}>
                            {isCameraOff ? CameraIconOff : CameraIconOn}
                         </button>
-                        <button onClick={handleEndCallClick} className="p-3 rounded-full bg-[#cc241d] hover:bg-red-500">
+                        <button onClick={handleEndCall} className="p-3 rounded-full bg-[#cc241d] hover:bg-red-500">
                            {EndCallIcon}
                         </button>
                     </div>
@@ -691,22 +688,22 @@
 
             useEffect(() => {
                 tailwind.config = {
-                  theme: {
-                    extend: {
-                      colors: {
-                        'gruvbox-bg': '#282828',
-                        'gruvbox-bg-dark': '#1d2021',
-                        'gruvbox-fg': '#ebdbb2',
-                        'gruvbox-red': '#cc241d',
-                        'gruvbox-green': '#98971a',
-                        'gruvbox-yellow': '#d79921',
-                        'gruvbox-blue': '#458588',
-                        'gruvbox-purple': '#b16286',
-                        'gruvbox-aqua': '#689d6a',
-                        'gruvbox-gray': '#928374',
-                      }
+                    theme: {
+                        extend: {
+                            colors: {
+                                'gruvbox-bg': '#282828',
+                                'gruvbox-bg-dark': '#1d2021',
+                                'gruvbox-fg': '#ebdbb2',
+                                'gruvbox-red': '#cc241d',
+                                'gruvbox-green': '#98971a',
+                                'gruvbox-yellow': '#d79921',
+                                'gruvbox-blue': '#458588',
+                                'gruvbox-purple': '#b16286',
+                                'gruvbox-aqua': '#689d6a',
+                                'gruvbox-gray': '#928374',
+                            }
+                        }
                     }
-                  }
                 }
             }, []);
 
@@ -739,4 +736,3 @@
 
 </body>
 </html>
-
