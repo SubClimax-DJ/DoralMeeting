@@ -85,6 +85,11 @@
                 <button id="camera-btn" class="bg-gruv-blue p-3 rounded-full text-white hover:bg-gruv-aqua transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.55a1 1 0 011.45.89V18.1a1 1 0 01-1.45.89L15 15M4 9a2 2 0 012-2h4a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V9z" /></svg>
                 </button>
+                <button id="screen-share-btn" class="bg-gruv-blue p-3 rounded-full text-white hover:bg-gruv-aqua transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </button>
                 <button id="hangup-btn" class="bg-gruv-red p-3 rounded-full text-white hover:bg-red-700 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2 2m-2-2v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6m0 0l2 2m-2-2l2-2" transform="rotate(135 12 12)" /></svg>
                 </button>
@@ -146,6 +151,7 @@
         const remoteVideo = document.getElementById('remoteVideo');
         const micBtn = document.getElementById('mic-btn');
         const cameraBtn = document.getElementById('camera-btn');
+        const screenShareBtn = document.getElementById('screen-share-btn');
         const hangupBtn = document.getElementById('hangup-btn');
         const callNotification = document.getElementById('call-notification');
         const callerInfo = document.getElementById('caller-info');
@@ -157,12 +163,15 @@
 
         // App State
         let localStream;
+        let webcamStream; // To store the webcam stream separately
+        let screenStream; // To store the screen share stream
         let pc;
         let user = null;
         let isAdmin = false;
         let currentCallId = null;
         let callListener = null;
         let incomingCallData = null;
+        let isScreenSharing = false;
 
         const servers = {
             iceServers: [
@@ -328,6 +337,7 @@
             setupPeerConnection();
 
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            webcamStream = localStream; // Save webcam stream
             localVideo.srcObject = localStream;
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
@@ -364,6 +374,7 @@
             setupPeerConnection();
             
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            webcamStream = localStream; // Save webcam stream
             localVideo.srcObject = localStream;
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
@@ -420,8 +431,14 @@
         }
         
         async function hangUp() {
+            if (isScreenSharing) {
+                await stopScreenShare();
+            }
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
+            }
+            if (webcamStream) {
+                 webcamStream.getTracks().forEach(track => track.stop());
             }
             if (pc) {
                 pc.close();
@@ -485,6 +502,49 @@
                 cameraBtn.classList.toggle('bg-gruv-red', !track.enabled);
                 cameraBtn.classList.toggle('bg-gruv-blue', track.enabled);
             });
+        };
+
+        const stopScreenShare = async () => {
+            if (!isScreenSharing) return;
+            
+            const videoTrack = webcamStream.getVideoTracks()[0];
+            const sender = pc.getSenders().find(s => s.track.kind === 'video');
+            if (sender) {
+                await sender.replaceTrack(videoTrack);
+            }
+
+            screenStream.getTracks().forEach(track => track.stop());
+            localStream = webcamStream;
+            localVideo.srcObject = localStream;
+            isScreenSharing = false;
+            screenShareBtn.classList.remove('bg-gruv-green');
+            screenShareBtn.classList.add('bg-gruv-blue');
+        };
+        
+        screenShareBtn.onclick = async () => {
+            if (isScreenSharing) {
+                await stopScreenShare();
+                return;
+            }
+
+            isScreenSharing = true;
+            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            
+            const screenTrack = screenStream.getVideoTracks()[0];
+            const sender = pc.getSenders().find(s => s.track.kind === 'video');
+            if (sender) {
+                await sender.replaceTrack(screenTrack);
+            }
+            
+            localVideo.srcObject = screenStream; // Show screen share in PiP
+            
+            screenShareBtn.classList.remove('bg-gruv-blue');
+            screenShareBtn.classList.add('bg-gruv-green');
+
+            // Listen for when the user stops screen sharing via browser UI
+            screenTrack.onended = () => {
+                stopScreenShare();
+            };
         };
         
     </script>
