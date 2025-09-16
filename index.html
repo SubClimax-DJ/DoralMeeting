@@ -55,19 +55,28 @@
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4">
+<body class="bg-gray-900 text-white flex flex-col items-center min-h-screen p-4">
 
     <div class="w-full max-w-6xl mx-auto">
         <h1 class="text-3xl font-bold text-center mb-2">Simple Screen Share</h1>
         <p class="text-center text-gray-400 mb-6">Share your screen with another person using a Room ID.</p>
 
         <!-- Room Connection UI -->
-        <div id="room-ui" class="bg-gray-800 p-6 rounded-lg shadow-xl mb-6 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button id="createRoomBtn" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">Create Room</button>
-            <div class="text-gray-400 font-mono text-center">OR</div>
+        <div id="room-ui" class="bg-gray-800 p-6 rounded-lg shadow-xl mb-6 flex flex-col items-center justify-center gap-4">
+            <p id="auth-status" class="text-yellow-400 font-mono text-center mb-2">Authenticating...</p>
+            <button id="createRoomBtn" disabled class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors opacity-50 cursor-not-allowed">Create Room</button>
+            <div class="text-gray-400 font-mono text-center my-2 sm:my-0">OR</div>
             <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <input type="text" id="roomIdInput" placeholder="Enter Room ID to Join" class="w-full sm:w-64 bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <button id="joinRoomBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">Join Room</button>
+                <button id="joinRoomBtn" disabled class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors opacity-50 cursor-not-allowed">Join Room</button>
+            </div>
+             <!-- Available Rooms List -->
+            <div id="room-list-container" class="w-full mt-4 pt-4 border-t border-gray-700">
+                <h3 class="text-lg font-semibold text-center text-gray-300 mb-2">Available Rooms</h3>
+                <div id="room-list" class="max-h-40 overflow-y-auto space-y-2">
+                    <!-- Room items will be injected here -->
+                    <p id="no-rooms-msg" class="text-gray-500 text-center">No active rooms found.</p>
+                </div>
             </div>
         </div>
 
@@ -105,7 +114,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, updateDoc, serverTimestamp, collection, query, getDocs, deleteDoc, where, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Firebase Configuration ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -136,6 +145,9 @@
         const remoteScreenContainer = document.getElementById('remoteScreenContainer');
         const waitingMessage = document.getElementById('waiting-message');
         const loadingSpinner = document.getElementById('loading-spinner');
+        const roomList = document.getElementById('room-list');
+        const noRoomsMsg = document.getElementById('no-rooms-msg');
+        const authStatus = document.getElementById('auth-status');
 
         // --- App State ---
         let currentRoomId = null;
@@ -143,6 +155,7 @@
         let localStream = null;
         let captureInterval = null;
         let firestoreUnsubscribe = null;
+        const ROOM_COLLECTION = `artifacts/${appId}/public/data/screenshare`;
 
         // --- Core Functions ---
         async function initializeAuth() {
@@ -154,9 +167,24 @@
                 }
                 userId = auth.currentUser.uid;
                 userIdDisplay.textContent = userId;
+
+                // Enable controls on successful auth
+                createRoomBtn.disabled = false;
+                joinRoomBtn.disabled = false;
+                createRoomBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                joinRoomBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                authStatus.textContent = 'Ready to connect!';
+                authStatus.className = 'text-green-400 font-mono text-center mb-2';
+                setTimeout(() => { authStatus.classList.add('hidden'); }, 3000);
+                
+                // Once authenticated, start services
+                listenToAvailableRooms();
+                autoDeleteStaleRooms();
             } catch (error) {
                 console.error("Authentication failed:", error);
                 userIdDisplay.textContent = "Error: Could not authenticate.";
+                authStatus.textContent = 'Authentication failed. Please refresh.';
+                authStatus.className = 'text-red-500 font-mono text-center mb-2';
             }
         }
 
@@ -166,13 +194,15 @@
 
         async function createRoom() {
             if (!userId) {
-                alert("Please wait for authentication to complete.");
+                console.error("Authentication not complete. Create button should be disabled.");
                 return;
             }
             const newRoomId = generateRoomId();
-            const roomRef = doc(db, `artifacts/${appId}/public/data/screenshare`, newRoomId);
+            const roomRef = doc(db, ROOM_COLLECTION, newRoomId);
+            const now = serverTimestamp();
             await setDoc(roomRef, {
-                createdAt: serverTimestamp(),
+                createdAt: now,
+                lastActivity: now,
                 sharerId: null,
                 frame: null,
             });
@@ -184,11 +214,11 @@
                 alert("Please enter a Room ID.");
                 return;
             }
-            const roomRef = doc(db, `artifacts/${appId}/public/data/screenshare`, roomIdToJoin);
+            const roomRef = doc(db, ROOM_COLLECTION, roomIdToJoin);
             const roomSnap = await getDoc(roomRef);
 
             if (!roomSnap.exists()) {
-                alert("Room not found. Please check the ID.");
+                alert("Room not found. Please check the ID or it may have been deleted.");
                 return;
             }
 
@@ -202,7 +232,7 @@
 
         function listenToRoomChanges() {
             if (firestoreUnsubscribe) firestoreUnsubscribe();
-            const roomRef = doc(db, `artifacts/${appId}/public/data/screenshare`, currentRoomId);
+            const roomRef = doc(db, ROOM_COLLECTION, currentRoomId);
             
             firestoreUnsubscribe = onSnapshot(roomRef, (docSnap) => {
                 if (docSnap.exists()) {
@@ -219,7 +249,41 @@
                          waitingMessage.classList.remove('hidden');
                          remoteScreen.classList.add('hidden');
                     }
+                } else {
+                    // Room was deleted
+                    alert("The room has been closed.");
+                    window.location.reload();
                 }
+            });
+        }
+
+        function listenToAvailableRooms() {
+            const roomsRef = collection(db, ROOM_COLLECTION);
+            onSnapshot(query(roomsRef), (snapshot) => {
+                roomList.innerHTML = ''; // Clear current list
+                if (snapshot.empty) {
+                    roomList.appendChild(noRoomsMsg);
+                } else {
+                    snapshot.forEach((doc) => {
+                        const roomEl = document.createElement('button');
+                        roomEl.className = 'w-full text-left p-2 bg-gray-700 hover:bg-indigo-500 rounded-md transition-colors';
+                        roomEl.textContent = `Room: ${doc.id}`;
+                        roomEl.onclick = () => joinRoom(doc.id);
+                        roomList.appendChild(roomEl);
+                    });
+                }
+            });
+        }
+
+        async function autoDeleteStaleRooms() {
+            const roomsRef = collection(db, ROOM_COLLECTION);
+            const twoMinutesAgo = Timestamp.fromMillis(Date.now() - 2 * 60 * 1000);
+            const q = query(roomsRef, where("lastActivity", "<", twoMinutesAgo));
+
+            const snapshot = await getDocs(q);
+            snapshot.forEach(async (document) => {
+                console.log(`Deleting stale room: ${document.id}`);
+                await deleteDoc(doc(db, ROOM_COLLECTION, document.id));
             });
         }
 
@@ -233,11 +297,11 @@
                 startShareBtn.classList.add('hidden');
                 stopShareBtn.classList.remove('hidden');
 
-                const roomRef = doc(db, `artifacts/${appId}/public/data/screenshare`, currentRoomId);
-                await updateDoc(roomRef, { sharerId: userId });
+                const roomRef = doc(db, ROOM_COLLECTION, currentRoomId);
+                await updateDoc(roomRef, { sharerId: userId, lastActivity: serverTimestamp() });
 
                 // Start capturing frames
-                captureInterval = setInterval(captureAndSendFrame, 750); // ~1.3 FPS, adjust for performance
+                captureInterval = setInterval(captureAndSendFrame, 750); // ~1.3 FPS
 
             } catch (err) {
                 console.error("Error starting screen share:", err);
@@ -258,8 +322,8 @@
             startShareBtn.classList.remove('hidden');
             stopShareBtn.classList.add('hidden');
 
-            const roomRef = doc(db, `artifacts/${appId}/public/data/screenshare`, currentRoomId);
-            updateDoc(roomRef, { frame: null, sharerId: null });
+            const roomRef = doc(db, ROOM_COLLECTION, currentRoomId);
+            updateDoc(roomRef, { frame: null, sharerId: null, lastActivity: serverTimestamp() });
         }
         
         function captureAndSendFrame() {
@@ -274,16 +338,17 @@
             imageCapture.grabFrame()
                 .then(imageBitmap => {
                     const canvas = document.createElement('canvas');
-                    canvas.width = imageBitmap.width / 2; // Reduce resolution for performance
-                    canvas.height = imageBitmap.height / 2;
+                    // Reduce resolution for performance
+                    const scale = 0.5; 
+                    canvas.width = imageBitmap.width * scale;
+                    canvas.height = imageBitmap.height * scale;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
                     
-                    // Convert to data URL (jpeg is smaller than png)
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.4); // Quality 0.4
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.4); 
 
-                    const roomRef = doc(db, `artifacts/${appId}/public/data/screenshare`, currentRoomId);
-                    updateDoc(roomRef, { frame: dataUrl });
+                    const roomRef = doc(db, ROOM_COLLECTION, currentRoomId);
+                    updateDoc(roomRef, { frame: dataUrl, lastActivity: serverTimestamp() });
                 })
                 .catch(error => {
                     console.error('grabFrame() error: ', error);
@@ -303,3 +368,5 @@
     </script>
 </body>
 </html>
+
+
