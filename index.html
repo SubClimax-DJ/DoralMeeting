@@ -1,540 +1,734 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, updateProfile } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { getDatabase, ref, onValue, set, remove } from 'firebase/database';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gruvbox Video Conferencing</title>
+    <!-- Gruvbox Theme via custom CSS -->
+    <style>
+        :root {
+            /* Gruvbox colors */
+            --bg-dark: #282828;
+            --bg-light: #3c3836;
+            --gray-light: #a89984;
+            --text-color: #ebdbb2;
+            --red: #cc241d;
+            --green: #98971a;
+            --yellow: #d79921;
+            --blue: #458588;
+            --purple: #b16286;
+            --aqua: #689d6a;
+            --orange: #d65d0e;
+        }
 
-// Global variables provided by the environment
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.3s ease;
+        }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const rtdb = getDatabase(app);
-const auth = getAuth(app);
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 90%;
+            max-width: 800px;
+            padding: 2rem;
+            background-color: var(--bg-light);
+            border-radius: 1rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
 
-// WebRTC STUN servers
-const servers = {
-  iceServers: [
-    {
-      urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
-    },
-  ],
-  iceCandidatePoolSize: 10,
-};
+        .logo {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 1rem;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+        }
 
-// Global WebRTC variables
-let pc = null;
-let localStream = null;
-let remoteStream = null;
+        .page {
+            display: none;
+            width: 100%;
+        }
+        
+        .page.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-const App = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isAuthReady, setIsAuthReady] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [lobbyMessages, setLobbyMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [activeUsers, setActiveUsers] = useState({});
-  const [callState, setCallState] = useState('idle'); // 'idle', 'ringing', 'calling', 'in_call'
-  const [callingUser, setCallingUser] = useState(null);
-  const [callId, setCallId] = useState('');
-  const [callOffer, setCallOffer] = useState(null);
-  const [showCallNotification, setShowCallNotification] = useState(false);
-  const [isCameraOn, setIsCameraOn] = useState(true);
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [alertMessage, setAlertMessage] = useState('');
-  const [showAlert, setShowAlert] = useState(false);
+        h1 {
+            color: var(--yellow);
+            margin-bottom: 0.5rem;
+        }
+        
+        h2 {
+            color: var(--aqua);
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
 
-  // Refs for video elements
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
-  const callDocRef = useRef(null);
+        input {
+            width: calc(100% - 2rem);
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            background-color: var(--bg-dark);
+            border: 2px solid var(--gray-light);
+            border-radius: 0.5rem;
+            color: var(--text-color);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            outline: none;
+        }
 
-  // Auth state listener and Firebase initialization
-  useEffect(() => {
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setIsLoggedIn(true);
-        // For this demo, we'll check if the display name is 'Admin' to identify the admin user.
-        // In a real application, a custom claim on the user's token would be a more secure method.
-        setIsAdmin(user.displayName === 'Admin');
-        setIsAuthReady(true);
+        input:focus {
+            border-color: var(--orange);
+            box-shadow: 0 0 5px rgba(214, 93, 14, 0.5);
+        }
 
-        // Update user presence in Realtime Database
-        const userRef = ref(rtdb, `users/${user.uid}`);
-        await set(userRef, {
-          username: user.displayName,
-          isAdmin: user.displayName === 'Admin',
-          timestamp: new Date().toISOString()
+        button {
+            background-color: var(--blue);
+            color: var(--text-color);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            margin: 0.5rem 0;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            box-shadow: 0 4px var(--blue);
+        }
+
+        button:hover {
+            background-color: var(--aqua);
+            transform: translateY(1px);
+            box-shadow: 0 3px var(--aqua);
+        }
+
+        button:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px var(--aqua);
+        }
+
+        #login-form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #lobby-page {
+            width: 100%;
+        }
+
+        #user-list {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0;
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--gray-light);
+            border-radius: 0.5rem;
+        }
+
+        #user-list li {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--bg-dark);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #user-list li:last-child {
+            border-bottom: none;
+        }
+
+        #user-list .call-btn {
+            background-color: var(--green);
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            box-shadow: 0 3px var(--green);
+        }
+        #user-list .call-btn:hover {
+            background-color: var(--aqua);
+            box-shadow: 0 2px var(--aqua);
+        }
+
+        #chat-box {
+            border: 1px solid var(--gray-light);
+            border-radius: 0.5rem;
+            height: 200px;
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: var(--bg-dark);
+            margin-bottom: 1rem;
+            text-align: left;
+            width: calc(100% - 2rem);
+        }
+
+        #chat-box p {
+            margin: 0.25rem 0;
+            word-wrap: break-word;
+        }
+
+        #chat-input-container {
+            display: flex;
+            width: 100%;
+        }
+
+        #chat-message {
+            flex-grow: 1;
+            margin-right: 0.5rem;
+        }
+
+        #call-page {
+            position: relative;
+            width: 100%;
+        }
+
+        #videos-container {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 75%; /* 4:3 aspect ratio */
+            background-color: var(--bg-dark);
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        #local-video {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 25%;
+            border: 2px solid var(--blue);
+            border-radius: 0.5rem;
+            z-index: 10;
+        }
+
+        #remote-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 0.5rem;
+        }
+        
+        #controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        #notification {
+            background-color: var(--red);
+            color: var(--text-color);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .modal {
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: var(--bg-light);
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            min-width: 300px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container" class="container">
+        <!-- Login Page -->
+        <div id="login-page" class="page active">
+            <img src="https://placehold.co/200x200/504945/bdae93?text=Logo" alt="Company Logo" class="logo">
+            <h1>Welcome</h1>
+            <div id="login-form">
+                <input type="text" id="username-input" placeholder="Enter your username" autocomplete="off">
+                <input type="password" id="password-input" placeholder="Password" style="display: none;">
+                <button id="join-btn">Join Lobby</button>
+            </div>
+            <p id="auth-status" style="margin-top: 1rem; color: var(--red);"></p>
+        </div>
+
+        <!-- Waiting Lobby Page -->
+        <div id="lobby-page" class="page">
+            <img src="https://placehold.co/200x200/504945/bdae93?text=Logo" alt="Company Logo" class="logo">
+            <h2>Lobby</h2>
+            <div id="user-info">
+                <p>Logged in as: <strong id="current-username"></strong></p>
+                <p>Your User ID: <strong id="current-userid"></strong></p>
+            </div>
+            <div id="notification"></div>
+            <div class="chat-and-users-container" style="display: flex; flex-direction: column; width: 100%;">
+                <h3 style="color: var(--green);">Active Users</h3>
+                <ul id="user-list"></ul>
+                <h3 style="color: var(--yellow);">Lobby Chat</h3>
+                <div id="chat-box"></div>
+                <div id="chat-input-container">
+                    <input type="text" id="chat-message" placeholder="Type a message..." autocomplete="off">
+                    <button id="send-chat-btn">Send</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Video Conference Page -->
+        <div id="call-page" class="page">
+            <h2 id="call-partner"></h2>
+            <div id="videos-container">
+                <video id="remote-video" autoplay playsinline></video>
+                <video id="local-video" muted autoplay playsinline></video>
+            </div>
+            <div id="controls">
+                <button id="toggle-audio-btn">Mute Audio</button>
+                <button id="toggle-video-btn">Turn Off Video</button>
+                <button id="end-call-btn">End Call</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modals for messages -->
+    <div id="modal-container" style="display: none;" class="modal">
+        <div class="modal-content">
+            <p id="modal-message"></p>
+            <button id="modal-close-btn">OK</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js" type="module"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getDatabase, ref, onValue, set, get, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        
+        // UI elements
+        const loginPage = document.getElementById('login-page');
+        const lobbyPage = document.getElementById('lobby-page');
+        const callPage = document.getElementById('call-page');
+        const usernameInput = document.getElementById('username-input');
+        const passwordInput = document.getElementById('password-input');
+        const joinBtn = document.getElementById('join-btn');
+        const authStatus = document.getElementById('auth-status');
+        const userList = document.getElementById('user-list');
+        const chatBox = document.getElementById('chat-box');
+        const chatMessageInput = document.getElementById('chat-message');
+        const sendChatBtn = document.getElementById('send-chat-btn');
+        const currentUsernameEl = document.getElementById('current-username');
+        const currentUserIdEl = document.getElementById('current-userid');
+        const remoteVideo = document.getElementById('remote-video');
+        const localVideo = document.getElementById('local-video');
+        const toggleAudioBtn = document.getElementById('toggle-audio-btn');
+        const toggleVideoBtn = document.getElementById('toggle-video-btn');
+        const endCallBtn = document.getElementById('end-call-btn');
+        const notificationEl = document.getElementById('notification');
+        const callPartnerEl = document.getElementById('call-partner');
+        const modalContainer = document.getElementById('modal-container');
+        const modalMessage = document.getElementById('modal-message');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+
+        // Global variables for Firebase and WebRTC
+        let app;
+        let db;
+        let auth;
+        let rtdb;
+        let userId;
+        let username;
+        let isAdmin = false;
+        let userListUnsubscribe;
+        let chatUnsubscribe;
+        let callUnsubscribe;
+        let peerConnection;
+        let localStream;
+        let remoteStream;
+        let callId;
+        const callRoomRef = (id) => ref(rtdb, `calls/${id}`);
+        const userStatusDocRef = (id) => doc(db, `users/${id}`);
+        const messagesCollectionRef = collection(db, 'messages');
+        let signalingChannelListener;
+        let remotePeerId;
+
+        // Firebase Configuration (DO NOT CHANGE)
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // WebRTC Configuration
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+            ],
+        };
+
+        // UI functions
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        function showModal(message) {
+            modalMessage.textContent = message;
+            modalContainer.style.display = 'flex';
+        }
+        
+        modalCloseBtn.addEventListener('click', () => {
+            modalContainer.style.display = 'none';
         });
 
-        // Remove user from presence on disconnect
-        userRef.onDisconnect().remove();
-
-      } else {
-        setIsLoggedIn(false);
-        setIsAuthReady(true);
-      }
-    });
-
-    if (initialAuthToken) {
-      signInWithCustomToken(auth, initialAuthToken).catch(e => {
-        console.error("Custom token sign-in failed:", e);
-        signInAnonymously(auth);
-      });
-    } else {
-      signInAnonymously(auth);
-    }
-  }, []);
-
-  // Lobby logic: Fetch users and chat messages
-  useEffect(() => {
-    if (!isLoggedIn) return;
-
-    // Listen for active users from Realtime Database
-    const usersRef = ref(rtdb, 'users');
-    const unsubscribeUsers = onValue(usersRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const users = Object.keys(data).reduce((acc, uid) => {
-          if (uid !== auth.currentUser.uid) {
-            acc[uid] = data[uid];
-          }
-          return acc;
-        }, {});
-        setActiveUsers(users);
-      } else {
-        setActiveUsers({});
-      }
-    });
-
-    // Listen for lobby chat messages from Firestore
-    const lobbyRef = collection(db, 'lobbyChat');
-    const unsubscribeChat = onSnapshot(lobbyRef, (snapshot) => {
-      const messages = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })).sort((a, b) => a.timestamp - b.timestamp);
-      setLobbyMessages(messages);
-    });
-
-    return () => {
-      unsubscribeUsers();
-      unsubscribeChat();
-    };
-  }, [isLoggedIn]);
-
-  // Handle call state changes and WebRTC setup
-  useEffect(() => {
-    // This effect runs only when a call is initiated or received.
-    const handleCallStateChange = async () => {
-      if (callState === 'calling' || callState === 'ringing') {
-        try {
-          // Initialize a new RTCPeerConnection for each call
-          pc = new RTCPeerConnection(servers);
-
-          // Get local media stream
-          localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = localStream;
-          }
-
-          // Add local tracks to peer connection
-          localStream.getTracks().forEach((track) => {
-            pc.addTrack(track, localStream);
-          });
-
-          // Handle remote stream
-          pc.ontrack = (event) => {
-            remoteStream = event.streams[0];
-            if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = remoteStream;
+        // Login Logic
+        usernameInput.addEventListener('input', () => {
+            if (usernameInput.value.toLowerCase() === 'admin') {
+                passwordInput.style.display = 'block';
+            } else {
+                passwordInput.style.display = 'none';
             }
-          };
+        });
 
-          // Handle ICE candidates
-          pc.onicecandidate = async (event) => {
-            if (event.candidate) {
-              const candidate = event.candidate.toJSON();
-              await addDoc(collection(callDocRef.current, 'iceCandidates'), candidate);
+        joinBtn.addEventListener('click', async () => {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            if (!username) {
+                authStatus.textContent = 'Username is required.';
+                return;
             }
-          };
 
-          // Admin initiates the call
-          if (callState === 'calling') {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
+            if (username.toLowerCase() === 'admin' && password !== 'max') {
+                authStatus.textContent = 'Invalid password for admin.';
+                return;
+            }
 
-            // Set the document ID for the call
-            const newCallDocRef = doc(db, 'calls', callId);
-            callDocRef.current = newCallDocRef;
-            await setDoc(newCallDocRef, {
-              adminId: auth.currentUser.uid,
-              clientId: callingUser.id,
-              offer: {
-                type: offer.type,
-                sdp: offer.sdp,
-              },
-              status: 'ringing',
-              timestamp: Date.now(),
-            });
+            authStatus.textContent = 'Joining...';
+            usernameInput.disabled = true;
+            passwordInput.disabled = true;
+            joinBtn.disabled = true;
 
-            // Listen for answer
-            onSnapshot(newCallDocRef, async (snapshot) => {
-              const data = snapshot.data();
-              if (data?.answer && !pc.currentRemoteDescription) {
-                const answer = new RTCSessionDescription(data.answer);
-                await pc.setRemoteDescription(answer);
-              }
-            });
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase Auth Error:", error);
+                authStatus.textContent = `Login failed: ${error.message}`;
+            }
+        });
 
-          // Client receives the call
-          } else if (callState === 'ringing' && callOffer) {
-            // Set the document reference for the client
-            callDocRef.current = doc(db, 'calls', callId);
+        // Main App Initialization
+        window.onload = async () => {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            rtdb = getDatabase(app);
             
-            await pc.setRemoteDescription(new RTCSessionDescription(callOffer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
+            // Listen for auth state changes
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    username = usernameInput.value.trim() || `User_${userId.substring(0, 5)}`;
+                    isAdmin = username.toLowerCase() === 'admin';
+                    
+                    currentUsernameEl.textContent = username;
+                    currentUserIdEl.textContent = userId;
 
-            await updateDoc(callDocRef.current, {
-              answer: {
-                type: answer.type,
-                sdp: answer.sdp,
-              },
-              status: 'in_call'
+                    // Update user's presence in Firestore
+                    const userDoc = userStatusDocRef(userId);
+                    await setDoc(userDoc, {
+                        username,
+                        isAdmin,
+                        isOnline: true,
+                        lastSeen: serverTimestamp(),
+                        appId: appId
+                    });
+                    
+                    // Navigate to lobby and set up listeners
+                    setupLobbyListeners();
+                    showPage('lobby-page');
+                } else {
+                    userId = null;
+                    username = null;
+                    isAdmin = false;
+                    // Reset UI to login
+                    showPage('login-page');
+                    usernameInput.disabled = false;
+                    passwordInput.disabled = false;
+                    joinBtn.disabled = false;
+                    authStatus.textContent = '';
+                }
             });
-          }
-
-          // Listen for ICE candidates
-          const unsubscribeCandidates = onSnapshot(collection(callDocRef.current, 'iceCandidates'), (snapshot) => {
-            snapshot.docChanges().forEach(async (change) => {
-              if (change.type === 'added') {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                await pc.addIceCandidate(candidate);
-              }
+        }
+        
+        // Lobby Functions
+        function setupLobbyListeners() {
+            // Unsubscribe existing listeners to prevent duplicates
+            if (userListUnsubscribe) userListUnsubscribe();
+            if (chatUnsubscribe) chatUnsubscribe();
+            
+            // Listen for users online
+            userListUnsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
+                userList.innerHTML = '';
+                const myUserId = auth.currentUser.uid;
+                
+                snapshot.docs.forEach(doc => {
+                    const user = doc.data();
+                    if (user.isOnline && user.appId === appId) {
+                        const li = document.createElement('li');
+                        li.textContent = `${user.username}`;
+                        if (user.isAdmin) {
+                            li.textContent += ' (Admin)';
+                            li.style.color = var(--yellow);
+                        }
+                        
+                        if (user.isAdmin && !isAdmin) {
+                            // Regular user sees a notification when admin is online
+                            notificationEl.style.display = 'block';
+                            notificationEl.textContent = 'The admin is online!';
+                        }
+                        
+                        // Admin can initiate calls
+                        if (isAdmin && !user.isAdmin) {
+                            const callBtn = document.createElement('button');
+                            callBtn.textContent = 'Call';
+                            callBtn.classList.add('call-btn');
+                            callBtn.addEventListener('click', () => initiateCall(doc.id, user.username));
+                            li.appendChild(callBtn);
+                        }
+                        
+                        userList.appendChild(li);
+                    }
+                });
             });
-          });
-
-          // Listen for call termination
-          const unsubscribeCallDoc = onSnapshot(callDocRef.current, (docSnapshot) => {
-            if (!docSnapshot.exists()) {
-              console.log("Call document deleted. Ending call.");
-              handleCallEnd();
+            
+            // Listen for chat messages
+            chatUnsubscribe = onSnapshot(query(messagesCollectionRef), (snapshot) => {
+                chatBox.innerHTML = '';
+                snapshot.docs.forEach(doc => {
+                    const message = doc.data();
+                    const p = document.createElement('p');
+                    p.textContent = `${message.username}: ${message.text}`;
+                    p.style.color = message.isAdmin ? var(--yellow) : var(--text-color);
+                    chatBox.appendChild(p);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+        }
+        
+        sendChatBtn.addEventListener('click', async () => {
+            const messageText = chatMessageInput.value.trim();
+            if (messageText) {
+                await setDoc(doc(messagesCollectionRef), {
+                    username: username,
+                    text: messageText,
+                    isAdmin: isAdmin,
+                    timestamp: serverTimestamp()
+                });
+                chatMessageInput.value = '';
             }
-          });
-
-          setCallState('in_call');
-
-          return () => {
-            unsubscribeCandidates();
-            unsubscribeCallDoc();
-          };
-
-        } catch (error) {
-          console.error("Error setting up video call:", error);
-          handleCallEnd();
+        });
+        
+        // WebRTC and Call Functions
+        async function getMedia(isCaller = true) {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+                localVideo.play();
+                localVideo.style.display = 'block';
+                
+                if (isCaller) {
+                    remoteVideo.style.display = 'none';
+                }
+            } catch (err) {
+                showModal(`Error accessing media devices: ${err.message}`);
+            }
         }
-      }
-    };
+        
+        async function setupPeerConnection(callDocRef, isCaller) {
+            peerConnection = new RTCPeerConnection(configuration);
+            
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            
+            peerConnection.ontrack = (event) => {
+                remoteStream = event.streams[0];
+                remoteVideo.srcObject = remoteStream;
+                remoteVideo.play();
+                remoteVideo.style.display = 'block';
+                localVideo.style.position = 'absolute';
+                localVideo.style.width = '25%';
+            };
+            
+            // Listen for ICE candidates and add them to the database
+            peerConnection.onicecandidate = async (event) => {
+                if (event.candidate) {
+                    await set(ref(callRoomRef, `candidates/${userId}`), event.candidate.toJSON());
+                }
+            };
+            
+            // Listen for changes in the signaling data
+            signalingChannelListener = onValue(callRoomRef, async (snapshot) => {
+                const data = snapshot.val();
+                if (!peerConnection || !data) return;
 
-    handleCallStateChange();
-
-    // Clean up on unmount or state change
-    return () => {
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
-      if (pc) {
-        pc.close();
-        pc = null;
-      }
-    };
-  }, [callState, callId, callOffer]);
-
-  // Listen for incoming calls for regular users
-  useEffect(() => {
-    if (isAdmin || !isLoggedIn || !isAuthReady) return;
-
-    const q = collection(db, 'calls');
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          const callData = change.doc.data();
-          if (callData.clientId === auth.currentUser.uid && callData.status === 'ringing') {
-            setCallId(change.doc.id);
-            setCallOffer(callData.offer);
-            setCallingUser({ id: callData.adminId, username: 'Admin' });
-            setShowCallNotification(true);
-            // Don't set callState here to prevent an immediate, automatic acceptance
-          }
+                if (isCaller && data.answer && !peerConnection.currentRemoteDescription) {
+                    const rtcSessionDescription = new RTCSessionDescription(data.answer);
+                    await peerConnection.setRemoteDescription(rtcSessionDescription);
+                } else if (!isCaller && data.offer && !peerConnection.currentRemoteDescription) {
+                    const rtcSessionDescription = new RTCSessionDescription(data.offer);
+                    await peerConnection.setRemoteDescription(rtcSessionDescription);
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
+                    await set(ref(callRoomRef, 'answer'), peerConnection.localDescription.toJSON());
+                }
+                
+                if (data.candidates && data.candidates[remotePeerId]) {
+                    const remoteCandidate = data.candidates[remotePeerId];
+                    if (remoteCandidate) {
+                         await peerConnection.addIceCandidate(new RTCIceCandidate(remoteCandidate));
+                    }
+                }
+            });
         }
-      });
-    });
+        
+        async function initiateCall(calleeId, calleeUsername) {
+            remotePeerId = calleeId;
+            callId = `${userId}-${calleeId}`;
+            await getMedia();
+            showPage('call-page');
+            callPartnerEl.textContent = `Calling ${calleeUsername}...`;
+            
+            await setupPeerConnection();
+            
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            
+            await set(callRoomRef(callId), {
+                callerId: userId,
+                calleeId: calleeId,
+                offer: peerConnection.localDescription.toJSON(),
+                timestamp: serverTimestamp()
+            });
 
-    return () => unsubscribe();
-  }, [isLoggedIn, isAdmin, isAuthReady]);
+            // Listen for incoming answers and candidates from the callee
+            signalingChannelListener = onValue(callRoomRef(callId), async (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.answer && !peerConnection.currentRemoteDescription) {
+                    const answer = new RTCSessionDescription(data.answer);
+                    await peerConnection.setRemoteDescription(answer);
+                }
+                if (data && data.candidates && data.candidates[calleeId]) {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidates[calleeId]));
+                }
+            });
+        }
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    if (!username) {
-      setAlertMessage("Username cannot be empty.");
-      setShowAlert(true);
-      return;
-    }
+        async function joinCall(callIdFromDb) {
+            callId = callIdFromDb;
+            const callData = (await get(callRoomRef(callId))).val();
+            const callerUsername = callData.callerUsername;
+            remotePeerId = callData.callerId;
+            await getMedia(false);
+            showPage('call-page');
+            callPartnerEl.textContent = `Call with ${callerUsername}`;
+            
+            await setupPeerConnection();
+        }
+        
+        endCallBtn.addEventListener('click', async () => {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (remoteStream) {
+                remoteStream.getTracks().forEach(track => track.stop());
+            }
+            if (callId) {
+                await remove(callRoomRef(callId));
+                callId = null;
+            }
+            if (signalingChannelListener) {
+                signalingChannelListener(); // Unsubscribe Realtime DB listener
+            }
 
-    // Set the user's display name
-    await updateProfile(auth.currentUser, {
-      displayName: username
-    });
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
+            showPage('lobby-page');
+            callPartnerEl.textContent = '';
+        });
+        
+        // Listen for incoming call offers
+        const incomingCallRef = ref(rtdb, 'calls');
+        onValue(incomingCallRef, (snapshot) => {
+            const calls = snapshot.val();
+            if (calls) {
+                for (const key in calls) {
+                    if (calls[key].calleeId === userId && !callId) {
+                        const call = calls[key];
+                        showModal(`Incoming call from ${call.callerUsername || 'Admin'}. Do you want to join?`);
+                        modalCloseBtn.addEventListener('click', () => joinCall(key));
+                        break;
+                    }
+                }
+            }
+        });
+        
+        toggleAudioBtn.addEventListener('click', () => {
+            if (localStream) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = !audioTrack.enabled;
+                    toggleAudioBtn.textContent = audioTrack.enabled ? 'Mute Audio' : 'Unmute Audio';
+                }
+            }
+        });
+        
+        toggleVideoBtn.addEventListener('click', () => {
+            if (localStream) {
+                const videoTrack = localStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.enabled = !videoTrack.enabled;
+                    toggleVideoBtn.textContent = videoTrack.enabled ? 'Turn Off Video' : 'Turn On Video';
+                }
+            }
+        });
 
-    setIsLoggedIn(true);
-  };
-
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (newMessage.trim() === '') return;
-
-    await addDoc(collection(db, 'lobbyChat'), {
-      username: auth.currentUser.displayName,
-      message: newMessage,
-      timestamp: Date.now(),
-    });
-    setNewMessage('');
-  };
-
-  const handleInitiateCall = (user) => {
-    setCallState('calling');
-    setCallingUser(user);
-    setCallId(`${auth.currentUser.uid}-${user.id}`);
-  };
-
-  const handleCallEnd = async () => {
-    // Stop tracks
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      localStream = null;
-    }
-    // Close peer connection
-    if (pc) {
-      pc.close();
-      pc = null;
-    }
-    // Clear Firestore call document only if the current user is the admin
-    if (callDocRef.current && isAdmin) {
-      const docSnap = await getDoc(callDocRef.current);
-      if (docSnap.exists()) {
-         await deleteDoc(callDocRef.current);
-      }
-    }
-
-    setCallState('idle');
-    setCallingUser(null);
-    setCallId('');
-    setCallOffer(null);
-    setShowCallNotification(false);
-  };
-
-  const handleAcceptCall = () => {
-    setShowCallNotification(false);
-    setCallState('ringing');
-  };
-
-  const toggleCamera = () => {
-    if (localStream) {
-      localStream.getVideoTracks()[0].enabled = !isCameraOn;
-      setIsCameraOn(!isCameraOn);
-    }
-  };
-
-  const toggleMic = () => {
-    if (localStream) {
-      localStream.getAudioTracks()[0].enabled = !isMicOn;
-      setIsMicOn(!isMicOn);
-    }
-  };
-
-  const renderLobby = () => (
-    <div className="flex flex-col h-full bg-gray-900 text-white p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-bold text-gray-200">VideoConf Doral</h1>
-        <div className="flex items-center space-x-2">
-          <span className="text-lg">Logged in as: <span className="font-semibold text-green-400">{auth.currentUser?.displayName}</span></span>
-          <span className="text-sm text-gray-400">({auth.currentUser?.uid})</span>
-        </div>
-      </div>
-
-      <div className="flex-1 flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4 overflow-hidden">
-        {/* Active Users */}
-        <div className="bg-gray-800 rounded-lg p-4 flex-none lg:w-1/4 flex flex-col overflow-y-auto">
-          <h2 className="text-xl font-semibold mb-2 text-gray-300">Active Users</h2>
-          <ul className="space-y-2">
-            {Object.entries(activeUsers).map(([uid, user]) => (
-              <li key={uid} className="bg-gray-700 p-3 rounded-md flex justify-between items-center">
-                <span className="text-gray-200">{user.username}</span>
-                {isAdmin && (
-                  <button
-                    onClick={() => handleInitiateCall({ id: uid, username: user.username })}
-                    className="ml-2 px-3 py-1 bg-purple-500 hover:bg-purple-600 rounded-lg text-white font-medium text-sm transition-colors duration-200"
-                  >
-                    Call
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Chat Area */}
-        <div className="flex-1 bg-gray-800 rounded-lg p-4 flex flex-col">
-          <h2 className="text-xl font-semibold mb-2 text-gray-300">Lobby Chat</h2>
-          <div className="flex-1 overflow-y-auto space-y-3 pb-4">
-            {lobbyMessages.map((msg, index) => (
-              <div key={index} className="flex flex-col">
-                <span className="text-gray-400 text-sm">{msg.username} <span className="text-xs text-gray-500">{new Date(msg.timestamp).toLocaleTimeString()}</span></span>
-                <p className="text-gray-100">{msg.message}</p>
-              </div>
-            ))}
-          </div>
-          <form onSubmit={handleSendMessage} className="flex mt-4">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Send a message..."
-              className="flex-1 p-2 rounded-lg bg-gray-700 text-gray-200 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-            <button
-              type="submit"
-              className="ml-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 rounded-lg text-white font-medium transition-colors duration-200"
-            >
-              Send
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {showCallNotification && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-8 rounded-lg shadow-lg text-center">
-            <h3 className="text-2xl font-bold mb-4">Incoming Call</h3>
-            <p className="text-lg">You have an incoming call from <span className="font-semibold text-green-400">{callingUser?.username}</span></p>
-            <div className="mt-6 flex justify-center space-x-4">
-              <button
-                onClick={handleAcceptCall}
-                className="px-6 py-2 bg-green-500 hover:bg-green-600 rounded-full text-white font-bold transition-colors duration-200"
-              >
-                Accept
-              </button>
-              <button
-                onClick={handleCallEnd}
-                className="px-6 py-2 bg-red-500 hover:bg-red-600 rounded-full text-white font-bold transition-colors duration-200"
-              >
-                Decline
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  const renderVideoCall = () => (
-    <div className="flex flex-col h-full bg-gray-900 p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-bold text-gray-200">Video Call with <span className="text-green-400">{callingUser.username}</span></h1>
-      </div>
-      <div className="flex-1 relative flex items-center justify-center">
-        {/* Remote Video */}
-        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover rounded-lg"></video>
-
-        {/* Local Video */}
-        <video ref={localVideoRef} muted autoPlay playsInline className="absolute bottom-4 right-4 w-48 h-36 border-4 border-gray-700 rounded-lg shadow-lg"></video>
-      </div>
-
-      {/* Controls */}
-      <div className="flex justify-center space-x-4 mt-4">
-        <button onClick={toggleMic} className="p-3 rounded-full bg-gray-700 text-white hover:bg-gray-600 transition-colors duration-200">
-          {isMicOn ? <i className="fas fa-microphone"></i> : <i className="fas fa-microphone-slash"></i>}
-        </button>
-        <button onClick={toggleCamera} className="p-3 rounded-full bg-gray-700 text-white hover:bg-gray-600 transition-colors duration-200">
-          {isCameraOn ? <i className="fas fa-video"></i> : <i className="fas fa-video-slash"></i>}
-        </button>
-        <button onClick={handleCallEnd} className="p-3 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors duration-200">
-          <i className="fas fa-phone-slash"></i>
-        </button>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="h-screen w-screen bg-gray-900 font-sans text-white">
-      {/* Tailwind and Font Awesome */}
-      <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet" />
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
-
-      {showAlert && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-sm text-center">
-            <h3 className="text-xl font-bold mb-2 text-red-400">Error</h3>
-            <p className="text-gray-300 mb-4">{alertMessage}</p>
-            <button onClick={() => setShowAlert(false)} className="px-4 py-2 bg-purple-500 rounded-md hover:bg-purple-600">Close</button>
-          </div>
-        </div>
-      )}
-
-      {!isLoggedIn || !isAuthReady ? (
-        <div className="flex items-center justify-center h-full bg-gray-900">
-          <div className="bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-md">
-            <div className="flex justify-center mb-6">
-              <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Company Logo" className="h-20" />
-            </div>
-            <h2 className="text-2xl font-bold text-center mb-6 text-gray-200">Join VideoConf Doral</h2>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  // The admin check is now client-side only
-                  setIsAdmin(e.target.value.toLowerCase() === 'admin');
-                  setShowPassword(e.target.value.toLowerCase() === 'admin');
-                }}
-                placeholder="Enter your username"
-                className="w-full p-3 rounded-lg bg-gray-700 text-gray-200 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-              {showPassword && (
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter admin password"
-                  className="w-full p-3 rounded-lg bg-gray-700 text-gray-200 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              )}
-              <button
-                type="submit"
-                className="w-full p-3 bg-purple-500 hover:bg-purple-600 rounded-lg text-white font-bold transition-colors duration-200"
-              >
-                Join
-              </button>
-            </form>
-          </div>
-        </div>
-      ) : (
-        <div className="h-full">
-          {callState === 'idle' && renderLobby()}
-          {(callState === 'calling' || callState === 'ringing' || callState === 'in_call') && renderVideoCall()}
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default App;
+    </script>
+</body>
+</html>
