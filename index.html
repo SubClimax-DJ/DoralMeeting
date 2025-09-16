@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, updateProfile } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { getDatabase, ref, onValue, set, remove } from 'firebase/database';
 
@@ -26,7 +26,7 @@ const servers = {
 };
 
 // Global WebRTC variables
-let pc = new RTCPeerConnection(servers);
+let pc = null;
 let localStream = null;
 let remoteStream = null;
 
@@ -60,19 +60,16 @@ const App = () => {
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         setIsLoggedIn(true);
-        // The isAdmin flag is set when the admin signs in.
-        // We'll use a custom claim to make this secure in a real application.
-        // For this demo, we'll store it client-side.
-        if (user.uid === 'admin') { // This check is a placeholder for a more robust admin check
-          setIsAdmin(true);
-        }
+        // For this demo, we'll check if the display name is 'Admin' to identify the admin user.
+        // In a real application, a custom claim on the user's token would be a more secure method.
+        setIsAdmin(user.displayName === 'Admin');
         setIsAuthReady(true);
 
         // Update user presence in Realtime Database
         const userRef = ref(rtdb, `users/${user.uid}`);
         await set(userRef, {
           username: user.displayName,
-          isAdmin: user.uid === 'admin',
+          isAdmin: user.displayName === 'Admin',
           timestamp: new Date().toISOString()
         });
 
@@ -138,6 +135,9 @@ const App = () => {
     const handleCallStateChange = async () => {
       if (callState === 'calling' || callState === 'ringing') {
         try {
+          // Initialize a new RTCPeerConnection for each call
+          pc = new RTCPeerConnection(servers);
+
           // Get local media stream
           localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
           if (localVideoRef.current) {
@@ -195,6 +195,9 @@ const App = () => {
 
           // Client receives the call
           } else if (callState === 'ringing' && callOffer) {
+            // Set the document reference for the client
+            callDocRef.current = doc(db, 'calls', callId);
+            
             await pc.setRemoteDescription(new RTCSessionDescription(callOffer));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
@@ -209,7 +212,7 @@ const App = () => {
           }
 
           // Listen for ICE candidates
-          onSnapshot(collection(callDocRef.current, 'iceCandidates'), (snapshot) => {
+          const unsubscribeCandidates = onSnapshot(collection(callDocRef.current, 'iceCandidates'), (snapshot) => {
             snapshot.docChanges().forEach(async (change) => {
               if (change.type === 'added') {
                 const candidate = new RTCIceCandidate(change.doc.data());
@@ -218,7 +221,20 @@ const App = () => {
             });
           });
 
+          // Listen for call termination
+          const unsubscribeCallDoc = onSnapshot(callDocRef.current, (docSnapshot) => {
+            if (!docSnapshot.exists()) {
+              console.log("Call document deleted. Ending call.");
+              handleCallEnd();
+            }
+          });
+
           setCallState('in_call');
+
+          return () => {
+            unsubscribeCandidates();
+            unsubscribeCallDoc();
+          };
 
         } catch (error) {
           console.error("Error setting up video call:", error);
@@ -229,14 +245,15 @@ const App = () => {
 
     handleCallStateChange();
 
+    // Clean up on unmount or state change
     return () => {
-      // Clean up on component unmount
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
       }
       if (pc) {
         pc.close();
-        pc = new RTCPeerConnection(servers);
+        pc = null;
       }
     };
   }, [callState, callId, callOffer]);
@@ -255,7 +272,7 @@ const App = () => {
             setCallOffer(callData.offer);
             setCallingUser({ id: callData.adminId, username: 'Admin' });
             setShowCallNotification(true);
-            setCallState('ringing');
+            // Don't set callState here to prevent an immediate, automatic acceptance
           }
         }
       });
@@ -264,20 +281,20 @@ const App = () => {
     return () => unsubscribe();
   }, [isLoggedIn, isAdmin, isAuthReady]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (username.toLowerCase() === 'admin' && password === 'max') {
-      // For this demo, we'll use a placeholder UID for admin. In a real app, Firebase Auth handles this.
-      auth.currentUser.updateProfile({ displayName: 'Admin' });
-      setIsAdmin(true);
-      setIsLoggedIn(true);
-    } else if (username && username.toLowerCase() !== 'admin') {
-      auth.currentUser.updateProfile({ displayName: username });
-      setIsLoggedIn(true);
-    } else {
-      setAlertMessage("Invalid username or password.");
+    if (!username) {
+      setAlertMessage("Username cannot be empty.");
       setShowAlert(true);
+      return;
     }
+
+    // Set the user's display name
+    await updateProfile(auth.currentUser, {
+      displayName: username
+    });
+
+    setIsLoggedIn(true);
   };
 
   const handleSendMessage = async (e) => {
@@ -302,15 +319,19 @@ const App = () => {
     // Stop tracks
     if (localStream) {
       localStream.getTracks().forEach(track => track.stop());
+      localStream = null;
     }
     // Close peer connection
     if (pc) {
       pc.close();
-      pc = new RTCPeerConnection(servers);
+      pc = null;
     }
-    // Clear Firestore call document
-    if (callDocRef.current) {
-      await deleteDoc(callDocRef.current);
+    // Clear Firestore call document only if the current user is the admin
+    if (callDocRef.current && isAdmin) {
+      const docSnap = await getDoc(callDocRef.current);
+      if (docSnap.exists()) {
+         await deleteDoc(callDocRef.current);
+      }
     }
 
     setCallState('idle');
@@ -320,14 +341,23 @@ const App = () => {
     setShowCallNotification(false);
   };
 
+  const handleAcceptCall = () => {
+    setShowCallNotification(false);
+    setCallState('ringing');
+  };
+
   const toggleCamera = () => {
-    localStream.getVideoTracks()[0].enabled = !isCameraOn;
-    setIsCameraOn(!isCameraOn);
+    if (localStream) {
+      localStream.getVideoTracks()[0].enabled = !isCameraOn;
+      setIsCameraOn(!isCameraOn);
+    }
   };
 
   const toggleMic = () => {
-    localStream.getAudioTracks()[0].enabled = !isMicOn;
-    setIsMicOn(!isMicOn);
+    if (localStream) {
+      localStream.getAudioTracks()[0].enabled = !isMicOn;
+      setIsMicOn(!isMicOn);
+    }
   };
 
   const renderLobby = () => (
@@ -397,7 +427,7 @@ const App = () => {
             <p className="text-lg">You have an incoming call from <span className="font-semibold text-green-400">{callingUser?.username}</span></p>
             <div className="mt-6 flex justify-center space-x-4">
               <button
-                onClick={() => setShowCallNotification(false)}
+                onClick={handleAcceptCall}
                 className="px-6 py-2 bg-green-500 hover:bg-green-600 rounded-full text-white font-bold transition-colors duration-200"
               >
                 Accept
@@ -472,6 +502,8 @@ const App = () => {
                 value={username}
                 onChange={(e) => {
                   setUsername(e.target.value);
+                  // The admin check is now client-side only
+                  setIsAdmin(e.target.value.toLowerCase() === 'admin');
                   setShowPassword(e.target.value.toLowerCase() === 'admin');
                 }}
                 placeholder="Enter your username"
