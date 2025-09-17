@@ -71,6 +71,13 @@
             padding: 8px 12px;
             border-radius: 4px;
         }
+        @keyframes fadeInOut {
+          0%, 100% { opacity: 0; transform: translateY(20px); }
+          5%, 90% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeInOut {
+          animation: fadeInOut 5s ease-in-out forwards;
+        }
     </style>
 </head>
 <body>
@@ -213,7 +220,7 @@
 
         // --- COMPONENTS ---
 
-        const Notification = ({ message, type, onClose }) => {
+        const Notification = ({ message, type }) => {
             const bgColor = type === 'success' ? 'bg-[#98971a]' : 'bg-[#d79921]';
             const textColor = 'text-[#1d2021]';
             
@@ -483,10 +490,11 @@
             // Kick and Broadcast Listeners
             useEffect(() => {
                 if (!appUser) return;
-                const kickDocRef = doc(getCollectionRef('kick_signal', false), 'kick');
+                const kickDocRef = doc(firestore, 'artifacts', appId, 'users', appUser.uid, 'kick_signal', 'kick');
                 const kickUnsub = onSnapshot(kickDocRef, (snapshot) => {
                     if (snapshot.exists()) {
                         setNotification({ message: 'You have been kicked from the lobby.', type: 'alert' });
+                        deleteDoc(kickDocRef);
                         setTimeout(() => logout(), 2000); // Logout after a short delay
                     }
                 });
@@ -538,7 +546,7 @@
             };
 
             const handleKickUser = async (targetUser) => {
-                const kickDocRef = doc(getCollectionRef('kick_signal', false), targetUser.uid);
+                const kickDocRef = doc(firestore, 'artifacts', appId, 'users', targetUser.uid, 'kick_signal', 'kick');
                 await setDoc(kickDocRef, { kicked: true });
                 await deleteDoc(doc(getCollectionRef('presence', true), targetUser.uid));
                 setNotification({ message: `User ${targetUser.username} has been kicked.`, type: 'alert' });
@@ -834,7 +842,7 @@
                 <main>
                     {renderPage()}
                     <div className="fixed bottom-2 left-2 text-xs text-gruvbox-gray opacity-50 z-50">
-                        {`v2.1`}
+                        {`v2.2`}
                     </div>
                 </main>
             );
