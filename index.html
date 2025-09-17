@@ -1,348 +1,859 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-[#282828]">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Conferencing</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gruvbox Video Conference</title>
+    
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Gruvbox dark theme colors */
-        :root {
-            --dark0_hard: #1d2021;
-            --dark0: #282828;
-            --dark0_soft: #32302f;
-            --dark1: #3c3836;
-            --dark2: #504945;
-            --dark3: #665c54;
-            --dark4: #7c6f64;
-            --gray_245: #928374;
-            --gray_244: #928374;
-            --light0_hard: #f9f5d7;
-            --light0: #fbf1c7;
-            --light0_soft: #f2e5bc;
-            --light1: #ebdbb2;
-            --light2: #d5c4a1;
-            --light3: #bdae93;
-            --light4: #a89984;
-            --bright_red: #fb4934;
-            --bright_green: #b8bb26;
-            --bright_yellow: #fabd2f;
-            --bright_blue: #83a598;
-            --bright_purple: #d3869b;
-            --bright_aqua: #8ec07c;
-            --bright_orange: #fe8019;
-            --neutral_red: #cc241d;
-            --neutral_green: #98971a;
-            --neutral_yellow: #d79921;
-            --neutral_blue: #458588;
-            --neutral_purple: #b16286;
-            --neutral_aqua: #689d6a;
-            --neutral_orange: #d65d0e;
-            --faded_red: #9d0006;
-            --faded_green: #79740e;
-            --faded_yellow: #b57614;
-            --faded_blue: #076678;
-            --faded_purple: #8f3f71;
-            --faded_aqua: #427b58;
-            --faded_orange: #af3a03;
-        }
-        .gruvbox-dark {
-            background-color: var(--dark0);
-            color: var(--light1);
-        }
-        .gruvbox-input {
-            background-color: var(--dark1);
-            border-color: var(--dark3);
-            color: var(--light0);
-        }
-        .gruvbox-input:focus {
-            outline-color: var(--bright_yellow);
-            border-color: var(--bright_yellow);
-            box-shadow: 0 0 0 2px var(--dark0), 0 0 0 4px var(--bright_yellow);
-        }
-        .gruvbox-button {
-            background-color: var(--neutral_blue);
-            color: var(--light0);
-        }
-        .gruvbox-button:hover {
-            background-color: var(--bright_blue);
-        }
-        .gruvbox-header {
-            color: var(--bright_yellow);
-        }
-        .gruvbox-bg-soft {
-             background-color: var(--dark0_soft);
-        }
-         .gruvbox-bg-hard {
-             background-color: var(--dark0_hard);
-        }
-        .gruvbox-border {
-            border-color: var(--dark2);
-        }
-        .gruvbox-text-light {
-            color: var(--light2);
-        }
-        .gruvbox-text-bright {
-             color: var(--bright_aqua);
-        }
-        .gruvbox-text-faded {
-            color: var(--gray_245);
-        }
 
+    <!-- React Libraries -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Gruvbox Theme & Custom Styles -->
+    <style>
+        :root {
+            --bg: #282828;
+            --bg-dark: #1d2021;
+            --fg: #ebdbb2;
+            --fg-dim: #a89984;
+            --red: #cc241d;
+            --green: #98971a;
+            --yellow: #d79921;
+            --blue: #458588;
+            --purple: #b16286;
+            --aqua: #689d6a;
+            --gray: #928374;
+        }
+        body {
+            background-color: var(--bg);
+            color: var(--fg);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent scrollbars from the background */
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('https://i.postimg.cc/xdrNhMyP/image.png');
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: contain;
+            opacity: 0.03;
+            z-index: -1;
+        }
+        /* Custom scrollbar for a better theme fit */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--gray);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--fg-dim);
+        }
+        /* Custom class for broadcast messages */
+        .broadcast-message {
+            background-color: rgba(215, 153, 33, 0.1);
+            border-left: 3px solid var(--yellow);
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+        @keyframes fadeInOut {
+          0%, 100% { opacity: 0; transform: translateY(20px); }
+          5%, 90% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeInOut {
+          animation: fadeInOut 5s ease-in-out forwards;
+        }
     </style>
 </head>
-<body class="h-full font-sans gruvbox-dark">
+<body>
+    <div id="root"></div>
 
-    <div id="app" class="h-full flex items-center justify-center">
-
-        <!-- Login Page -->
-        <div id="login-page" class="w-full max-w-md p-8 space-y-8 gruvbox-bg-soft rounded-lg shadow-lg">
-            <div>
-                <img class="mx-auto h-24 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Company Logo">
-                <h2 class="mt-6 text-center text-3xl font-extrabold gruvbox-header">
-                    Video Conferencing
-                </h2>
-            </div>
-            <div class="space-y-6">
-                <div>
-                    <label for="username" class="sr-only">Username</label>
-                    <input id="username" name="username" type="text" required class="relative block w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 gruvbox-input" placeholder="Username">
-                </div>
-                <div id="password-container" class="hidden">
-                    <label for="password" class="sr-only">Password</label>
-                    <input id="password" name="password" type="password" class="relative block w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 gruvbox-input" placeholder="Password">
-                </div>
-                <div>
-                    <button id="join-btn" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 gruvbox-button">
-                        Join
-                    </button>
-                </div>
-                <p id="error-message" class="text-center text-sm text-red-400"></p>
-            </div>
-        </div>
-
-        <!-- Waiting Lobby -->
-        <div id="lobby-page" class="hidden h-full w-full flex flex-col p-4">
-             <header class="flex-shrink-0 flex justify-between items-center p-4 border-b gruvbox-border">
-                <div class="flex items-center">
-                    <img class="h-12 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Company Logo">
-                    <h1 class="text-xl ml-4 font-bold gruvbox-header">Waiting Lobby</h1>
-                </div>
-                <div>
-                    <span class="gruvbox-text-light">Welcome, <span id="lobby-username" class="font-bold gruvbox-text-bright"></span>!</span>
-                </div>
-            </header>
-            <div class="flex flex-grow min-h-0">
-                <!-- User List -->
-                <div class="w-1/4 flex-shrink-0 p-4 border-r gruvbox-border overflow-y-auto">
-                    <h2 class="text-lg font-semibold mb-4 gruvbox-header">Active Users</h2>
-                    <div id="user-list"></div>
-                </div>
-                <!-- Chat Area -->
-                <div class="w-3/4 flex flex-col p-4">
-                    <div id="chat-messages" class="flex-grow mb-4 p-4 gruvbox-bg-hard rounded-lg overflow-y-auto">
-                        <!-- Messages will appear here -->
-                    </div>
-                    <div class="flex">
-                        <input id="chat-input" type="text" class="flex-grow px-3 py-2 rounded-l-md gruvbox-input" placeholder="Type a message...">
-                        <button id="send-chat-btn" class="px-4 py-2 rounded-r-md gruvbox-button">Send</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Video Call Room -->
-        <div id="video-call-page" class="hidden h-full w-full flex">
-             <!-- Video Area -->
-            <div class="w-3/4 flex flex-col items-center justify-center p-4 relative">
-                <div class="relative w-full h-full flex items-center justify-center rounded-lg overflow-hidden gruvbox-bg-hard">
-                    <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
-                    <video id="local-video" autoplay playsinline muted class="absolute bottom-4 right-4 w-1/4 h-auto border-2 rounded-md shadow-lg gruvbox-border"></video>
-                </div>
-                 <div class="absolute top-4 left-4">
-                     <h2 class="text-2xl font-bold gruvbox-header">In Call With: <span id="call-partner-name"></span></h2>
-                 </div>
-            </div>
-
-            <!-- Chat and Controls Area -->
-            <div class="w-1/4 flex flex-col border-l gruvbox-border">
-                <div class="flex-grow flex flex-col p-4">
-                     <h3 class="text-xl font-semibold mb-4 text-center gruvbox-header">Chat</h3>
-                    <div id="video-chat-messages" class="flex-grow mb-4 p-2 gruvbox-bg-hard rounded-lg overflow-y-auto">
-                        <!-- Video chat messages will appear here -->
-                    </div>
-                    <div class="flex">
-                        <input id="video-chat-input" type="text" class="flex-grow px-3 py-2 rounded-l-md gruvbox-input" placeholder="Type a message...">
-                        <button id="send-video-chat-btn" class="px-4 py-2 rounded-r-md gruvbox-button">Send</button>
-                    </div>
-                </div>
-                <div class="p-4 border-t gruvbox-border">
-                    <button id="end-call-btn" class="w-full py-3 px-4 rounded-md font-bold bg-red-600 hover:bg-red-700 text-white">End Call</button>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
+    <!-- Firebase SDK Loader Script -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getDatabase, ref, set, onValue, onDisconnect, serverTimestamp, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBbTFLhxzXf08OVDGGsK54t3qDzPVvsJ3w",
-            authDomain: "conferencedoral.firebaseapp.com",
-            projectId: "conferencedoral",
-            storageBucket: "conferencedoral.firebasestorage.app",
-            messagingSenderId: "668062587354",
-            appId: "1:668062587354:web:9b831842ada6ebf87148e3",
-            measurementId: "G-HDJ9S9G2T2",
-            databaseURL: "https://conferencedoral-default-rtdb.firebaseio.com/"
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, query, where, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        window.firebaseSDK = {
+            initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+            getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, query, where, serverTimestamp, getDocs
         };
+    </script>
 
-        // Initialize Firebase
+    <!-- Main Application Script (Transpiled by Babel) -->
+    <script type="text/babel">
+        const {
+            initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+            getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, query, where, serverTimestamp, getDocs
+        } = window.firebaseSDK;
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyBluS1Dl9abDJjPPeOhvTCfP8J1kyIh6BQ",
+            authDomain: "video-meeting-e73eb.firebaseapp.com",
+            projectId: "video-meeting-e73eb",
+            storageBucket: "video-meeting-e73eb.appspot.com",
+            messagingSenderId: "80496795033",
+            appId: "1:80496795033:web:3ac35c631d76301f77c708",
+        };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // --- INITIALIZE FIREBASE & FIRESTORE ---
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getDatabase(app);
         const firestore = getFirestore(app);
 
-        // UI Elements
-        const loginPage = document.getElementById('login-page');
-        const lobbyPage = document.getElementById('lobby-page');
-        const videoCallPage = document.getElementById('video-call-page');
-        const usernameInput = document.getElementById('username');
-        const passwordInput = document.getElementById('password');
-        const passwordContainer = document.getElementById('password-container');
-        const joinBtn = document.getElementById('join-btn');
-        const errorMessage = document.getElementById('error-message');
-        const userListDiv = document.getElementById('user-list');
-        const lobbyUsername = document.getElementById('lobby-username');
-
-        let currentUser = null;
-        let currentUsername = '';
-        let isAdmin = false;
-
-        // --- Login Logic ---
-        usernameInput.addEventListener('input', () => {
-            if (usernameInput.value.toLowerCase() === 'admin') {
-                passwordContainer.style.display = 'block';
+        // A central function to get the correct Firestore collection path based on security rules
+        const getCollectionRef = (collectionName, isPublic = true) => {
+            if (isPublic) {
+                return collection(firestore, 'artifacts', appId, 'public', 'data', collectionName);
             } else {
-                passwordContainer.style.display = 'none';
+                const userId = auth.currentUser?.uid || 'anonymous';
+                return collection(firestore, 'artifacts', appId, 'users', userId, collectionName);
             }
-        });
+        };
 
-        joinBtn.addEventListener('click', async () => {
-            const username = usernameInput.value.trim();
-            const password = passwordInput.value;
-            errorMessage.textContent = '';
+        // --- HELPER FUNCTIONS ---
+        const getDeviceInfo = () => {
+            const ua = navigator.userAgent;
+            const device = typeof __is_mobile !== 'undefined' ? (__is_mobile ? "Mobile" : "Desktop") : (
+                /Mobile|Android|iP(ad|hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua) ? "Mobile" : "Desktop"
+            );
+            
+            let browser = "Unknown Browser";
+            if (ua.indexOf("Firefox") > -1) browser = "Firefox";
+            else if (ua.indexOf("SamsungBrowser") > -1) browser = "Samsung Internet";
+            else if (ua.indexOf("Opera") > -1 || ua.indexOf("OPR") > -1) browser = "Opera";
+            else if (ua.indexOf("Edg") > -1) browser = "Edge";
+            else if (ua.indexOf("Chrome") > -1) browser = "Chrome";
+            else if (ua.indexOf("Safari") > -1) browser = "Safari";
+            
+            return `${device} - ${browser}`;
+        };
 
-            if (!username) {
-                errorMessage.textContent = 'Please enter a username.';
-                return;
+        const copyToClipboard = (text) => {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
             }
+        };
 
-            if (username.toLowerCase() === 'admin') {
-                if (password === 'max') {
-                    isAdmin = true;
-                    currentUsername = 'admin';
-                } else {
-                    errorMessage.textContent = 'Incorrect password for admin.';
+        // WebRTC STUN servers configuration
+        const servers = {
+            iceServers: [
+                { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
+            ],
+            iceCandidatePoolSize: 10,
+        };
+
+        const { useState, useEffect, useRef, createContext, useContext } = React;
+
+        // --- AUTHENTICATION CONTEXT ---
+        const AuthContext = createContext();
+        const useAuth = () => useContext(AuthContext);
+
+        const AuthProvider = ({ children }) => {
+            const [appUser, setAppUser] = useState(null);
+            const [firebaseUser, setFirebaseUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                const unsubscribe = onAuthStateChanged(auth, async user => {
+                    try {
+                        if (user) {
+                            setFirebaseUser(user);
+                        } else {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        }
+                    } catch (error) {
+                        console.error("Authentication failed:", error);
+                    } finally {
+                        setLoading(false);
+                    }
+                });
+                return unsubscribe;
+            }, []);
+
+            const login = (username, isAdmin = false) => {
+                if (firebaseUser) {
+                    setAppUser({ username, isAdmin, uid: firebaseUser.uid });
+                }
+            };
+            const logout = () => {
+                // Remove presence on logout
+                if (firebaseUser) {
+                    const presenceDocRef = doc(getCollectionRef('presence', true), firebaseUser.uid);
+                    deleteDoc(presenceDocRef).catch(console.error);
+                }
+                setAppUser(null);
+            };
+            
+            const value = { appUser, firebaseUser, login, logout, loading };
+            return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
+        };
+
+        // --- COMPONENTS ---
+
+        const Notification = ({ message, type }) => {
+            const bgColor = type === 'success' ? 'bg-[#98971a]' : 'bg-[#d79921]';
+            const textColor = 'text-[#1d2021]';
+            
+            return (
+                <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-50 p-4 rounded-md shadow-lg ${bgColor} ${textColor} animate-fadeInOut`}>
+                    <p className="font-semibold">{message}</p>
+                </div>
+            );
+        };
+
+        // 1. LOGIN COMPONENT
+        const LoginPage = ({ setPage }) => {
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const { login } = useAuth();
+            const isAdminLogin = username.toLowerCase() === 'admin';
+
+            const handleJoin = (e) => {
+                e.preventDefault();
+                setError('');
+                if (!username.trim()) {
+                    setError('Username cannot be empty.');
                     return;
                 }
-            } else {
-                isAdmin = false;
-                currentUsername = username;
-            }
-
-            try {
-                // Sign in anonymously to get a UID
-                const userCredential = await signInAnonymously(auth);
-                currentUser = userCredential.user;
-                console.log("Signed in with UID:", currentUser.uid);
-                
-                // Now that we're authenticated, show the lobby
-                showLobby();
-            } catch (error) {
-                console.error("Error signing in anonymously:", error);
-                errorMessage.textContent = 'Could not join the lobby. Please try again.';
-            }
-
-        });
-        
-        // --- Page Navigation ---
-        function showLobby() {
-            loginPage.classList.add('hidden');
-            lobbyPage.classList.remove('hidden');
-            videoCallPage.classList.add('hidden');
-            lobbyUsername.textContent = currentUsername;
-
-            setupPresence();
-            listenForUsers();
-        }
-
-        // --- Realtime Database for Presence ---
-        function setupPresence() {
-             if (!currentUser) return;
-            const myStatusRef = ref(db, 'status/' + currentUser.uid);
-
-            const presenceData = {
-                username: currentUsername,
-                isAdmin: isAdmin,
-                online: true,
-                last_changed: serverTimestamp(),
+                if (isAdminLogin) {
+                    if (password === 'max') {
+                        login('admin', true);
+                        setPage('lobby');
+                    } else {
+                        setError('Incorrect admin password.');
+                    }
+                } else {
+                    login(username, false);
+                    setPage('lobby');
+                }
             };
 
-            // Set online status
-            set(myStatusRef, presenceData);
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-transparent p-4">
+                    <div className="w-full max-w-sm bg-[#1d2021] p-8 rounded-lg shadow-lg border border-[#3c3836] relative">
+                        <img 
+                            src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg"
+                            onError={(e) => { e.target.src = "https://placehold.co/80x80/d79921/1d2021?text=Logo"; }}
+                            alt="Company Logo" 
+                            className="absolute top-4 right-4 h-10 w-auto rounded"
+                        />
+                        <h2 className="text-3xl font-bold text-center text-[#ebdbb2] mb-6 pt-8">Join Conference</h2>
+                        <form onSubmit={handleJoin} className="space-y-6">
+                            <div>
+                                <input
+                                    type="text"
+                                    placeholder="Enter your username"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className="w-full px-4 py-3 bg-[#282828] text-[#ebdbb2] border-2 border-[#504945] rounded-md focus:outline-none focus:border-[#458588] transition-colors"
+                                />
+                            </div>
+                            {isAdminLogin && (
+                                <div>
+                                    <input
+                                        type="password"
+                                        placeholder="Enter admin password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full px-4 py-3 bg-[#282828] text-[#ebdbb2] border-2 border-[#504945] rounded-md focus:outline-none focus:border-[#458588] transition-colors"
+                                    />
+                                </div>
+                            )}
+                            {error && <p className="text-[#cc241d] text-sm text-center">{error}</p>}
+                            <button type="submit" className="w-full py-3 bg-[#458588] text-[#1d2021] font-bold rounded-md hover:bg-[#689d6a] transition-transform transform hover:scale-105">
+                                Join Lobby
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+        
+        // --- LOBBY SUB-COMPONENTS ---
+        const UserList = ({ users, appUser, handleStartCall, handleKickUser }) => {
+            return (
+                <div className="flex-1 flex flex-col min-h-0">
+                    <h2 className="text-xl font-bold text-[#ebdbb2] mb-4 border-b border-[#504945] pb-2">Active Users</h2>
+                    <ul className="space-y-3 overflow-y-auto">
+                        {users.map(user => (
+                            <li key={user.uid} className="flex items-center justify-between p-2 rounded-md bg-[#1d2021] hover:bg-[#32302f] group">
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-3 h-3 rounded-full ${user.status === 'in-call' ? 'bg-[#98971a]' : 'bg-[#a89984]'}`}></span>
+                                    <div>
+                                        <span className={`font-medium ${user.isAdmin ? 'text-[#b16286]' : 'text-[#ebdbb2]'}`}>
+                                            {user.username} {user.isAdmin && '(Admin)'}
+                                        </span>
+                                        {appUser.isAdmin && (
+                                            <div className="flex items-center gap-1 text-xs text-[#928374] mt-1">
+                                                <span>UID: {user.uid}</span>
+                                                <button onClick={() => copyToClipboard(user.uid)} className="p-1 rounded-full hover:bg-[#504945]">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 1 0 1 2 2v14a2 2 0 1 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                                                </button>
+                                            </div>
+                                        )}
+                                        {appUser.isAdmin && !user.isAdmin && user.deviceInfo && (
+                                            <p className="text-xs text-[#928374]">{user.deviceInfo}</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    {appUser.isAdmin && !user.isAdmin && (
+                                        <button onClick={() => handleStartCall(user)} className="text-xs bg-[#458588] text-[#1d2021] px-2 py-1 rounded-md hover:bg-[#689d6a]">Call</button>
+                                    )}
+                                    {appUser.isAdmin && !user.isAdmin && (
+                                        <button onClick={() => handleKickUser(user)} className="text-xs bg-[#cc241d] text-white px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">Kick</button>
+                                    )}
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            );
+        };
+        
+        const LobbyChat = ({ messages, newMessage, setNewMessage, handleSendMessage }) => {
+            const chatBottomRef = useRef(null);
+            useEffect(() => {
+                chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [messages]);
+            return (
+                <div className="flex-1 flex flex-col p-4 bg-transparent">
+                    <h2 className="text-xl font-bold text-[#ebdbb2] mb-4 border-b border-[#504945] pb-2">Lobby Chat</h2>
+                    <div className="flex-1 overflow-y-auto mb-4 pr-2">
+                        {messages.map(msg => (
+                            <div key={msg.id} className={`mb-3 ${msg.isBroadcast ? 'broadcast-message' : ''}`}>
+                                <span className={`font-bold ${msg.isBroadcast ? 'text-[#d79921]' : 'text-[#689d6a]'}`}>{msg.username}: </span>
+                                <span className="text-[#ebdbb2]">{msg.text}</span>
+                            </div>
+                        ))}
+                        <div ref={chatBottomRef} />
+                    </div>
+                    <form onSubmit={handleSendMessage} className="flex gap-3">
+                        <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-1 px-4 py-2 bg-[#282828] text-[#ebdbb2] border-2 border-[#504945] rounded-md focus:outline-none focus:border-[#458588]" />
+                        <button type="submit" className="px-6 py-2 bg-[#458588] text-[#1d2021] font-bold rounded-md hover:bg-[#689d6a]">Send</button>
+                    </form>
+                </div>
+            );
+        };
+        
+        const AdminPanel = ({ callLogs, handleBroadcast, broadcastMessage, setBroadcastMessage, handleClearChat, handleEndCallFromLobby }) => {
+            return (
+                <div className="flex-1 flex flex-col min-h-0 border-t-2 border-[#504945] pt-4">
+                    <h2 className="text-xl font-bold text-[#ebdbb2] mb-4 border-b border-[#504945] pb-2">Admin Console</h2>
+                    <div className="space-y-4 overflow-y-auto">
+                        <div>
+                            <h3 className="font-bold text-[#a89984] mb-2">Call Logs (Admin)</h3>
+                            <ul className="text-sm space-y-2">
+                                {callLogs.length > 0 ? callLogs.map(log => (
+                                    <li key={log.id} className="p-2 bg-[#1d2021] rounded-md flex justify-between items-center">
+                                        <div>
+                                            <p><span className="font-semibold text-[#b16286]">{log.caller.username}</span> called <span className="font-semibold text-[#ebdbb2]">{log.callee.username}</span></p>
+                                            <p className="text-xs text-[#928374]">Status: {log.status}</p>
+                                            <p className="text-xs text-[#928374]">{(new Date(log.createdAt?.toDate())).toLocaleString()}</p>
+                                        </div>
+                                        {log.status !== 'ended' && (
+                                            <button onClick={() => handleEndCallFromLobby(log.id)} className="text-xs bg-[#cc241d] text-white px-2 py-1 rounded-md hover:bg-red-700">End Call</button>
+                                        )}
+                                    </li>
+                                )) : <p className="text-xs text-[#928374]">No recent calls.</p>}
+                            </ul>
+                        </div>
+                        <form onSubmit={handleBroadcast}>
+                            <h3 className="font-bold text-[#a89984] mb-2">Broadcast Message</h3>
+                            <div className="flex gap-2">
+                                <input type="text" value={broadcastMessage} onChange={(e) => setBroadcastMessage(e.target.value)} placeholder="System announcement..." className="flex-1 px-3 py-1 bg-[#282828] text-sm text-[#ebdbb2] border-2 border-[#504945] rounded-md focus:outline-none focus:border-[#d79921]" />
+                                <button type="submit" className="px-3 py-1 bg-[#d79921] text-[#1d2021] text-sm font-bold rounded-md hover:bg-yellow-600">Send</button>
+                            </div>
+                        </form>
+                        <div>
+                            <h3 className="font-bold text-[#a89984] mb-2">Lobby Management</h3>
+                            <div className="space-y-2">
+                                <button onClick={handleClearChat} className="w-full text-sm bg-[#cc241d] text-white px-2 py-2 rounded-md hover:bg-red-700">Clear Entire Chat</button>
+                                <button onClick={() => window.location.reload()} className="w-full text-sm bg-[#458588] text-white px-2 py-2 rounded-md hover:bg-[#689d6a]">Refresh Lobby</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 2. LOBBY COMPONENT
+        const LobbyPage = ({ setPage, setCallId }) => {
+            const { appUser, logout } = useAuth();
+            const [users, setUsers] = useState([]);
+            const [messages, setMessages] = useState([]);
+            const [newMessage, setNewMessage] = useState('');
+            const [broadcastMessage, setBroadcastMessage] = useState('');
+            const [callLogs, setCallLogs] = useState([]);
+            const [notification, setNotification] = useState(null);
+            const [incomingCall, setIncomingCall] = useState(null);
+
+            useEffect(() => {
+                const cleanup = () => {
+                    if (appUser) {
+                        deleteDoc(doc(getCollectionRef('presence', true), appUser.uid)).catch(console.error);
+                    }
+                };
+                window.addEventListener('beforeunload', cleanup);
+                return () => window.removeEventListener('beforeunload', cleanup);
+            }, [appUser]);
+
+            // Presence & Chat Listeners
+            useEffect(() => {
+                if (!appUser) return;
+                
+                const presenceDocRef = doc(getCollectionRef('presence', true), appUser.uid);
+                setDoc(presenceDocRef, {
+                    username: appUser.username,
+                    isAdmin: appUser.isAdmin,
+                    deviceInfo: getDeviceInfo(),
+                    lastActive: serverTimestamp(),
+                    status: 'online'
+                }, { merge: true }).catch(console.error);
+
+                const usersUnsub = onSnapshot(query(getCollectionRef('presence', true)), (snapshot) => {
+                    const userList = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+                    setUsers(userList);
+                });
+
+                const chatUnsub = onSnapshot(query(getCollectionRef('chat', true)), (snapshot) => {
+                    const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    msgs.sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+                    setMessages(msgs);
+                });
+
+                return () => {
+                    usersUnsub();
+                    chatUnsub();
+                    deleteDoc(presenceDocRef).catch(console.error);
+                };
+            }, [appUser]);
+
+            // Call Log Listener
+            useEffect(() => {
+                if (!appUser || !appUser.isAdmin) return;
+                const callsQuery = query(getCollectionRef('calls', true));
+                const unsub = onSnapshot(callsQuery, (snapshot) => {
+                    const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    logs.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+                    setCallLogs(logs);
+                });
+                return unsub;
+            }, [appUser]);
+
+            // Incoming Call Listener
+            useEffect(() => {
+                if (!appUser || appUser.isAdmin) return;
+                const incomingCallQuery = query(getCollectionRef('calls', true), where('callee.uid', '==', appUser.uid), where('status', '==', 'ringing'));
+                const unsub = onSnapshot(incomingCallQuery, (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === "added") {
+                            setIncomingCall(change.doc.data());
+                            setCallId(change.doc.id);
+                        }
+                    });
+                });
+                return unsub;
+            }, [appUser, setCallId]);
+
+            // Kick and Broadcast Listeners
+            useEffect(() => {
+                if (!appUser) return;
+                const kickDocRef = doc(firestore, 'artifacts', appId, 'users', appUser.uid, 'kick_signal', 'kick');
+                const kickUnsub = onSnapshot(kickDocRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        setNotification({ message: 'You have been kicked from the lobby.', type: 'alert' });
+                        deleteDoc(kickDocRef);
+                        setTimeout(() => logout(), 2000); // Logout after a short delay
+                    }
+                });
+
+                const chatUnsub = onSnapshot(query(getCollectionRef('chat', true), where('isBroadcast', '==', true)), (snapshot) => {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added') {
+                            setNotification({ message: `New broadcast: ${change.doc.data().text}` });
+                        }
+                    });
+                });
+                
+                if (notification) {
+                    const timer = setTimeout(() => setNotification(null), 5000);
+                    return () => clearTimeout(timer);
+                }
+
+                return () => {
+                    kickUnsub();
+                    chatUnsub();
+                };
+            }, [appUser, logout, notification]);
+
+            if (!appUser) return null;
+
+            const handleSendMessage = async (e) => {
+                e.preventDefault();
+                if (newMessage.trim() === '') return;
+                await addDoc(getCollectionRef('chat', true), {
+                    text: newMessage, username: appUser.username, uid: appUser.uid, createdAt: serverTimestamp()
+                });
+                setNewMessage('');
+            };
+
+            const handleStartCall = async (targetUser) => {
+                if (!appUser.isAdmin) return;
+                const callDocRef = doc(getCollectionRef('calls', true));
+                await setDoc(callDocRef, {
+                    caller: { uid: appUser.uid, username: appUser.username },
+                    callee: { uid: targetUser.uid, username: targetUser.username },
+                    createdAt: serverTimestamp(),
+                    status: 'ringing',
+                });
+                setCallId(callDocRef.id);
+                setPage('call');
+                
+                const presenceDocRef = doc(getCollectionRef('presence', true), targetUser.uid);
+                await updateDoc(presenceDocRef, { status: 'ringing' });
+            };
+
+            const handleKickUser = async (targetUser) => {
+                const kickDocRef = doc(firestore, 'artifacts', appId, 'users', targetUser.uid, 'kick_signal', 'kick');
+                await setDoc(kickDocRef, { kicked: true });
+                await deleteDoc(doc(getCollectionRef('presence', true), targetUser.uid));
+                setNotification({ message: `User ${targetUser.username} has been kicked.`, type: 'alert' });
+            };
+
+            const handleEndCallFromLobby = async (callId) => {
+                await updateDoc(doc(getCollectionRef('calls', true), callId), { status: 'ended' });
+            };
+
+            const handleClearChat = async () => {
+                const chatDocs = await getDocs(query(getCollectionRef('chat', true)));
+                chatDocs.forEach(chatDoc => deleteDoc(chatDoc.ref).catch(console.error));
+            };
+
+            const handleBroadcast = async (e) => {
+                e.preventDefault();
+                if (broadcastMessage.trim() === '') return;
+                await addDoc(getCollectionRef('chat', true), {
+                    text: broadcastMessage, username: 'SYSTEM', uid: 'admin_broadcast', isBroadcast: true, createdAt: serverTimestamp()
+                });
+                setBroadcastMessage('');
+            };
+
+            const handleAcceptCall = async () => {
+                await updateDoc(doc(getCollectionRef('calls', true), callId), { status: 'active' });
+                await updateDoc(doc(getCollectionRef('presence', true), appUser.uid), { status: 'in-call' });
+                setIncomingCall(null);
+                setPage('call');
+            };
+
+            const handleDeclineCall = async () => {
+                await updateDoc(doc(getCollectionRef('calls', true), callId), { status: 'declined' });
+                setIncomingCall(null);
+            };
+
+            return (
+                <div className="h-screen w-screen flex flex-col md:flex-row bg-[#1d2021]/95 backdrop-blur-sm">
+                    <div className="w-full md:w-1/4 bg-[#282828]/90 p-4 flex flex-col border-r border-[#3c3836] space-y-4">
+                        <div className="flex justify-center mb-2">
+                            <img 
+                                src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg"
+                                onError={(e) => { e.target.src = "https://placehold.co/80x80/d79921/1d2021?text=Logo"; }}
+                                alt="Company Logo"
+                                className="h-12 w-auto rounded-md"
+                            />
+                        </div>
+                        <UserList users={users} appUser={appUser} handleStartCall={handleStartCall} handleKickUser={handleKickUser} />
+                        {appUser.isAdmin && (
+                            <AdminPanel callLogs={callLogs} handleBroadcast={handleBroadcast} broadcastMessage={broadcastMessage} setBroadcastMessage={setBroadcastMessage} handleClearChat={handleClearChat} handleEndCallFromLobby={handleEndCallFromLobby} />
+                        )}
+                        <div className="mt-auto pt-4 border-t border-[#3c3836]">
+                            <button onClick={logout} className="w-full flex items-center justify-center gap-2 py-2 bg-[#d79921] text-[#1d2021] font-bold rounded-md hover:bg-yellow-600 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line></svg>
+                                <span>Logout</span>
+                            </button>
+                        </div>
+                    </div>
+                    <LobbyChat messages={messages} newMessage={newMessage} setNewMessage={setNewMessage} handleSendMessage={handleSendMessage} />
+                    {incomingCall && (
+                        <div className="fixed inset-0 bg-black/70 flex flex-col items-center justify-center text-white z-50">
+                            <h3 className="text-2xl font-bold text-[#ebdbb2] mb-4">Incoming Call</h3>
+                            <p className="text-xl text-[#a89984] mb-6">{incomingCall.caller.username} is calling...</p>
+                            <div className="flex gap-4">
+                                <button onClick={handleAcceptCall} className="p-4 rounded-full bg-[#458588] hover:bg-[#689d6a] transition-transform transform hover:scale-105">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="8" x2="16" y1="21" y2="21"></line></svg>
+                                </button>
+                                <button onClick={handleDeclineCall} className="p-4 rounded-full bg-[#cc241d] hover:bg-red-500 transition-transform transform hover:scale-105">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><line x1="2" x2="22" y1="2" y2="22"></line><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="8" x2="16" y1="21" y2="21"></line></svg>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {notification && <Notification message={notification.message} type={notification.type} />}
+                </div>
+            );
+        };
+        
+        // 3. VIDEO ROOM COMPONENT
+        const VideoRoomPage = ({ callId, setPage }) => {
+            const { appUser, logout } = useAuth();
+            const localVideoRef = useRef(null);
+            const remoteVideoRef = useRef(null);
             
-            // Set offline status on disconnect
-            onDisconnect(myStatusRef).remove();
-        }
+            const pc = useRef(null);
+            const localStream = useRef(null);
+            
+            const [isMuted, setIsMuted] = useState(false);
+            const [isCameraOff, setIsCameraOff] = useState(false);
+            const [status, setStatus] = useState('connecting');
 
-        function listenForUsers() {
-            const statusRef = ref(db, 'status');
-            onValue(statusRef, (snapshot) => {
-                const users = snapshot.val();
-                userListDiv.innerHTML = ''; // Clear list
-                if (users) {
-                    Object.keys(users).forEach(uid => {
-                         const user = users[uid];
-                         if (user.online) {
-                             const userElement = document.createElement('div');
-                             userElement.className = `p-2 my-1 rounded-md flex justify-between items-center cursor-pointer hover:bg-opacity-20 ${uid === currentUser.uid ? 'bg-blue-500 bg-opacity-30' : 'gruvbox-bg-hard'}`;
-                             userElement.innerHTML = `
-                                <span class="font-medium ${user.isAdmin ? 'text-yellow-400' : 'gruvbox-text-light'}">${user.username}${user.isAdmin ? ' (Admin)' : ''}</span>
-                             `;
-                             
-                             // Add call button for admin
-                             if (isAdmin && uid !== currentUser.uid) {
-                                 const callBtn = document.createElement('button');
-                                 callBtn.textContent = 'Call';
-                                 callBtn.className = 'text-xs px-2 py-1 rounded gruvbox-button';
-                                 callBtn.onclick = () => {
-                                     // TODO: Initiate call logic
-                                     console.log(`Calling ${user.username} (uid: ${uid})`);
-                                 };
-                                 userElement.appendChild(callBtn);
-                             }
+            const hangUpCleanup = () => {
+                if (localStream.current) {
+                    localStream.current.getTracks().forEach(track => track.stop());
+                    localStream.current = null;
+                }
+                if (pc.current) {
+                    pc.current.close();
+                    pc.current = null;
+                }
+            };
 
-                             userListDiv.appendChild(userElement);
-                         }
+            useEffect(() => {
+                let isMounted = true;
+                const callDocRef = doc(getCollectionRef('calls', true), callId);
+
+                const setupWebRTC = async () => {
+                    pc.current = new RTCPeerConnection(servers);
+                    localStream.current = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    const remoteStream = new MediaStream();
+
+                    if (localVideoRef.current) localVideoRef.current.srcObject = localStream.current;
+                    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
+
+                    localStream.current.getTracks().forEach(track => pc.current.addTrack(track, localStream.current));
+                    
+                    pc.current.ontrack = event => {
+                        event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+                    };
+                    
+                    pc.current.onconnectionstatechange = () => {
+                        if (pc.current?.connectionState === 'connected') {
+                            setStatus('connected');
+                        }
+                    };
+                };
+
+                const setupSignaling = () => {
+                    const callerCandidatesRef = collection(callDocRef, 'callerCandidates');
+                    const calleeCandidatesRef = collection(callDocRef, 'calleeCandidates');
+
+                    pc.current.onicecandidate = event => {
+                        if (event.candidate) {
+                           addDoc(appUser.isAdmin ? callerCandidatesRef : calleeCandidatesRef, event.candidate.toJSON());
+                        }
+                    };
+
+                    onSnapshot(appUser.isAdmin ? calleeCandidatesRef : callerCandidatesRef, snapshot => {
+                        snapshot.docChanges().forEach(change => {
+                            if (change.type === 'added') {
+                                pc.current?.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                            }
+                        });
+                    });
+                };
+                
+                const unsubscribe = onSnapshot(callDocRef, async (snapshot) => {
+                    if (!snapshot.exists() || snapshot.data()?.status === 'ended' || snapshot.data()?.status === 'declined') {
+                        hangUpCleanup();
+                        if (isMounted) setPage('lobby');
+                        return;
+                    }
+
+                    const data = snapshot.data();
+
+                    if (!appUser.isAdmin && data?.offer && !pc.current.remoteDescription) {
+                        await pc.current.setRemoteDescription(new RTCSessionDescription(data.offer));
+                        const answerDescription = await pc.current.createAnswer();
+                        await pc.current.setLocalDescription(answerDescription);
+                        await updateDoc(callDocRef, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
+                    }
+
+                    if (appUser.isAdmin && data?.answer && !pc.current.remoteDescription) {
+                        await pc.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    }
+                });
+
+                setupWebRTC().then(async () => {
+                    setupSignaling();
+                    if (appUser.isAdmin) {
+                        const offerDescription = await pc.current.createOffer();
+                        await pc.current.setLocalDescription(offerDescription);
+                        await updateDoc(callDocRef, { offer: { type: offerDescription.type, sdp: offerDescription.sdp } });
+                    }
+                }).catch(err => {
+                    console.error("Failed to setup call:", err);
+                    setStatus('failed');
+                });
+                
+                return () => {
+                    isMounted = false;
+                    unsubscribe();
+                    hangUpCleanup();
+                };
+            }, []);
+
+            const handleEndCallClick = async () => {
+                const callDocRef = doc(getCollectionRef('calls', true), callId);
+                await updateDoc(callDocRef, { status: 'ended' });
+            };
+            
+            const handleLogoutFromCall = () => {
+                handleEndCallClick();
+                logout();
+            };
+            
+            const toggleMute = () => {
+                if (localStream.current) {
+                    localStream.current.getAudioTracks().forEach(track => {
+                        track.enabled = !track.enabled;
+                        setIsMuted(!track.enabled);
                     });
                 }
-            });
-        }
+            };
+
+            const toggleCamera = () => {
+                if (localStream.current) {
+                    localStream.current.getVideoTracks().forEach(track => {
+                        track.enabled = !track.enabled;
+                        setIsCameraOff(!track.enabled);
+                    });
+                }
+            };
+            
+            const toggleScreenShare = () => {
+                // Future Implementation:
+                // 1. Check if screen share is already active.
+                // 2. If not, capture screen stream using navigator.mediaDevices.getDisplayMedia().
+                // 3. Add the new stream's tracks to the RTCPeerConnection.
+                // 4. Update local and remote video elements.
+                // 5. If active, stop the screen share tracks and switch back to camera.
+                console.log("Screen share button clicked. Functionality to be implemented.");
+            };
+
+            return (
+                <div className="relative h-screen w-screen bg-black flex items-center justify-center">
+                    <video ref={remoteVideoRef} autoPlay playsInline className="h-full w-full object-cover" />
+                    
+                    {status === 'connecting' && (
+                        <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white">
+                            <svg className="animate-spin h-12 w-12 text-white mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p className="text-xl">Connecting...</p>
+                        </div>
+                    )}
+
+                    <video ref={localVideoRef} autoPlay playsInline muted className="absolute bottom-6 right-6 w-1/4 max-w-xs rounded-lg border-2 border-[#458588] shadow-2xl" />
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/50 p-4 rounded-xl">
+                        <button onClick={toggleMute} className={`p-3 rounded-full transition-colors ${isMuted ? 'bg-[#cc241d]' : 'bg-[#458588] hover:bg-[#689d6a]'}`}>
+                            {isMuted ? MuteIconOff : MuteIconOn}
+                        </button>
+                        <button onClick={toggleCamera} className={`p-3 rounded-full transition-colors ${isCameraOff ? 'bg-[#cc241d]' : 'bg-[#458588] hover:bg-[#689d6a]'}`}>
+                           {isCameraOff ? CameraIconOff : CameraIconOn}
+                        </button>
+                        <button onClick={toggleScreenShare} className="p-3 rounded-full bg-[#b16286] hover:bg-purple-600">
+                           {ScreenShareIcon}
+                        </button>
+                        <button onClick={handleEndCallClick} className="p-3 rounded-full bg-[#cc241d] hover:bg-red-500">
+                           {EndCallIcon}
+                        </button>
+                         <button onClick={handleLogoutFromCall} className="p-3 rounded-full bg-[#d79921] hover:bg-yellow-600 ml-4" title="Emergency Logout">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line></svg>
+                        </button>
+                    </div>
+                </div>
+            );
+        };
         
-        // Ensure user is signed out on page close/refresh to trigger onDisconnect
-        window.addEventListener('beforeunload', () => {
-            if(currentUser) {
-                const myStatusRef = ref(db, 'status/' + currentUser.uid);
-                remove(myStatusRef);
-            }
-        });
+        // --- SVG ICONS ---
+        const MuteIconOn = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="8" x2="16" y1="21" y2="21"></line></svg>;
+        const MuteIconOff = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><line x1="2" x2="22" y1="2" y2="22"></line><path d="M18.5 10.5A4.5 4.5 0 0 1 14 14.8V19a7 7 0 0 1-11.8-4.8"></path><path d="M9 5a3 3 0 0 0-3 3v1"></path><path d="M12 2a3 3 0 0 0-3 3v7"></path><line x1="8" x2="16" y1="21" y2="21"></line></svg>;
+        const CameraIconOn = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>;
+        const CameraIconOff = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><line x1="2" x2="22" y1="2" y2="22"></line><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16"></path><path d="M10.3 10.3a3 3 0 1 1 3.4 3.4"></path><path d="M22 13v-4a2 2 0 0 0-2-2h-3l-2.5-3z"></path></svg>;
+        const EndCallIcon = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M12.22 12.22a3 3 0 0 1-.44 4.34l-1.37 1.37a2 2 0 0 1-2.83 0L6.21 16.56a2 2 0 0 1 0-2.83l1.37-1.37a3 3 0 0 1 4.34-.44z"></path><path d="m15.89 15.89-2.2-2.2"></path><path d="M21.17 4.83a2 2 0 0 0-2.83 0l-1.37 1.37a2 2 0 0 0 0 2.83l2.83 2.83a2 2 0 0 0 2.83 0l1.37-1.37a2 2 0 0 0 0-2.83L21.17 4.83z"></path></svg>;
+        const ScreenShareIcon = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10"></path><path d="m22 7-7 5-5-5"></path></svg>;
 
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const { appUser } = useAuth();
+            const [page, setPage] = useState(appUser ? 'lobby' : 'login');
+            const [callId, setCallId] = useState(null);
+            
+            useEffect(() => {
+                if (appUser && page === 'login') {
+                    setPage('lobby');
+                }
+                if (!appUser && page !== 'login') {
+                    setPage('login');
+                }
+            }, [appUser, page]);
 
+            const renderPage = () => {
+                switch(page) {
+                    case 'lobby': return <LobbyPage setPage={setPage} setCallId={setCallId} />;
+                    case 'call': return <VideoRoomPage callId={callId} setPage={setPage} />;
+                    case 'login':
+                    default: return <LoginPage setPage={setPage} />;
+                }
+            };
+
+            return (
+                <main>
+                    {renderPage()}
+                    <div className="fixed bottom-2 left-2 text-xs text-gruvbox-gray opacity-50 z-50">
+                        {`v2.2`}
+                    </div>
+                </main>
+            );
+        };
+        
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(
+            <AuthProvider>
+                <App />
+            </AuthProvider>
+        );
     </script>
 </body>
 </html>
