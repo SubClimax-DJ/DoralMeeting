@@ -9,36 +9,7 @@
     <style>
         /* Gruvbox dark theme colors */
         :root {
-            --dark0_hard: #1d2021;
-            --dark0: #282828;
-            --dark0_soft: #32302f;
-            --dark1: #3c3836;
-            --dark2: #504945;
-            --dark3: #665c54;
-            --dark4: #7c6f64;
-            --gray_245: #928374;
-            --gray_244: #928374;
-            --light0_hard: #f9f5d7;
-            --light0: #fbf1c7;
-            --light0_soft: #f2e5bc;
-            --light1: #ebdbb2;
-            --light2: #d5c4a1;
-            --light3: #bdae93;
-            --light4: #a89984;
-            --bright_red: #fb4934;
-            --bright_green: #b8bb26;
-            --bright_yellow: #fabd2f;
-            --bright_blue: #83a598;
-            --bright_purple: #d3869b;
-            --bright_aqua: #8ec07c;
-            --bright_orange: #fe8019;
-            --neutral_red: #cc241d;
-            --neutral_green: #98971a;
-            --neutral_yellow: #d79921;
-            --neutral_blue: #458588;
-            --neutral_purple: #b16286;
-            --neutral_aqua: #689d6a;
-            --neutral_orange: #d65d0e;
+            --dark0_hard: #1d2021; --dark0: #282828; --dark0_soft: #32302f; --dark1: #3c3836; --dark2: #504945; --dark3: #665c54; --dark4: #7c6f64; --gray_245: #928374; --gray_244: #928374; --light0_hard: #f9f5d7; --light0: #fbf1c7; --light0_soft: #f2e5bc; --light1: #ebdbb2; --light2: #d5c4a1; --light3: #bdae93; --light4: #a89984; --bright_red: #fb4934; --bright_green: #b8bb26; --bright_yellow: #fabd2f; --bright_blue: #83a598; --bright_purple: #d3869b; --bright_aqua: #8ec07c; --bright_orange: #fe8019; --neutral_red: #cc241d; --neutral_green: #98971a; --neutral_yellow: #d79921; --neutral_blue: #458588; --neutral_purple: #b16286; --neutral_aqua: #689d6a; --neutral_orange: #d65d0e;
         }
         .gruvbox-dark { background-color: var(--dark0); color: var(--light1); }
         .gruvbox-input { background-color: var(--dark1); border-color: var(--dark3); color: var(--light0); }
@@ -49,6 +20,8 @@
         .gruvbox-button-green:hover { background-color: var(--bright_green); }
         .gruvbox-button-red { background-color: var(--neutral_red); }
         .gruvbox-button-red:hover { background-color: var(--bright_red); }
+        .gruvbox-button-orange { background-color: var(--neutral_orange); }
+        .gruvbox-button-orange:hover { background-color: var(--bright_orange); }
         .gruvbox-header { color: var(--bright_yellow); }
         .gruvbox-bg-soft { background-color: var(--dark0_soft); }
         .gruvbox-bg-hard { background-color: var(--dark0_hard); }
@@ -123,7 +96,10 @@
                 <div class="w-2/5 flex-shrink-0 p-4 border-r gruvbox-border overflow-y-auto"><h2 class="text-lg font-semibold mb-4 gruvbox-header">Users in Lobby</h2><div id="admin-user-list"></div></div>
                 <div class="w-3/5 flex flex-col p-4">
                     <div class="flex-grow">
-                        <h2 class="text-lg font-semibold mb-4 gruvbox-header">Lobby Chat</h2>
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-semibold gruvbox-header">Lobby Chat</h2>
+                            <button id="clear-chat-btn" class="text-xs px-3 py-1.5 rounded gruvbox-button-orange text-white">Clear Chat</button>
+                        </div>
                         <div id="admin-chat-messages" class="h-1/2 mb-4 p-4 gruvbox-bg-hard rounded-lg overflow-y-auto"></div>
                          <div class="flex">
                             <input id="admin-chat-input" type="text" class="flex-grow px-3 py-2 rounded-l-md gruvbox-input" placeholder="Type a message...">
@@ -169,7 +145,7 @@
         </div>
     </div>
     
-    <!-- Incoming Call Modal -->
+    <!-- Modals -->
     <div id="incoming-call-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
         <div class="gruvbox-bg-soft p-8 rounded-lg shadow-xl text-center">
             <h2 class="text-2xl font-bold gruvbox-header mb-4">Incoming Call</h2>
@@ -181,16 +157,15 @@
         </div>
     </div>
 
-    <!-- Broadcast Alert Modal -->
-    <div id="broadcast-alert-modal" class="hidden fixed top-5 right-5 bg-yellow-500 text-gray-900 px-6 py-4 rounded-lg shadow-lg z-50 animate-pulse">
-        <strong class="font-bold">Admin Broadcast:</strong>
-        <span id="broadcast-message" class="block sm:inline ml-2"></span>
+    <div id="alert-modal" class="hidden fixed top-5 right-5 text-gray-900 px-6 py-4 rounded-lg shadow-lg z-50">
+        <strong id="alert-title" class="font-bold"></strong>
+        <span id="alert-message" class="block sm:inline ml-2"></span>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getDatabase, ref, set, onValue, onDisconnect, serverTimestamp, remove, push, onChildAdded, query, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getDatabase, ref, set, onValue, onDisconnect, serverTimestamp, remove, push, onChildAdded, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBbTFLhxzXf08OVDGGsK54t3qDzPVvsJ3w", authDomain: "conferencedoral.firebaseapp.com", projectId: "conferencedoral", storageBucket: "conferencedoral.firebasestorage.app", messagingSenderId: "668062587354", appId: "1:668062587354:web:9b831842ada6ebf87148e3", measurementId: "G-HDJ-S9G2T2", databaseURL: "https://conferencedoral-default-rtdb.firebaseio.com/"
@@ -214,23 +189,37 @@
         const logoutBtn = document.getElementById('logout-btn'), adminLogoutBtn = document.getElementById('admin-logout-btn');
         const toggleMicBtn = document.getElementById('toggle-mic-btn'), toggleVideoBtn = document.getElementById('toggle-video-btn');
         const broadcastInput = document.getElementById('broadcast-input'), sendBroadcastBtn = document.getElementById('send-broadcast-btn');
-        const broadcastAlertModal = document.getElementById('broadcast-alert-modal'), broadcastMessage = document.getElementById('broadcast-message');
+        const alertModal = document.getElementById('alert-modal'), alertTitle = document.getElementById('alert-title'), alertMessage = document.getElementById('alert-message');
+        const clearChatBtn = document.getElementById('clear-chat-btn');
 
-
-        let currentUser = null, currentUsername = '', isAdmin = false, localStream, remoteStream, peerConnection, callPartnerUid, callPartnerUsername, callRef, incomingCallListener;
+        let currentUser = null, currentUsername = '', isAdmin = false, localStream, remoteStream, peerConnection, callPartnerUid, callPartnerUsername, callRef;
+        let unsubscribeMyStatusListener = null; 
 
         const configuration = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] };
 
         // --- Login ---
-        usernameInput.addEventListener('input', () => { passwordContainer.style.display = usernameInput.value.toLowerCase() === 'admin' ? 'block' : 'none'; });
+        usernameInput.addEventListener('input', () => {
+            const adminUsernames = ['max', 'kelly', 'doral'];
+            passwordContainer.style.display = adminUsernames.includes(usernameInput.value.toLowerCase()) ? 'block' : 'none';
+        });
+
         joinBtn.addEventListener('click', async () => {
-            const username = usernameInput.value.trim(), password = passwordInput.value;
+            const usernameRaw = usernameInput.value.trim();
+            const username = usernameRaw.toLowerCase();
+            const password = passwordInput.value;
             errorMessage.textContent = '';
-            if (!username) { errorMessage.textContent = 'Please enter a username.'; return; }
-            if (username.toLowerCase() === 'admin') {
+            if (!usernameRaw) { errorMessage.textContent = 'Please enter a username.'; return; }
+
+            const adminUsernames = ['max', 'kelly', 'doral'];
+            if (adminUsernames.includes(username)) {
                 if (password !== 'max') { errorMessage.textContent = 'Incorrect password for admin.'; return; }
-                isAdmin = true, currentUsername = 'Admin';
-            } else { isAdmin = false, currentUsername = username; }
+                isAdmin = true;
+                currentUsername = username.charAt(0).toUpperCase() + username.slice(1);
+            } else { 
+                isAdmin = false; 
+                currentUsername = usernameRaw; 
+            }
+
             try {
                 const userCredential = await signInAnonymously(auth);
                 currentUser = userCredential.user;
@@ -238,31 +227,37 @@
             } catch (error) { console.error("Error signing in:", error); errorMessage.textContent = 'Could not join the lobby.'; }
         });
 
-        // --- Page Navigation ---
+        // --- Page Navigation & Utils ---
         const showPage = (pageToShow) => { [loginPage, lobbyPage, videoCallPage, adminConsolePage].forEach(p => p.classList.add('hidden')); pageToShow.classList.remove('hidden'); };
-        function showLobby() { showPage(lobbyPage); lobbyUsername.textContent = currentUsername; setupPresence(); listenForUsers(); listenForLobbyMessages(); listenForIncomingCalls(); listenForBroadcasts(); }
-        function showAdminConsole() { showPage(adminConsolePage); adminUsername.textContent = currentUsername; setupPresence(); listenForUsers(); listenForLobbyMessages(); listenForBroadcasts(); }
+        function showLobby() { showPage(lobbyPage); lobbyUsername.textContent = currentUsername; setupPresence(); listenForLobbyMessages(); listenForIncomingCalls(); listenForAlerts(); }
+        function showAdminConsole() { showPage(adminConsolePage); adminUsername.textContent = currentUsername; setupPresence(); listenForLobbyMessages(); }
         function showVideoCallPage(partnerName) { callPartnerName.textContent = partnerName; showPage(videoCallPage); }
         
-        function logout() {
-            endCall(false); // End call without returning to lobby
+        function showAlert(title, message, type = 'broadcast') {
+            alertTitle.textContent = title;
+            alertMessage.textContent = message;
+            alertModal.className = 'hidden fixed top-5 right-5 text-gray-900 px-6 py-4 rounded-lg shadow-lg z-50'; // Reset classes
+            if (type === 'whisper') {
+                alertModal.classList.add('bg-purple-400');
+            } else { // broadcast
+                alertModal.classList.add('bg-yellow-500', 'animate-pulse');
+            }
+            alertModal.classList.remove('hidden');
+            setTimeout(() => alertModal.classList.add('hidden'), 5000);
+        }
 
+        function logout() {
+            endCall(false); 
+            if (unsubscribeMyStatusListener) {
+                unsubscribeMyStatusListener();
+                unsubscribeMyStatusListener = null;
+            }
             if (currentUser) {
                 const myStatusRef = ref(db, 'status/' + currentUser.uid);
                 remove(myStatusRef);
             }
-
-            // Reset local state
-            currentUser = null;
-            currentUsername = '';
-            isAdmin = false;
-            
-            // Unsubscribe listeners
-            // ... (add cleanup for onValue listeners if necessary)
-
-            // Reset UI and show login page
-            usernameInput.value = '';
-            passwordInput.value = '';
+            currentUser = null; currentUsername = ''; isAdmin = false;
+            usernameInput.value = ''; passwordInput.value = '';
             passwordContainer.style.display = 'none';
             errorMessage.textContent = '';
             showPage(loginPage);
@@ -271,31 +266,27 @@
         adminLogoutBtn.addEventListener('click', logout);
 
         // --- Presence & User List ---
-        function updateUserStatus(callStatus) {
-            if (currentUser) {
-                const myStatusRef = ref(db, 'status/' + currentUser.uid);
-                const statusUpdate = {
-                    username: currentUsername,
-                    isAdmin: isAdmin,
-                    online: true,
-                    last_changed: serverTimestamp(),
-                    callStatus: callStatus
-                };
-
-                // --- NEW DIAGNOSTIC LOGGING ---
-                console.log(`%cAttempting to update status for UID: ${currentUser.uid}`, 'color: cyan; font-weight: bold;');
-                console.log('%cData being sent:', 'color: cyan;', statusUpdate);
-                
-                set(myStatusRef, statusUpdate).catch(error => {
-                    console.error(`%c!!! FAILED to update status for UID: ${currentUser.uid} !!!`, 'color: red; font-weight: bold;');
-                    console.error('Data that was rejected:', statusUpdate);
-                    console.error('Firebase Error:', error);
-                });
-            } else {
-                 console.warn('updateUserStatus called but currentUser is null.');
-            }
+        function setupPresence() {
+            if (!currentUser) return;
+            listenForUsers(); 
+            const myStatusRef = ref(db, 'status/' + currentUser.uid);
+            onDisconnect(myStatusRef).remove();
+            set(myStatusRef, {
+                username: currentUsername,
+                isAdmin: isAdmin,
+                online: true,
+                last_changed: serverTimestamp(),
+                callStatus: 'available'
+            }).catch(error => console.error("Failed to set initial presence:", error));
+            
+            // Listen for my own removal (being kicked)
+            unsubscribeMyStatusListener = onValue(myStatusRef, (snapshot) => {
+                // If the listener is still active and the node is removed, it means we were kicked.
+                if (!snapshot.exists() && currentUser) {
+                    logout(); // Silently log out the user.
+                }
+            });
         }
-        function setupPresence() { if (!currentUser) return; const myStatusRef = ref(db, 'status/' + currentUser.uid); const status = { username: currentUsername, isAdmin: isAdmin, online: true, last_changed: serverTimestamp(), callStatus: 'available' }; set(myStatusRef, status); onDisconnect(myStatusRef).remove(); }
         
         function listenForUsers() {
             const statusRef = ref(db, 'status');
@@ -309,18 +300,10 @@
                         if (user.online && uid !== currentUser.uid) {
                             const userElement = document.createElement('div');
                             userElement.className = `p-2 my-1 rounded-md flex justify-between items-center gruvbox-bg-hard`;
-                            
-                            let statusIndicator = 'available';
-                            let statusText = 'Available';
-                            if (user.callStatus === 'in-call') {
-                                statusIndicator = 'in-call';
-                                statusText = 'In Call';
-                            } else if (user.callStatus === 'ringing') {
-                                statusIndicator = 'ringing';
-                                statusText = 'Ringing';
-                            }
+                            let statusIndicator = user.callStatus === 'in-call' ? 'in-call' : (user.callStatus === 'ringing' ? 'ringing' : 'available');
+                            let statusText = user.callStatus === 'in-call' ? 'In Call' : (user.callStatus === 'ringing' ? 'Ringing' : 'Available');
 
-                            userElement.innerHTML = `
+                            let userHtml = `
                                 <div class="flex items-center">
                                     <span class="status-dot status-${statusIndicator}"></span>
                                     <div>
@@ -330,68 +313,81 @@
                                 </div>`;
                             
                             if (isAdmin && !user.isAdmin) {
-                                const callBtn = document.createElement('button');
-                                callBtn.textContent = 'Call';
-                                callBtn.className = 'text-xs px-2 py-1 rounded gruvbox-button';
-                                if (user.callStatus !== 'available') {
-                                    callBtn.disabled = true;
-                                    callBtn.style.opacity = '0.5';
-                                }
-                                callBtn.onclick = () => initiateCall(uid, user.username);
-                                userElement.appendChild(callBtn);
+                                userHtml += `
+                                    <div class="flex space-x-1">
+                                        <button data-uid="${uid}" class="msg-btn text-xs px-2 py-1 rounded gruvbox-button-green">Msg</button>
+                                        <button data-uid="${uid}" data-username="${user.username}" class="call-btn text-xs px-2 py-1 rounded gruvbox-button" ${user.callStatus !== 'available' ? 'disabled' : ''}>Call</button>
+                                        <button data-uid="${uid}" class="kick-btn text-xs px-2 py-1 rounded gruvbox-button-red">Kick</button>
+                                    </div>`;
                             }
+                            userElement.innerHTML = userHtml;
                             targetList.appendChild(userElement);
                         }
                     });
-                }
-            });
-        }
-        
-        // --- Universal Chat Logic ---
-        const sendLobbyMessage = () => { const text = isAdmin ? adminChatInput.value.trim() : chatInput.value.trim(); if (text && currentUser) { push(ref(db, 'lobby-chat'), { uid: currentUser.uid, username: currentUsername, isAdmin, text, timestamp: serverTimestamp() }); if(isAdmin) adminChatInput.value = ''; else chatInput.value = ''; } };
-        function listenForLobbyMessages() {
-            const messagesQuery = query(ref(db, 'lobby-chat'), limitToLast(100));
-            onChildAdded(messagesQuery, (snapshot) => {
-                const msg = snapshot.val(), el = document.createElement('div'); el.classList.add('mb-2', 'break-words');
-                const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                el.innerHTML = `<div><span class="font-bold ${msg.isAdmin ? 'text-yellow-400' : 'gruvbox-text-bright'}">${msg.username}</span><span class="text-xs ml-2 gruvbox-text-faded">${time}</span></div><p class="gruvbox-text-light">${msg.text}</p>`;
-                
-                const targetChat = isAdmin ? adminChatMessagesDiv : chatMessagesDiv;
-                targetChat.appendChild(el); 
-                targetChat.scrollTop = targetChat.scrollHeight;
-            });
-        }
-        sendChatBtn.addEventListener('click', sendLobbyMessage);
-        chatInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendLobbyMessage());
-        adminSendChatBtn.addEventListener('click', sendLobbyMessage);
-        adminChatInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendLobbyMessage());
-        
-        // --- Admin Broadcast ---
-        sendBroadcastBtn.addEventListener('click', () => {
-            const message = broadcastInput.value.trim();
-            if (message) {
-                const broadcastRef = ref(db, 'broadcasts');
-                set(broadcastRef, { message, timestamp: serverTimestamp() });
-                broadcastInput.value = '';
-            }
-        });
-
-        function listenForBroadcasts() {
-            const broadcastRef = ref(db, 'broadcasts');
-            onValue(broadcastRef, (snapshot) => {
-                const data = snapshot.val();
-                if (data && (Date.now() - data.timestamp < 10000)) { // Only show recent broadcasts
-                    if(!isAdmin) {
-                        broadcastMessage.textContent = data.message;
-                        broadcastAlertModal.classList.remove('hidden');
-                        setTimeout(() => broadcastAlertModal.classList.add('hidden'), 5000);
+                     // Add event listeners after elements are created
+                    if (isAdmin) {
+                        document.querySelectorAll('.call-btn').forEach(btn => btn.onclick = () => initiateCall(btn.dataset.uid, btn.dataset.username));
+                        document.querySelectorAll('.kick-btn').forEach(btn => btn.onclick = () => kickUser(btn.dataset.uid));
+                        document.querySelectorAll('.msg-btn').forEach(btn => btn.onclick = () => sendWhisper(btn.dataset.uid));
                     }
                 }
             });
         }
+        
+        // --- Chat & Admin Controls Logic ---
+        const sendLobbyMessage = () => { const text = isAdmin ? adminChatInput.value.trim() : chatInput.value.trim(); if (text && currentUser) { push(ref(db, 'lobby-chat'), { uid: currentUser.uid, username: currentUsername, isAdmin, text, timestamp: serverTimestamp() }); if(isAdmin) adminChatInput.value = ''; else chatInput.value = ''; } };
+        
+        let initialMessagesLoaded = false;
+        function listenForLobbyMessages() {
+            const messagesRef = ref(db, 'lobby-chat');
+            onValue(messagesRef, (snapshot) => {
+                 const targetChat = isAdmin ? adminChatMessagesDiv : chatMessagesDiv;
+                if (!snapshot.exists()) {
+                     targetChat.innerHTML = ''; // Clear chat if empty
+                     return;
+                }
+                if(!initialMessagesLoaded) {
+                    targetChat.innerHTML = '';
+                    snapshot.forEach(childSnapshot => {
+                        appendChatMessage(childSnapshot.val());
+                    });
+                    initialMessagesLoaded = true;
+                }
+            });
+            const messagesQuery = query(ref(db, 'lobby-chat'), limitToLast(1));
+            onChildAdded(messagesQuery, (snapshot) => {
+                if(initialMessagesLoaded) appendChatMessage(snapshot.val());
+            });
+        }
+
+        function appendChatMessage(msg) {
+             const el = document.createElement('div'); el.classList.add('mb-2', 'break-words');
+             const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+             el.innerHTML = `<div><span class="font-bold ${msg.isAdmin ? 'text-yellow-400' : 'gruvbox-text-bright'}">${msg.username}</span><span class="text-xs ml-2 gruvbox-text-faded">${time}</span></div><p class="gruvbox-text-light">${msg.text}</p>`;
+             const targetChat = isAdmin ? adminChatMessagesDiv : chatMessagesDiv;
+             targetChat.appendChild(el); 
+             targetChat.scrollTop = targetChat.scrollHeight;
+        }
+
+        sendChatBtn.addEventListener('click', sendLobbyMessage);
+        chatInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendLobbyMessage());
+        adminSendChatBtn.addEventListener('click', sendLobbyMessage);
+        adminChatInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendLobbyMessage());
+
+        function kickUser(uid) { remove(ref(db, `status/${uid}`)); }
+        clearChatBtn.addEventListener('click', () => { if (confirm("Are you sure you want to clear the entire lobby chat?")) { remove(ref(db, 'lobby-chat')); initialMessagesLoaded = false; }});
+        function sendWhisper(uid) { const message = prompt("Enter your private message:"); if (message) { set(ref(db, `whispers/${uid}`), { from: currentUsername, message, timestamp: serverTimestamp() }); } }
+        sendBroadcastBtn.addEventListener('click', () => { const message = broadcastInput.value.trim(); if (message) { set(ref(db, 'broadcasts'), { message, timestamp: serverTimestamp() }); broadcastInput.value = ''; } });
+
+        function listenForAlerts() {
+            const broadcastRef = ref(db, 'broadcasts'); // Listen for broadcasts
+            onValue(broadcastRef, (snapshot) => { const data = snapshot.val(); if (data && (Date.now() - data.timestamp < 10000)) showAlert('Admin Broadcast:', data.message, 'broadcast'); });
+            const whisperRef = ref(db, `whispers/${currentUser?.uid}`); // Listen for whispers
+            onValue(whisperRef, (snapshot) => { const data = snapshot.val(); if (data && (Date.now() - data.timestamp < 10000)) { showAlert(`Whisper from ${data.from}:`, data.message, 'whisper'); remove(whisperRef); } });
+        }
 
         // --- WebRTC Call Logic ---
-        async function createPeerConnection(partnerUid, isCaller) {
+        async function createPeerConnection(isCaller) {
             peerConnection = new RTCPeerConnection(configuration);
             remoteStream = new MediaStream();
             remoteVideo.srcObject = remoteStream;
@@ -399,31 +395,23 @@
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 localVideo.srcObject = localStream;
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-            } catch (err) {
-                console.error("Failed to get local stream", err);
-                alert("Could not access camera and microphone. Please allow permissions and try again.");
-                endCall();
-                return;
-            }
+            } catch (err) { console.error("Failed to get local stream", err); endCall(); return; }
             peerConnection.ontrack = event => { event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track)); };
             const localCandidates = ref(db, `calls/${callRef.key}/${isCaller ? 'callerCandidates' : 'calleeCandidates'}`);
             const remoteCandidates = ref(db, `calls/${callRef.key}/${isCaller ? 'calleeCandidates' : 'callerCandidates'}`);
             peerConnection.onicecandidate = event => { event.candidate && push(localCandidates, event.candidate.toJSON()); };
             onChildAdded(remoteCandidates, (snapshot) => { try { peerConnection.addIceCandidate(new RTCIceCandidate(snapshot.val())); } catch(e){ console.error('Error adding received ice candidate', e); } });
-            peerConnection.onconnectionstatechange = () => { if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'closed' || peerConnection.connectionState === 'failed') { endCall(); } };
+            peerConnection.onconnectionstatechange = () => { if (['disconnected', 'closed', 'failed'].includes(peerConnection.connectionState)) { endCall(); } };
         }
 
         async function initiateCall(calleeUid, calleeUsername) {
             callRef = push(ref(db, 'calls'));
             callPartnerUid = calleeUid; callPartnerUsername = calleeUsername; 
             updateUserStatus('ringing');
-            const calleeStatusRef = ref(db, `status/${calleeUid}`);
-            onValue(calleeStatusRef, (snapshot) => {
-                if(snapshot.val()?.callStatus !== 'ringing' && peerConnection) endCall();
-            }, { onlyOnce: true });
-
-            await createPeerConnection(calleeUid, true);
+            
+            await createPeerConnection(true);
             showVideoCallPage(calleeUsername);
+
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
             set(callRef, { callerUid: currentUser.uid, callerUsername: currentUsername, calleeUid: calleeUid, status: 'ringing', offer: { sdp: offer.sdp, type: offer.type } });
@@ -441,11 +429,14 @@
         async function answerCall(callId, callData) {
             callRef = ref(db, `calls/${callId}`);
             callPartnerUid = callData.callerUid;
-            await createPeerConnection(callPartnerUid, false);
             callPartnerUsername = callData.callerUsername;
+            
+            await createPeerConnection(false);
             await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
+            
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
+
             await set(callRef, { ...callData, status: 'connected', answer: { sdp: answer.sdp, type: answer.type } });
             showVideoCallPage(callPartnerUsername);
             updateUserStatus('in-call');
@@ -459,12 +450,18 @@
             localVideo.srcObject = null; remoteVideo.srcObject = null;
             callPartnerUid = null; callPartnerUsername = null;
             updateUserStatus('available');
-
-            if (returnToLobby) {
-                if (isAdmin) showAdminConsole(); else showLobby();
-            }
+            if (returnToLobby) { if (isAdmin) showAdminConsole(); else showLobby(); }
         };
         endCallBtn.addEventListener('click', () => endCall());
+
+        function updateUserStatus(callStatus) {
+            if (currentUser) {
+                const myStatusRef = ref(db, 'status/' + currentUser.uid);
+                set(myStatusRef, {
+                    username: currentUsername, isAdmin: isAdmin, online: true, last_changed: serverTimestamp(), callStatus: callStatus
+                }).catch(error => console.error("Failed to update status:", error));
+            }
+        }
 
         function listenForIncomingCalls() {
             if (!currentUser || isAdmin) return;
@@ -472,39 +469,19 @@
             onChildAdded(callsQuery, (snapshot) => {
                 const callData = snapshot.val();
                 if (callData.calleeUid === currentUser.uid && callData.status === 'ringing') {
-                    callPartnerUid = callData.callerUid;
                     incomingCallFrom.textContent = callData.callerUsername;
                     incomingCallModal.classList.remove('hidden');
                     updateUserStatus('ringing');
-                    
-                    acceptCallBtn.onclick = () => {
-                        incomingCallModal.classList.add('hidden');
-                        answerCall(snapshot.key, callData);
-                    };
-                    rejectCallBtn.onclick = () => {
-                        incomingCallModal.classList.add('hidden');
-                        remove(ref(db, `calls/${snapshot.key}`));
-                        updateUserStatus('available');
-                    };
+                    acceptCallBtn.onclick = () => { incomingCallModal.classList.add('hidden'); answerCall(snapshot.key, callData); };
+                    rejectCallBtn.onclick = () => { incomingCallModal.classList.add('hidden'); remove(ref(db, `calls/${snapshot.key}`)); updateUserStatus('available'); };
                 }
             });
         }
 
-        toggleMicBtn.addEventListener('click', () => {
-            const audioTrack = localStream.getAudioTracks()[0];
-            audioTrack.enabled = !audioTrack.enabled;
-            toggleMicBtn.classList.toggle('active');
-            toggleMicBtn.innerHTML = audioTrack.enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
-        });
-
-        toggleVideoBtn.addEventListener('click', () => {
-            const videoTrack = localStream.getVideoTracks()[0];
-            videoTrack.enabled = !videoTrack.enabled;
-            toggleVideoBtn.classList.toggle('active');
-            toggleVideoBtn.innerHTML = videoTrack.enabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
-        });
+        toggleMicBtn.addEventListener('click', () => { const audioTrack = localStream.getAudioTracks()[0]; audioTrack.enabled = !audioTrack.enabled; toggleMicBtn.classList.toggle('active'); toggleMicBtn.innerHTML = audioTrack.enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>'; });
+        toggleVideoBtn.addEventListener('click', () => { const videoTrack = localStream.getVideoTracks()[0]; videoTrack.enabled = !videoTrack.enabled; toggleVideoBtn.classList.toggle('active'); toggleVideoBtn.innerHTML = videoTrack.enabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>'; });
         
-        window.addEventListener('beforeunload', () => { if (currentUser) { const myStatusRef = ref(db, 'status/' + currentUser.uid); remove(myStatusRef); endCall(false); } });
+        window.addEventListener('beforeunload', () => { if (currentUser) { endCall(false); remove(ref(db, 'status/' + currentUser.uid)); } });
     </script>
 </body>
 </html>
