@@ -213,7 +213,7 @@
             const usernameRaw = usernameInput.value.trim(); const username = usernameRaw.toLowerCase(); const password = passwordInput.value; errorMessage.textContent = ''; if (!usernameRaw) { errorMessage.textContent = 'Please enter a username.'; return; }
             const adminUsernames = ['max', 'kelly', 'doral'];
             if (adminUsernames.includes(username)) {
-                if (password !== 'max') { errorMessage.textContent = 'Incorrect password for admin.'; return; }
+                if (password !== 'runfast') { errorMessage.textContent = 'Incorrect password for admin.'; return; }
                 isAdmin = true; currentUsername = username.charAt(0).toUpperCase() + username.slice(1);
             } else { isAdmin = false; currentUsername = usernameRaw; }
             try {
@@ -474,4 +474,5 @@
     </script>
 </body>
 </html>
+
 
