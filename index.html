@@ -80,11 +80,11 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, query, where, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         window.firebaseSDK = {
             initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
-            getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, query, where, serverTimestamp
+            getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, query, where, serverTimestamp, getDocs
         };
     </script>
 
@@ -92,7 +92,7 @@
     <script type="text/babel">
         const {
             initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
-            getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, query, where, serverTimestamp
+            getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, query, where, serverTimestamp, getDocs
         } = window.firebaseSDK;
 
         // Global variables provided by the environment
@@ -486,7 +486,8 @@
                 const kickDocRef = doc(getCollectionRef('kick_signal', false), 'kick');
                 const kickUnsub = onSnapshot(kickDocRef, (snapshot) => {
                     if (snapshot.exists()) {
-                        deleteDoc(kickDocRef).then(() => logout()).catch(console.error);
+                        setNotification({ message: 'You have been kicked from the lobby.', type: 'alert' });
+                        setTimeout(() => logout(), 2000); // Logout after a short delay
                     }
                 });
 
@@ -497,12 +498,17 @@
                         }
                     });
                 });
+                
+                if (notification) {
+                    const timer = setTimeout(() => setNotification(null), 5000);
+                    return () => clearTimeout(timer);
+                }
 
                 return () => {
                     kickUnsub();
                     chatUnsub();
                 };
-            }, [appUser, logout]);
+            }, [appUser, logout, notification]);
 
             if (!appUser) return null;
 
@@ -532,9 +538,10 @@
             };
 
             const handleKickUser = async (targetUser) => {
-                const kickDocRef = doc(getCollectionRef('kick_signal', true), targetUser.uid);
+                const kickDocRef = doc(getCollectionRef('kick_signal', false), targetUser.uid);
                 await setDoc(kickDocRef, { kicked: true });
                 await deleteDoc(doc(getCollectionRef('presence', true), targetUser.uid));
+                setNotification({ message: `User ${targetUser.username} has been kicked.`, type: 'alert' });
             };
 
             const handleEndCallFromLobby = async (callId) => {
@@ -604,6 +611,7 @@
                             </div>
                         </div>
                     )}
+                    {notification && <Notification message={notification.message} type={notification.type} />}
                 </div>
             );
         };
@@ -826,7 +834,7 @@
                 <main>
                     {renderPage()}
                     <div className="fixed bottom-2 left-2 text-xs text-gruvbox-gray opacity-50 z-50">
-                        {`v2.0`}
+                        {`v2.1`}
                     </div>
                 </main>
             );
