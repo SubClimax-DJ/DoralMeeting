@@ -108,7 +108,7 @@ const App = () => {
 
   // Set up Firestore listeners for lobby
   useEffect(() => {
-    if (!isAuthReady || !user) return;
+    if (!isAuthReady || !user || !dbRef.current) return;
 
     // Listen for messages
     const messagesQuery = query(collection(dbRef.current, `artifacts/${appId}/public/data/messages`), orderBy('timestamp'));
@@ -342,7 +342,6 @@ const App = () => {
     }
   };
 
-  // Render different views based on state
   const renderView = () => {
     if (messageBox.visible) {
       return (
@@ -363,153 +362,170 @@ const App = () => {
       );
     }
 
-    switch (view) {
-      case 'login':
-        return (
-          <div className={`min-h-screen flex items-center justify-center p-4 bg-${colors['bg-dark']}`}>
-            <form onSubmit={handleLogin} className={`w-full max-w-sm p-8 rounded-xl shadow-lg bg-${colors['bg-light']} text-${colors['fg-dark']} border border-${colors['blue']}`}>
-              <div className="flex justify-center mb-6">
-                 <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Company Logo" className="w-24 h-24 rounded-full" />
-              </div>
-              <h1 className={`text-2xl font-bold text-center mb-6 text-${colors['orange']}`}>Join Conference</h1>
-              <div className="mb-4">
-                <label className="block mb-2 font-medium" htmlFor="username">Username</label>
+    // Login View Component
+    const LoginView = () => (
+      <div className={`min-h-screen flex items-center justify-center p-4 bg-${colors['bg-dark']}`}>
+        <div className="w-full max-w-sm p-8 rounded-xl shadow-2xl bg-[#3c3836] border-2 border-[#458588] transition-all duration-300 transform hover:scale-105">
+          <div className="flex justify-center mb-6">
+            <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Company Logo" className="w-24 h-24 rounded-full shadow-lg border-2 border-[#ebdbb2]" />
+          </div>
+          <h1 className="text-3xl font-bold text-center mb-6 text-[#d79921]">Join Conference</h1>
+          <form onSubmit={handleLogin}>
+            <div className="mb-4">
+              <label className="block mb-2 font-medium text-[#ebdbb2]" htmlFor="username">Username</label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg bg-[#504945] border border-[#d65d0e] text-[#ebdbb2] focus:outline-none focus:ring-2 focus:ring-[#d79921] transition-all duration-300"
+                required
+              />
+            </div>
+            {username === 'admin' && (
+              <div className="mb-6">
+                <label className="block mb-2 font-medium text-[#ebdbb2]" htmlFor="password">Password</label>
                 <input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className={`w-full px-4 py-2 rounded-lg bg-gray-700 border border-${colors['bg-light']} text-${colors['fg-dark']} focus:outline-none focus:ring-2 focus:ring-${colors['yellow']}`}
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg bg-[#504945] border border-[#d65d0e] text-[#ebdbb2] focus:outline-none focus:ring-2 focus:ring-[#d79921] transition-all duration-300"
                   required
                 />
               </div>
-              {username === 'admin' && (
-                <div className="mb-6">
-                  <label className="block mb-2 font-medium" htmlFor="password">Password</label>
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={`w-full px-4 py-2 rounded-lg bg-gray-700 border border-${colors['bg-light']} text-${colors['fg-dark']} focus:outline-none focus:ring-2 focus:ring-${colors['yellow']}`}
-                    required
-                  />
-                </div>
-              )}
-              <button
-                type="submit"
-                className={`w-full py-2 px-4 rounded-lg bg-${colors['green']} hover:bg-${colors['aqua']} transition-colors text-${colors['bg-dark']} font-bold focus:outline-none focus:ring-2 focus:ring-${colors['green']}`}
-              >
-                Join Lobby
-              </button>
-            </form>
+            )}
+            <button
+              type="submit"
+              className="w-full py-3 px-4 rounded-lg bg-[#98971a] hover:bg-[#689d6a] transition-all duration-300 text-[#282828] font-bold shadow-md transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#98971a]"
+            >
+              Join Lobby
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+
+    // Lobby View Component
+    const LobbyView = () => (
+      <div className="min-h-screen flex flex-col md:flex-row p-6 bg-[#282828] text-[#ebdbb2]">
+        <div className="flex-1 flex flex-col bg-[#3c3836] p-8 rounded-xl shadow-2xl mb-6 md:mb-0 md:mr-6 border border-[#458588]">
+          <h1 className="text-4xl font-extrabold mb-6 text-[#d79921]">Lobby Chat</h1>
+          <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+            {messages.map((msg, index) => (
+              <div key={index} className="p-4 rounded-lg bg-[#504945] text-base shadow-md">
+                <span className="font-bold text-[#458588]">{msg.sender}:</span> {msg.text}
+              </div>
+            ))}
           </div>
-        );
+          <form onSubmit={handleSendMessage} className="mt-6 flex space-x-3">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Type a message..."
+              className="flex-1 px-4 py-3 rounded-lg bg-[#504945] border border-[#d65d0e] text-[#ebdbb2] focus:outline-none focus:ring-2 focus:ring-[#d79921] transition-all duration-300"
+            />
+            <button
+              type="submit"
+              className="py-3 px-6 rounded-lg bg-[#98971a] hover:bg-[#689d6a] transition-all duration-300 text-[#282828] font-bold shadow-md transform hover:scale-105"
+            >
+              Send
+            </button>
+          </form>
+        </div>
+        <div className="md:w-1/4 flex flex-col bg-[#3c3836] p-8 rounded-xl shadow-2xl border border-[#458588]">
+          <h2 className="text-3xl font-extrabold mb-6 text-[#d79921]">Active Users</h2>
+          <div className="flex-1 flex flex-col space-y-4 overflow-y-auto custom-scrollbar">
+            {users.map((u) => (
+              <div key={u.uid} className="p-4 rounded-lg flex flex-col bg-[#504945] shadow-md transition-all duration-300 transform hover:scale-105">
+                <span className="font-medium text-lg text-[#ebdbb2]">{u.username}</span>
+                <span className="text-xs text-gray-400 mt-1 mb-2">ID: {u.uid.substring(0, 8)}...</span>
+                {username === 'admin' && u.uid !== user.uid && (
+                  <button
+                    onClick={() => handleStartCall(u)}
+                    className="mt-2 py-2 px-4 rounded-lg bg-[#b16286] hover:bg-[#d65d0e] transition-all duration-300 text-white font-bold shadow-sm"
+                  >
+                    Call
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+
+    // Call View Component
+    const CallView = () => (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#282828] text-[#ebdbb2]">
+        <div className="w-full max-w-6xl p-8 rounded-xl shadow-2xl bg-[#3c3836] mb-6 border border-[#458588]">
+          <h1 className="text-3xl font-bold text-center mb-6 text-[#d79921]">{otherUser?.username}'s Call</h1>
+          <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg border-4 border-[#504945]">
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+            ></video>
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="absolute bottom-4 right-4 w-1/4 max-w-[150px] aspect-video rounded-lg border-2 border-[#ebdbb2] shadow-xl"
+            ></video>
+          </div>
+          <div className="flex justify-center space-x-6 mt-8">
+            <button
+              onClick={toggleMute}
+              className={`p-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 ${isMuted ? 'bg-[#cc241d]' : 'bg-[#98971a]'} text-white font-bold`}
+            >
+              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                {isMuted ? (
+                  <path d="M12 14c2.21 0 4-1.79 4-4V5c0-2.21-1.79-4-4-4S8 2.79 8 5v5c0 2.21 1.79 4 4 4zM17 10h-1a1 1 0 010-2h1c.55 0 1 .45 1 1v2a.5.5 0 00.5.5.5.5 0 00.5-.5V10zM12 21a6.99 6.99 0 006-6h-2c0 2.2-1.8 4-4 4s-4-1.8-4-4H6a6.99 6.99 0 006 6z" />
+                ) : (
+                  <path d="M12 14c2.21 0 4-1.79 4-4V5c0-2.21-1.79-4-4-4S8 2.79 8 5v5c0 2.21 1.79 4 4 4zm-1 6h2v3h-2v-3zm7-1h-2a.999.999 0 00-.99 1A.999.999 0 0015 20h2v1h-2a.999.999 0 00-.99 1.001A.999.999 0 0015 23h2v1a.999.999 0 001.001-1.001A.999.999 0 0018 22h-1v-1h1.999a1 1 0 001-1v-1a1 1 0 00-1-1zm-10-1H6a.999.999 0 00-1 1v1a1 1 0 001 1h2a1 1 0 001-1v-1a1 1 0 00-1-1z" />
+                )}
+              </svg>
+            </button>
+            <button
+              onClick={toggleCamera}
+              className={`p-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 ${isCameraOff ? 'bg-[#cc241d]' : 'bg-[#98971a]'} text-white font-bold`}
+            >
+              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                {isCameraOff ? (
+                  <path d="M18.79 17.03c.51-.51.93-1.06 1.25-1.63L22 13v-2l-3.21-1.37c-.32-.57-.74-1.12-1.25-1.63L15 6l-1.37-3.21c-.57-.32-1.12-.74-1.63-1.25L11 0l-2 3.21c-.57.32-1.12.74-1.63 1.25L6 6l-3.21 1.37C2.47 8.35 2.05 8.9 1.73 9.47L0 11v2l3.21 1.37c.32.57.74 1.12 1.25 1.63L6 18l1.37 3.21c.57.32 1.12.74 1.63 1.25L11 24l2-3.21c.57-.32 1.12-.74 1.63-1.25L18 18zM12 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
+                ) : (
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                )}
+              </svg>
+            </button>
+            <button
+              onClick={handleEndCall}
+              className="p-4 rounded-full shadow-lg bg-[#cc241d] hover:bg-[#d65d0e] transition-all duration-300 transform hover:scale-110 text-white font-bold"
+            >
+              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M22.5 16.5c-.71 0-1.37.15-2 .43-.93-.68-2.02-1.1-3.17-1.26a1.5 1.5 0 00-1.42 1.05l-.5.9c-.38.68-.9 1.16-1.48 1.45-1.05.51-2.18.79-3.32.79-1.14 0-2.27-.28-3.32-.79-.58-.29-1.1-.77-1.48-1.45l-.5-.9a1.5 1.5 0 00-1.42-1.05c-1.15.16-2.24.58-3.17 1.26-.63-.28-1.29-.43-2-.43-.83 0-1.5.67-1.5 1.5v3c0 .83.67 1.5 1.5 1.5h19c.83 0 1.5-.67 1.5-1.5v-3c0-.83-.67-1.5-1.5-1.5z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+
+    switch (view) {
+      case 'login':
+        return <LoginView />;
       case 'lobby':
-        return (
-          <div className={`min-h-screen flex flex-col md:flex-row p-4 bg-${colors['bg-dark']} text-${colors['fg-dark']}`}>
-            <div className="flex-1 flex flex-col bg-gray-800 p-6 rounded-xl shadow-lg mb-4 md:mb-0 md:mr-4">
-              <h1 className={`text-3xl font-bold mb-4 text-${colors['orange']}`}>Lobby Chat</h1>
-              <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-                {messages.map((msg, index) => (
-                  <div key={index} className="p-3 rounded-lg bg-gray-700 text-sm">
-                    <span className={`font-bold text-${colors['blue']}`}>{msg.sender}:</span> {msg.text}
-                  </div>
-                ))}
-              </div>
-              <form onSubmit={handleSendMessage} className="mt-4 flex space-x-2">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className={`flex-1 px-4 py-2 rounded-lg bg-gray-700 border border-${colors['bg-light']} text-${colors['fg-dark']} focus:outline-none focus:ring-2 focus:ring-${colors['yellow']}`}
-                />
-                <button
-                  type="submit"
-                  className={`py-2 px-4 rounded-lg bg-${colors['green']} hover:bg-${colors['aqua']} transition-colors text-${colors['bg-dark']} font-bold`}
-                >
-                  Send
-                </button>
-              </form>
-            </div>
-            <div className="md:w-1/4 flex flex-col bg-gray-800 p-6 rounded-xl shadow-lg">
-              <h2 className={`text-2xl font-bold mb-4 text-${colors['orange']}`}>Active Users</h2>
-              <div className="flex flex-col space-y-2">
-                {users.map((u) => (
-                  <div key={u.uid} className={`p-3 rounded-lg flex items-center justify-between bg-gray-700`}>
-                    <span className="font-medium">{u.username}</span>
-                    <span className="text-xs text-gray-500">{u.uid}</span>
-                    {username === 'admin' && u.uid !== user.uid && (
-                      <button
-                        onClick={() => handleStartCall(u)}
-                        className={`py-1 px-3 rounded-lg bg-${colors['purple']} hover:bg-violet-700 transition-colors text-white font-bold`}
-                      >
-                        Call
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
+        return <LobbyView />;
       case 'call':
-        return (
-          <div className={`min-h-screen flex flex-col items-center justify-center p-4 bg-${colors['bg-dark']}`}>
-            <div className={`w-full max-w-4xl p-6 rounded-xl shadow-lg bg-${colors['bg-light']} mb-4`}>
-              <h1 className={`text-2xl font-bold text-center mb-4 text-${colors['orange']}`}>Video Call with {otherUser?.username || 'user'}</h1>
-              <div className="relative w-full h-auto" style={{ paddingBottom: '75%' }}>
-                <video
-                  ref={remoteVideoRef}
-                  autoPlay
-                  playsInline
-                  className="absolute inset-0 w-full h-full object-cover rounded-lg border-4 border-gray-700"
-                ></video>
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="absolute bottom-4 right-4 w-1/4 h-auto object-cover rounded-lg border-2 border-white shadow-lg"
-                ></video>
-              </div>
-              <div className="flex justify-center space-x-4 mt-6">
-                <button
-                  onClick={toggleMute}
-                  className={`p-3 rounded-full shadow-lg transition-colors ${isMuted ? `bg-${colors['red']}` : `bg-${colors['green']}`} text-${colors['bg-dark']} font-bold`}
-                >
-                  {isMuted ? (
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm6 10a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zm-3-1a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM5 14a1 1 0 011-1v-2a1 1 0 112 0v2a1 1 0 011 1h4a1 1 0 011-1v-2a1 1 0 112 0v2a1 1 0 011 1v3.5A2.5 2.5 0 0116.5 20H3.5A2.5 2.5 0 011 17.5V14a1 1 0 011-1h4z" clipRule="evenodd"></path></svg>
-                  ) : (
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M11 5a1 1 0 00-2 0v6a1 1 0 102 0V5zM9 13a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM7 11a1 1 0 011-1v-1a1 1 0 112 0v1a1 1 0 011-1h2a1 1 0 011-1v-1a1 1 0 112 0v1a1 1 0 011 1h2a1 1 0 011-1v-2a1 1 0 112 0v2a1 1 0 011 1v3.5A2.5 2.5 0 0118.5 20H1.5A2.5 2.5 0 01-1 17.5V13a1 1 0 011-1h2a1 1 0 011 1z"></path></svg>
-                  )}
-                </button>
-                <button
-                  onClick={toggleCamera}
-                  className={`p-3 rounded-full shadow-lg transition-colors ${isCameraOff ? `bg-${colors['red']}` : `bg-${colors['green']}`} text-${colors['bg-dark']} font-bold`}
-                >
-                  {isCameraOff ? (
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M12.983 2.983a.5.5 0 00-.706 0L9.5 5.75l-2.777-2.763a.5.5 0 10-.706.706L8.794 6.5l-2.777 2.763a.5.5 0 10.706.706L9.5 7.25l2.777 2.763a.5.5 0 10.706-.706L10.206 6.5l2.777-2.763a.5.5 0 000-.706zM9.5 14a.5.5 0 00-.5.5v2.5a.5.5 0 001 0v-2.5a.5.5 0 00-.5-.5z"></path><path fillRule="evenodd" d="M16 1.5A1.5 1.5 0 0117.5 3v14a1.5 1.5 0 01-1.5 1.5H4A1.5 1.5 0 012.5 17V3A1.5 1.5 0 014 1.5h12zm-8.5 2a1 1 0 00-1 1V6a1 1 0 00-1 1v.5a1.5 1.5 0 011.5 1.5v3.5A1.5 1.5 0 019 14.5v.5a1 1 0 001 1v1.5a1 1 0 002 0v-1.5a1 1 0 001-1v-.5a1.5 1.5 0 011.5-1.5v-3.5a1.5 1.5 0 011.5-1.5V6a1 1 0 00-1-1h-2z" clipRule="evenodd"></path></svg>
-                  ) : (
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M15 5h.5a2 2 0 012 2v8a2 2 0 01-2 2H15a2 2 0 01-2-2V7a2 2 0 012-2zM4 5h.5a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2zM10.5 5a2 2 0 00-2 2v8a2 2 0 002 2h-1a2 2 0 002-2V7a2 2 0 00-2-2h-1z"></path></svg>
-                  )}
-                </button>
-                <button
-                  onClick={handleEndCall}
-                  className={`p-3 rounded-full shadow-lg bg-${colors['red']} hover:bg-${colors['orange']} transition-colors text-${colors['bg-dark']} font-bold`}
-                >
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3.293 3.293a1 1 0 011.414 0L10 8.586l5.293-5.293a1 1 0 111.414 1.414L11.414 10l5.293 5.293a1 1 0 01-1.414 1.414L10 11.414l-5.293 5.293a1 1 0 01-1.414-1.414L8.586 10 3.293 4.707a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        );
+        return <CallView />;
     }
   };
 
   return (
-    <div className={`font-sans antialiased bg-${colors['bg-dark']}`}>
+    <div className="font-sans antialiased bg-[#282828]">
       {renderView()}
     </div>
   );
