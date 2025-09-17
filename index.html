@@ -33,9 +33,10 @@
         .status-available { background-color: var(--bright_green); }
         .status-in-call { background-color: var(--bright_red); }
         .status-ringing { background-color: var(--bright_orange); }
-        .call-control-button { background: var(--dark2); border: none; color: var(--light0); width: 40px; height: 40px; border-radius: 50%; margin: 0 5px; cursor: pointer; }
+        .call-control-button { background: var(--dark2); border: none; color: var(--light0); width: 40px; height: 40px; border-radius: 50%; margin: 0 5px; cursor: pointer; transition: background-color 0.2s; }
         .call-control-button:hover { background: var(--dark4); }
         .call-control-button.active { background: var(--neutral_blue); }
+        #raise-hand-btn.active { background-color: var(--bright_yellow); color: var(--dark0); }
     </style>
 </head>
 <body class="h-full font-sans gruvbox-dark">
@@ -65,6 +66,7 @@
                 </div>
                 <div class="flex items-center space-x-4">
                     <span class="gruvbox-text-light">Welcome, <span id="lobby-username" class="font-bold gruvbox-text-bright"></span>!</span>
+                    <button id="raise-hand-btn" class="text-xs px-3 py-1.5 rounded gruvbox-button-green text-white transition-colors"><i class="fas fa-hand-paper mr-1"></i> Raise Hand</button>
                     <button id="logout-btn" class="text-xs px-3 py-1.5 rounded gruvbox-button-red text-white">Logout</button>
                 </div>
             </header>
@@ -125,10 +127,12 @@
                     <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
                     <video id="local-video" autoplay playsinline muted class="absolute bottom-4 right-4 w-1/4 h-auto border-2 rounded-md shadow-lg gruvbox-border"></video>
                 </div>
-                <div class="absolute top-4 left-4"><h2 class="text-2xl font-bold gruvbox-header">In Call With: <span id="call-partner-name"></span></h2></div>
+                 <div class="absolute top-4 left-4"><h2 class="text-2xl font-bold gruvbox-header">In Call With: <span id="call-partner-name"></span></h2></div>
+                <div id="call-timer" class="absolute top-4 right-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-md font-mono">00:00</div>
                 <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center">
                     <button id="toggle-mic-btn" class="call-control-button active"><i class="fas fa-microphone"></i></button>
                     <button id="toggle-video-btn" class="call-control-button active"><i class="fas fa-video"></i></button>
+                    <button id="share-screen-btn" class="call-control-button"><i class="fas fa-desktop"></i></button>
                     <button id="end-call-btn" class="w-auto py-3 px-6 rounded-md font-bold gruvbox-button-red text-white mx-2">End Call</button>
                 </div>
             </div>
@@ -187,13 +191,15 @@
         const localVideo = document.getElementById('local-video'), remoteVideo = document.getElementById('remote-video');
         const incomingCallModal = document.getElementById('incoming-call-modal'), incomingCallFrom = document.getElementById('incoming-call-from'), acceptCallBtn = document.getElementById('accept-call-btn'), rejectCallBtn = document.getElementById('reject-call-btn');
         const logoutBtn = document.getElementById('logout-btn'), adminLogoutBtn = document.getElementById('admin-logout-btn');
-        const toggleMicBtn = document.getElementById('toggle-mic-btn'), toggleVideoBtn = document.getElementById('toggle-video-btn');
+        const toggleMicBtn = document.getElementById('toggle-mic-btn'), toggleVideoBtn = document.getElementById('toggle-video-btn'), shareScreenBtn = document.getElementById('share-screen-btn');
         const broadcastInput = document.getElementById('broadcast-input'), sendBroadcastBtn = document.getElementById('send-broadcast-btn');
         const alertModal = document.getElementById('alert-modal'), alertTitle = document.getElementById('alert-title'), alertMessage = document.getElementById('alert-message');
         const clearChatBtn = document.getElementById('clear-chat-btn');
+        const callTimerDiv = document.getElementById('call-timer');
+        const raiseHandBtn = document.getElementById('raise-hand-btn');
 
         let currentUser = null, currentUsername = '', isAdmin = false, localStream, remoteStream, peerConnection, callPartnerUid, callPartnerUsername, callRef;
-        let unsubscribeMyStatusListener = null; 
+        let unsubscribeMyStatusListener = null, screenTrack = null, callTimerInterval = null, handRaised = false, unsubscribeLobbyChatListener = null, unsubscribeLobbyChatClearListener = null;
 
         const configuration = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] };
 
@@ -204,26 +210,14 @@
         });
 
         joinBtn.addEventListener('click', async () => {
-            const usernameRaw = usernameInput.value.trim();
-            const username = usernameRaw.toLowerCase();
-            const password = passwordInput.value;
-            errorMessage.textContent = '';
-            if (!usernameRaw) { errorMessage.textContent = 'Please enter a username.'; return; }
-
+            const usernameRaw = usernameInput.value.trim(); const username = usernameRaw.toLowerCase(); const password = passwordInput.value; errorMessage.textContent = ''; if (!usernameRaw) { errorMessage.textContent = 'Please enter a username.'; return; }
             const adminUsernames = ['max', 'kelly', 'doral'];
             if (adminUsernames.includes(username)) {
                 if (password !== 'max') { errorMessage.textContent = 'Incorrect password for admin.'; return; }
-                isAdmin = true;
-                currentUsername = username.charAt(0).toUpperCase() + username.slice(1);
-            } else { 
-                isAdmin = false; 
-                currentUsername = usernameRaw; 
-            }
-
+                isAdmin = true; currentUsername = username.charAt(0).toUpperCase() + username.slice(1);
+            } else { isAdmin = false; currentUsername = usernameRaw; }
             try {
-                const userCredential = await signInAnonymously(auth);
-                currentUser = userCredential.user;
-                if(isAdmin) showAdminConsole(); else showLobby();
+                const userCredential = await signInAnonymously(auth); currentUser = userCredential.user; if(isAdmin) showAdminConsole(); else showLobby();
             } catch (error) { console.error("Error signing in:", error); errorMessage.textContent = 'Could not join the lobby.'; }
         });
 
@@ -234,32 +228,20 @@
         function showVideoCallPage(partnerName) { callPartnerName.textContent = partnerName; showPage(videoCallPage); }
         
         function showAlert(title, message, type = 'broadcast') {
-            alertTitle.textContent = title;
-            alertMessage.textContent = message;
+            alertTitle.textContent = title; alertMessage.textContent = message;
             alertModal.className = 'hidden fixed top-5 right-5 text-gray-900 px-6 py-4 rounded-lg shadow-lg z-50'; // Reset classes
-            if (type === 'whisper') {
-                alertModal.classList.add('bg-purple-400');
-            } else { // broadcast
-                alertModal.classList.add('bg-yellow-500', 'animate-pulse');
-            }
-            alertModal.classList.remove('hidden');
-            setTimeout(() => alertModal.classList.add('hidden'), 5000);
+            if (type === 'whisper') { alertModal.classList.add('bg-purple-400'); } else { alertModal.classList.add('bg-yellow-500', 'animate-pulse');}
+            alertModal.classList.remove('hidden'); setTimeout(() => alertModal.classList.add('hidden'), 5000);
         }
 
         function logout() {
             endCall(false); 
-            if (unsubscribeMyStatusListener) {
-                unsubscribeMyStatusListener();
-                unsubscribeMyStatusListener = null;
-            }
-            if (currentUser) {
-                const myStatusRef = ref(db, 'status/' + currentUser.uid);
-                remove(myStatusRef);
-            }
+            if (unsubscribeMyStatusListener) { unsubscribeMyStatusListener(); unsubscribeMyStatusListener = null; }
+            if (unsubscribeLobbyChatListener) { unsubscribeLobbyChatListener(); unsubscribeLobbyChatListener = null; }
+            if (unsubscribeLobbyChatClearListener) { unsubscribeLobbyChatClearListener(); unsubscribeLobbyChatClearListener = null; }
+            if (currentUser) { remove(ref(db, 'status/' + currentUser.uid)); }
             currentUser = null; currentUsername = ''; isAdmin = false;
-            usernameInput.value = ''; passwordInput.value = '';
-            passwordContainer.style.display = 'none';
-            errorMessage.textContent = '';
+            usernameInput.value = ''; passwordInput.value = ''; passwordContainer.style.display = 'none'; errorMessage.textContent = '';
             showPage(loginPage);
         }
         logoutBtn.addEventListener('click', logout);
@@ -269,23 +251,9 @@
         function setupPresence() {
             if (!currentUser) return;
             listenForUsers(); 
-            const myStatusRef = ref(db, 'status/' + currentUser.uid);
-            onDisconnect(myStatusRef).remove();
-            set(myStatusRef, {
-                username: currentUsername,
-                isAdmin: isAdmin,
-                online: true,
-                last_changed: serverTimestamp(),
-                callStatus: 'available'
-            }).catch(error => console.error("Failed to set initial presence:", error));
-            
-            // Listen for my own removal (being kicked)
-            unsubscribeMyStatusListener = onValue(myStatusRef, (snapshot) => {
-                // If the listener is still active and the node is removed, it means we were kicked.
-                if (!snapshot.exists() && currentUser) {
-                    logout(); // Silently log out the user.
-                }
-            });
+            const myStatusRef = ref(db, 'status/' + currentUser.uid); onDisconnect(myStatusRef).remove();
+            set(myStatusRef, { username: currentUsername, isAdmin, online: true, last_changed: serverTimestamp(), callStatus: 'available', handRaised: false }).catch(error => console.error("Failed to set initial presence:", error));
+            unsubscribeMyStatusListener = onValue(myStatusRef, (snapshot) => { if (!snapshot.exists() && currentUser) { logout(); } });
         }
         
         function listenForUsers() {
@@ -302,12 +270,13 @@
                             userElement.className = `p-2 my-1 rounded-md flex justify-between items-center gruvbox-bg-hard`;
                             let statusIndicator = user.callStatus === 'in-call' ? 'in-call' : (user.callStatus === 'ringing' ? 'ringing' : 'available');
                             let statusText = user.callStatus === 'in-call' ? 'In Call' : (user.callStatus === 'ringing' ? 'Ringing' : 'Available');
+                            let handIcon = user.handRaised ? '<i class="fas fa-hand-paper text-yellow-400 ml-2"></i>' : '';
 
                             let userHtml = `
                                 <div class="flex items-center">
                                     <span class="status-dot status-${statusIndicator}"></span>
                                     <div>
-                                        <span class="font-medium ${user.isAdmin ? 'text-yellow-400' : 'gruvbox-text-light'}">${user.username}${user.isAdmin ? ' (Admin)' : ''}</span>
+                                        <span class="font-medium ${user.isAdmin ? 'text-yellow-400' : 'gruvbox-text-light'}">${user.username}${user.isAdmin ? ' (Admin)' : ''}${handIcon}</span>
                                         <p class="text-xs gruvbox-text-faded">${statusText}</p>
                                     </div>
                                 </div>`;
@@ -320,11 +289,9 @@
                                         <button data-uid="${uid}" class="kick-btn text-xs px-2 py-1 rounded gruvbox-button-red">Kick</button>
                                     </div>`;
                             }
-                            userElement.innerHTML = userHtml;
-                            targetList.appendChild(userElement);
+                            userElement.innerHTML = userHtml; targetList.appendChild(userElement);
                         }
                     });
-                     // Add event listeners after elements are created
                     if (isAdmin) {
                         document.querySelectorAll('.call-btn').forEach(btn => btn.onclick = () => initiateCall(btn.dataset.uid, btn.dataset.username));
                         document.querySelectorAll('.kick-btn').forEach(btn => btn.onclick = () => kickUser(btn.dataset.uid));
@@ -334,29 +301,28 @@
             });
         }
         
-        // --- Chat & Admin Controls Logic ---
+        // --- Chat, Admin Controls, & QoL ---
         const sendLobbyMessage = () => { const text = isAdmin ? adminChatInput.value.trim() : chatInput.value.trim(); if (text && currentUser) { push(ref(db, 'lobby-chat'), { uid: currentUser.uid, username: currentUsername, isAdmin, text, timestamp: serverTimestamp() }); if(isAdmin) adminChatInput.value = ''; else chatInput.value = ''; } };
         
-        let initialMessagesLoaded = false;
         function listenForLobbyMessages() {
-            const messagesRef = ref(db, 'lobby-chat');
-            onValue(messagesRef, (snapshot) => {
-                 const targetChat = isAdmin ? adminChatMessagesDiv : chatMessagesDiv;
-                if (!snapshot.exists()) {
-                     targetChat.innerHTML = ''; // Clear chat if empty
-                     return;
-                }
-                if(!initialMessagesLoaded) {
-                    targetChat.innerHTML = '';
-                    snapshot.forEach(childSnapshot => {
-                        appendChatMessage(childSnapshot.val());
-                    });
-                    initialMessagesLoaded = true;
+            if (unsubscribeLobbyChatListener) unsubscribeLobbyChatListener();
+            if (unsubscribeLobbyChatClearListener) unsubscribeLobbyChatClearListener();
+
+            const messagesQuery = query(ref(db, 'lobby-chat'));
+            const targetChat = isAdmin ? adminChatMessagesDiv : chatMessagesDiv;
+            targetChat.innerHTML = '';
+
+            unsubscribeLobbyChatListener = onChildAdded(messagesQuery, (snapshot) => {
+                if (snapshot.exists()) {
+                    appendChatMessage(snapshot.val());
                 }
             });
-            const messagesQuery = query(ref(db, 'lobby-chat'), limitToLast(1));
-            onChildAdded(messagesQuery, (snapshot) => {
-                if(initialMessagesLoaded) appendChatMessage(snapshot.val());
+            
+            const messagesRef = ref(db, 'lobby-chat');
+            unsubscribeLobbyChatClearListener = onValue(messagesRef, (snapshot) => {
+                if (!snapshot.exists()) {
+                    targetChat.innerHTML = '';
+                }
             });
         }
 
@@ -365,35 +331,44 @@
              const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
              el.innerHTML = `<div><span class="font-bold ${msg.isAdmin ? 'text-yellow-400' : 'gruvbox-text-bright'}">${msg.username}</span><span class="text-xs ml-2 gruvbox-text-faded">${time}</span></div><p class="gruvbox-text-light">${msg.text}</p>`;
              const targetChat = isAdmin ? adminChatMessagesDiv : chatMessagesDiv;
-             targetChat.appendChild(el); 
-             targetChat.scrollTop = targetChat.scrollHeight;
+             targetChat.appendChild(el); targetChat.scrollTop = targetChat.scrollHeight;
         }
 
-        sendChatBtn.addEventListener('click', sendLobbyMessage);
-        chatInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendLobbyMessage());
-        adminSendChatBtn.addEventListener('click', sendLobbyMessage);
-        adminChatInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendLobbyMessage());
+        sendChatBtn.addEventListener('click', sendLobbyMessage); chatInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendLobbyMessage());
+        adminSendChatBtn.addEventListener('click', sendLobbyMessage); adminChatInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendLobbyMessage());
 
         function kickUser(uid) { remove(ref(db, `status/${uid}`)); }
-        clearChatBtn.addEventListener('click', () => { if (confirm("Are you sure you want to clear the entire lobby chat?")) { remove(ref(db, 'lobby-chat')); initialMessagesLoaded = false; }});
+        clearChatBtn.addEventListener('click', () => { if (confirm("Are you sure you want to clear the entire lobby chat?")) { remove(ref(db, 'lobby-chat')); }});
         function sendWhisper(uid) { const message = prompt("Enter your private message:"); if (message) { set(ref(db, `whispers/${uid}`), { from: currentUsername, message, timestamp: serverTimestamp() }); } }
         sendBroadcastBtn.addEventListener('click', () => { const message = broadcastInput.value.trim(); if (message) { set(ref(db, 'broadcasts'), { message, timestamp: serverTimestamp() }); broadcastInput.value = ''; } });
+        
+        raiseHandBtn.addEventListener('click', () => { handRaised = !handRaised; raiseHandBtn.classList.toggle('active', handRaised); set(ref(db, `status/${currentUser.uid}/handRaised`), handRaised); });
 
         function listenForAlerts() {
-            const broadcastRef = ref(db, 'broadcasts'); // Listen for broadcasts
+            const broadcastRef = ref(db, 'broadcasts');
             onValue(broadcastRef, (snapshot) => { const data = snapshot.val(); if (data && (Date.now() - data.timestamp < 10000)) showAlert('Admin Broadcast:', data.message, 'broadcast'); });
-            const whisperRef = ref(db, `whispers/${currentUser?.uid}`); // Listen for whispers
+            const whisperRef = ref(db, `whispers/${currentUser?.uid}`);
             onValue(whisperRef, (snapshot) => { const data = snapshot.val(); if (data && (Date.now() - data.timestamp < 10000)) { showAlert(`Whisper from ${data.from}:`, data.message, 'whisper'); remove(whisperRef); } });
         }
 
+        // --- Call Timer Logic ---
+        function startCallTimer() {
+            stopCallTimer(); let seconds = 0;
+            callTimerInterval = setInterval(() => {
+                seconds++;
+                const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+                const secs = (seconds % 60).toString().padStart(2, '0');
+                callTimerDiv.textContent = `${mins}:${secs}`;
+            }, 1000);
+        }
+        function stopCallTimer() { clearInterval(callTimerInterval); callTimerDiv.textContent = "00:00"; }
+
+
         // --- WebRTC Call Logic ---
         async function createPeerConnection(isCaller) {
-            peerConnection = new RTCPeerConnection(configuration);
-            remoteStream = new MediaStream();
-            remoteVideo.srcObject = remoteStream;
+            peerConnection = new RTCPeerConnection(configuration); remoteStream = new MediaStream(); remoteVideo.srcObject = remoteStream;
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                localVideo.srcObject = localStream;
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); localVideo.srcObject = localStream;
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
             } catch (err) { console.error("Failed to get local stream", err); endCall(); return; }
             peerConnection.ontrack = event => { event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track)); };
@@ -401,55 +376,41 @@
             const remoteCandidates = ref(db, `calls/${callRef.key}/${isCaller ? 'calleeCandidates' : 'callerCandidates'}`);
             peerConnection.onicecandidate = event => { event.candidate && push(localCandidates, event.candidate.toJSON()); };
             onChildAdded(remoteCandidates, (snapshot) => { try { peerConnection.addIceCandidate(new RTCIceCandidate(snapshot.val())); } catch(e){ console.error('Error adding received ice candidate', e); } });
-            peerConnection.onconnectionstatechange = () => { if (['disconnected', 'closed', 'failed'].includes(peerConnection.connectionState)) { endCall(); } };
+            peerConnection.onconnectionstatechange = () => { 
+                if (peerConnection.connectionState === 'connected') startCallTimer();
+                if (['disconnected', 'closed', 'failed'].includes(peerConnection.connectionState)) { endCall(); }
+            };
         }
 
         async function initiateCall(calleeUid, calleeUsername) {
-            callRef = push(ref(db, 'calls'));
-            callPartnerUid = calleeUid; callPartnerUsername = calleeUsername; 
-            updateUserStatus('ringing');
-            
-            await createPeerConnection(true);
-            showVideoCallPage(calleeUsername);
-
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
+            set(ref(db, `status/${calleeUid}/handRaised`), false);
+            callRef = push(ref(db, 'calls')); callPartnerUid = calleeUid; callPartnerUsername = calleeUsername; updateUserStatus('ringing');
+            await createPeerConnection(true); showVideoCallPage(calleeUsername);
+            const offer = await peerConnection.createOffer(); await peerConnection.setLocalDescription(offer);
             set(callRef, { callerUid: currentUser.uid, callerUsername: currentUsername, calleeUid: calleeUid, status: 'ringing', offer: { sdp: offer.sdp, type: offer.type } });
-
             onValue(callRef, async (snapshot) => {
                 const data = snapshot.val();
-                if (data?.answer && peerConnection.signalingState !== 'stable') {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-                    updateUserStatus('in-call');
-                }
+                if (data?.answer && peerConnection.signalingState !== 'stable') { await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer)); updateUserStatus('in-call'); }
                 if (!data) endCall(); 
             });
         }
         
         async function answerCall(callId, callData) {
-            callRef = ref(db, `calls/${callId}`);
-            callPartnerUid = callData.callerUid;
-            callPartnerUsername = callData.callerUsername;
-            
-            await createPeerConnection(false);
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
-            
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-
+            callRef = ref(db, `calls/${callId}`); callPartnerUid = callData.callerUid; callPartnerUsername = callData.callerUsername;
+            await createPeerConnection(false); await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
+            const answer = await peerConnection.createAnswer(); await peerConnection.setLocalDescription(answer);
             await set(callRef, { ...callData, status: 'connected', answer: { sdp: answer.sdp, type: answer.type } });
-            showVideoCallPage(callPartnerUsername);
-            updateUserStatus('in-call');
+            showVideoCallPage(callPartnerUsername); updateUserStatus('in-call');
             onValue(callRef, (snapshot) => { if (!snapshot.exists()) endCall(); });
         }
         
         const endCall = (returnToLobby = true) => {
+            stopScreenShare(false); stopCallTimer();
             if (peerConnection) { peerConnection.close(); peerConnection = null; }
             if (localStream) { localStream.getTracks().forEach(track => track.stop()); localStream = null; }
             if (callRef) { remove(callRef); callRef = null; }
             localVideo.srcObject = null; remoteVideo.srcObject = null;
-            callPartnerUid = null; callPartnerUsername = null;
-            updateUserStatus('available');
+            callPartnerUid = null; callPartnerUsername = null; updateUserStatus('available');
             if (returnToLobby) { if (isAdmin) showAdminConsole(); else showLobby(); }
         };
         endCallBtn.addEventListener('click', () => endCall());
@@ -457,9 +418,7 @@
         function updateUserStatus(callStatus) {
             if (currentUser) {
                 const myStatusRef = ref(db, 'status/' + currentUser.uid);
-                set(myStatusRef, {
-                    username: currentUsername, isAdmin: isAdmin, online: true, last_changed: serverTimestamp(), callStatus: callStatus
-                }).catch(error => console.error("Failed to update status:", error));
+                set(myStatusRef, { username: currentUsername, isAdmin: isAdmin, online: true, last_changed: serverTimestamp(), callStatus: callStatus, handRaised: handRaised }).catch(error => console.error("Failed to update status:", error));
             }
         }
 
@@ -469,9 +428,7 @@
             onChildAdded(callsQuery, (snapshot) => {
                 const callData = snapshot.val();
                 if (callData.calleeUid === currentUser.uid && callData.status === 'ringing') {
-                    incomingCallFrom.textContent = callData.callerUsername;
-                    incomingCallModal.classList.remove('hidden');
-                    updateUserStatus('ringing');
+                    incomingCallFrom.textContent = callData.callerUsername; incomingCallModal.classList.remove('hidden'); updateUserStatus('ringing');
                     acceptCallBtn.onclick = () => { incomingCallModal.classList.add('hidden'); answerCall(snapshot.key, callData); };
                     rejectCallBtn.onclick = () => { incomingCallModal.classList.add('hidden'); remove(ref(db, `calls/${snapshot.key}`)); updateUserStatus('available'); };
                 }
@@ -480,6 +437,38 @@
 
         toggleMicBtn.addEventListener('click', () => { const audioTrack = localStream.getAudioTracks()[0]; audioTrack.enabled = !audioTrack.enabled; toggleMicBtn.classList.toggle('active'); toggleMicBtn.innerHTML = audioTrack.enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>'; });
         toggleVideoBtn.addEventListener('click', () => { const videoTrack = localStream.getVideoTracks()[0]; videoTrack.enabled = !videoTrack.enabled; toggleVideoBtn.classList.toggle('active'); toggleVideoBtn.innerHTML = videoTrack.enabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>'; });
+        
+        // --- Screen Sharing Logic ---
+        shareScreenBtn.addEventListener('click', () => { if (screenTrack) { stopScreenShare(); } else { startScreenShare(); } });
+
+        async function startScreenShare() {
+            try {
+                const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                if (displayStream) {
+                    screenTrack = displayStream.getVideoTracks()[0];
+                    const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
+                    if (videoSender) {
+                        videoSender.replaceTrack(screenTrack);
+                        shareScreenBtn.classList.add('active');
+                        // When user clicks the browser's "Stop sharing" button
+                        screenTrack.onended = () => { stopScreenShare(); };
+                    }
+                }
+            } catch(err) { console.error("Screen share error: ", err); }
+        }
+
+        function stopScreenShare(replace = true) {
+            if (screenTrack) {
+                screenTrack.stop();
+                if (replace) {
+                    const webcamTrack = localStream.getVideoTracks()[0];
+                    const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
+                    if (videoSender) { videoSender.replaceTrack(webcamTrack); }
+                }
+                screenTrack = null;
+                shareScreenBtn.classList.remove('active');
+            }
+        }
         
         window.addEventListener('beforeunload', () => { if (currentUser) { endCall(false); remove(ref(db, 'status/' + currentUser.uid)); } });
     </script>
