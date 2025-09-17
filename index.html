@@ -1,305 +1,518 @@
-<!DOCTYPE html>
-<html lang="en" class="h-full bg-[#282828]">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Conferencing</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Gruvbox dark theme colors */
-        :root {
-            --dark0_hard: #1d2021;
-            --dark0: #282828;
-            --dark0_soft: #32302f;
-            --dark1: #3c3836;
-            --dark2: #504945;
-            --dark3: #665c54;
-            --dark4: #7c6f64;
-            --gray_245: #928374;
-            --gray_244: #928374;
-            --light0_hard: #f9f5d7;
-            --light0: #fbf1c7;
-            --light0_soft: #f2e5bc;
-            --light1: #ebdbb2;
-            --light2: #d5c4a1;
-            --light3: #bdae93;
-            --light4: #a89984;
-            --bright_red: #fb4934;
-            --bright_green: #b8bb26;
-            --bright_yellow: #fabd2f;
-            --bright_blue: #83a598;
-            --bright_purple: #d3869b;
-            --bright_aqua: #8ec07c;
-            --bright_orange: #fe8019;
-            --neutral_red: #cc241d;
-            --neutral_green: #98971a;
-            --neutral_yellow: #d79921;
-            --neutral_blue: #458588;
-            --neutral_purple: #b16286;
-            --neutral_aqua: #689d6a;
-            --neutral_orange: #d65d0e;
+import React, { useState, useEffect, useRef } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, setDoc, onSnapshot, collection, query, orderBy, addDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { getDatabase, ref, onValue, set, push, remove, off } from 'firebase/database';
+
+const App = () => {
+  // Global Firebase variables provided by the environment
+  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+    apiKey: "AIzaSyBbTFLhxzXf08OVDGGsK54t3qDzPVvsJ3w",
+    authDomain: "conferencedoral.firebaseapp.com",
+    projectId: "conferencedoral",
+    storageBucket: "conferencedoral.firebasestorage.app",
+    messagingSenderId: "668062587354",
+    appId: "1:668062587354:web:9b831842ada6ebf87148e3",
+    measurementId: "G-HDJ9S9G2T2"
+  };
+  const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+  // State management
+  const [view, setView] = useState('login'); // login, lobby, call
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [user, setUser] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [users, setUsers] = useState([]);
+  const [otherUser, setOtherUser] = useState(null);
+  const [messageBox, setMessageBox] = useState({ visible: false, text: '' });
+  const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [isCallInitiator, setIsCallInitiator] = useState(false);
+
+  // Refs for video elements and WebRTC
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const peerConnectionRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const dbRef = useRef(null);
+  const rtdbRef = useRef(null);
+
+  // Gruvbox color palette for Tailwind CSS
+  const colors = {
+    'bg-dark': '#282828',
+    'bg-light': '#3c3836',
+    'fg-dark': '#ebdbb2',
+    'red': '#cc241d',
+    'green': '#98971a',
+    'yellow': '#d79921',
+    'blue': '#458588',
+    'purple': '#b16286',
+    'aqua': '#689d6a',
+    'orange': '#d65d0e',
+  };
+
+  // Firebase Initialization and Authentication
+  useEffect(() => {
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const rtdb = getDatabase(app);
+    dbRef.current = db;
+    rtdbRef.current = rtdb;
+
+    // Use the provided auth token if available, otherwise sign in anonymously
+    const authenticate = async () => {
+      try {
+        if (initialAuthToken) {
+          await signInWithCustomToken(auth, initialAuthToken);
+        } else {
+          await signInAnonymously(auth);
         }
-        .gruvbox-dark { background-color: var(--dark0); color: var(--light1); }
-        .gruvbox-input { background-color: var(--dark1); border-color: var(--dark3); color: var(--light0); }
-        .gruvbox-input:focus { outline-color: var(--bright_yellow); border-color: var(--bright_yellow); box-shadow: 0 0 0 2px var(--dark0), 0 0 0 4px var(--bright_yellow); }
-        .gruvbox-button { background-color: var(--neutral_blue); color: var(--light0); }
-        .gruvbox-button:hover { background-color: var(--bright_blue); }
-        .gruvbox-button-green { background-color: var(--neutral_green); }
-        .gruvbox-button-green:hover { background-color: var(--bright_green); }
-        .gruvbox-button-red { background-color: var(--neutral_red); }
-        .gruvbox-button-red:hover { background-color: var(--bright_red); }
-        .gruvbox-header { color: var(--bright_yellow); }
-        .gruvbox-bg-soft { background-color: var(--dark0_soft); }
-        .gruvbox-bg-hard { background-color: var(--dark0_hard); }
-        .gruvbox-border { border-color: var(--dark2); }
-        .gruvbox-text-light { color: var(--light2); }
-        .gruvbox-text-bright { color: var(--bright_aqua); }
-        .gruvbox-text-faded { color: var(--gray_245); }
-    </style>
-</head>
-<body class="h-full font-sans gruvbox-dark">
+      } catch (error) {
+        console.error("Firebase auth error:", error);
+      }
+    };
 
-    <div id="app" class="h-full flex items-center justify-center">
+    onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        setIsAuthReady(true);
+        // Set user presence using the currentUser.uid provided by auth
+        await setDoc(doc(db, `artifacts/${appId}/public/data/users`, currentUser.uid), {
+          uid: currentUser.uid,
+          username: `guest-${currentUser.uid.substring(0, 5)}`,
+          lastSeen: Date.now(),
+        }, { merge: true });
+      } else {
+        setIsAuthReady(true);
+      }
+    });
 
-        <!-- Login Page -->
-        <div id="login-page" class="w-full max-w-md p-8 space-y-8 gruvbox-bg-soft rounded-lg shadow-lg">
-            <div>
-                <img class="mx-auto h-24 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Company Logo">
-                <h2 class="mt-6 text-center text-3xl font-extrabold gruvbox-header">Video Conferencing</h2>
-            </div>
-            <div class="space-y-6">
-                <div><input id="username" type="text" required class="relative block w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 gruvbox-input" placeholder="Username"></div>
-                <div id="password-container" class="hidden"><input id="password" type="password" class="relative block w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 gruvbox-input" placeholder="Password"></div>
-                <div><button id="join-btn" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 gruvbox-button">Join</button></div>
-                <p id="error-message" class="text-center text-sm text-red-400"></p>
-            </div>
+    authenticate();
+
+    // Cleanup on unmount
+    return () => {
+      if (user && dbRef.current) {
+        setDoc(doc(dbRef.current, `artifacts/${appId}/public/data/users`, user.uid), {
+          uid: user.uid,
+          lastSeen: Date.now(),
+          offline: true,
+        }, { merge: true });
+      }
+    };
+  }, []);
+
+  // Set up Firestore listeners for lobby
+  useEffect(() => {
+    if (!isAuthReady || !user) return;
+
+    // Listen for messages
+    const messagesQuery = query(collection(dbRef.current, `artifacts/${appId}/public/data/messages`), orderBy('timestamp'));
+    const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => doc.data());
+      setMessages(msgs);
+    }, (error) => { console.error("Error fetching messages:", error); });
+
+    // Listen for users
+    const usersQuery = query(collection(dbRef.current, `artifacts/${appId}/public/data/users`), orderBy('username'));
+    const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
+      const currentUsers = snapshot.docs.map(doc => doc.data()).filter(u => !u.offline);
+      setUsers(currentUsers);
+    }, (error) => { console.error("Error fetching users:", error); });
+
+    return () => {
+      unsubscribeMessages();
+      unsubscribeUsers();
+    };
+  }, [isAuthReady, user, appId]);
+
+  // Handle WebRTC signaling
+  useEffect(() => {
+    if (!isAuthReady || !user || view !== 'call' || !peerConnectionRef.current || !rtdbRef.current) return;
+
+    const callRef = ref(rtdbRef.current, `artifacts/${appId}/calls/${user.uid}`);
+
+    const unsubscribeSignaling = onValue(callRef, async (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      try {
+        if (data.offer && !peerConnectionRef.current.currentRemoteDescription) {
+          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.offer));
+          const answer = await peerConnectionRef.current.createAnswer();
+          await peerConnectionRef.current.setLocalDescription(answer);
+          set(callRef, {
+            answer: peerConnectionRef.current.localDescription
+          });
+          console.log("WebRTC: Answer sent.");
+        } else if (data.answer && !isCallInitiator && !peerConnectionRef.current.currentRemoteDescription) {
+          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+          console.log("WebRTC: Answer received and set.");
+        }
+        
+        // Handle ICE candidates
+        if (data.candidates) {
+          const newCandidates = Object.values(data.candidates).filter(c => c.from !== user.uid);
+          for (const candidate of newCandidates) {
+            await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate.candidate));
+          }
+        }
+
+      } catch (error) {
+        console.error("WebRTC Signaling Error:", error);
+      }
+    });
+
+    return () => {
+      off(callRef, 'value', unsubscribeSignaling);
+      // Clean up the call in Realtime Database when the call ends.
+      if (isCallInitiator) {
+        remove(callRef);
+      }
+    };
+  }, [view, isAuthReady, user, isCallInitiator, appId]);
+
+  // Utility to show temporary messages
+  const showMessageBox = (text) => {
+    setMessageBox({ visible: true, text });
+    setTimeout(() => {
+      setMessageBox({ visible: false, text: '' });
+    }, 3000);
+  };
+
+  // Login handler
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (username.trim() === '') {
+      showMessageBox('Username cannot be empty.');
+      return;
+    }
+
+    if (!user || !dbRef.current) {
+      showMessageBox('Application is still initializing. Please wait a moment.');
+      return;
+    }
+
+    if (username === 'admin' && password !== 'max') {
+      showMessageBox('Incorrect password.');
+      return;
+    }
+
+    // Update user presence with the entered username
+    await setDoc(doc(dbRef.current, `artifacts/${appId}/public/data/users`, user.uid), {
+      username: username,
+      uid: user.uid,
+      lastSeen: Date.now(),
+      offline: false
+    }, { merge: true });
+
+    setView('lobby');
+  };
+
+  // Send message to the chat
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (newMessage.trim() === '' || !dbRef.current) return;
+
+    await addDoc(collection(dbRef.current, `artifacts/${appId}/public/data/messages`), {
+      text: newMessage,
+      sender: username,
+      timestamp: Date.now(),
+    });
+    setNewMessage('');
+  };
+
+  // WebRTC Setup
+  const setupWebRTC = async (targetUser) => {
+    if (!user || !rtdbRef.current) {
+        showMessageBox("Firebase is not ready. Please try again.");
+        return null;
+    }
+
+    setOtherUser(targetUser);
+    setView('call');
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localVideoRef.current.srcObject = stream;
+      localStreamRef.current = stream;
+
+      const servers = {
+        iceServers: [
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+        ],
+        iceCandidatePoolSize: 10,
+      };
+
+      const peer = new RTCPeerConnection(servers);
+      peerConnectionRef.current = peer;
+
+      stream.getTracks().forEach(track => {
+        peer.addTrack(track, stream);
+      });
+
+      peer.ontrack = (event) => {
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      };
+
+      // Collect ICE candidates and send to Realtime Database
+      peer.onicecandidate = async (event) => {
+        if (event.candidate && rtdbRef.current) {
+          const candidateData = {
+            candidate: event.candidate.toJSON(),
+            from: user.uid
+          };
+          const callRef = ref(rtdbRef.current, `artifacts/${appId}/calls/${targetUser.uid}/candidates`);
+          push(callRef, candidateData);
+        }
+      };
+
+      return peer;
+    } catch (error) {
+      console.error("Error setting up WebRTC:", error);
+      showMessageBox('Could not access camera/mic. Please check permissions.');
+      return null;
+    }
+  };
+
+  // Initiate a call as the admin
+  const handleStartCall = async (targetUser) => {
+    setIsCallInitiator(true);
+    const peer = await setupWebRTC(targetUser);
+    if (!peer) return;
+
+    try {
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+
+      const callRef = ref(rtdbRef.current, `artifacts/${appId}/calls/${targetUser.uid}`);
+      await set(callRef, {
+        offer: {
+          sdp: peer.localDescription.sdp,
+          type: peer.localDescription.type
+        },
+        initiator: user.uid,
+        target: targetUser.uid
+      });
+      showMessageBox(`Calling ${targetUser.username}...`);
+    } catch (error) {
+      console.error("Error creating and sending offer:", error);
+      showMessageBox('Failed to initiate call.');
+    }
+  };
+
+  // End the call and return to lobby
+  const handleEndCall = () => {
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+    setView('lobby');
+    setOtherUser(null);
+    setIsCallInitiator(false);
+  };
+
+  // Toggle microphone
+  const toggleMute = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = !isMuted;
+      });
+      setIsMuted(!isMuted);
+    }
+  };
+
+  // Toggle camera
+  const toggleCamera = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getVideoTracks().forEach(track => {
+        track.enabled = !isCameraOff;
+      });
+      setIsCameraOff(!isCameraOff);
+    }
+  };
+
+  // Render different views based on state
+  const renderView = () => {
+    if (messageBox.visible) {
+      return (
+        <div className={`fixed inset-0 flex items-center justify-center p-4 bg-gray-900 bg-opacity-75 z-50`}>
+          <div className={`p-4 rounded-xl shadow-lg text-${colors['fg-dark']} bg-${colors['bg-light']}`}>
+            {messageBox.text}
+          </div>
         </div>
+      );
+    }
 
-        <!-- Waiting Lobby -->
-        <div id="lobby-page" class="hidden h-full w-full flex flex-col p-4">
-            <header class="flex-shrink-0 flex justify-between items-center p-4 border-b gruvbox-border">
-                <div class="flex items-center">
-                    <img class="h-12 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Company Logo">
-                    <h1 class="text-xl ml-4 font-bold gruvbox-header">Waiting Lobby</h1>
-                </div>
-                <div><span class="gruvbox-text-light">Welcome, <span id="lobby-username" class="font-bold gruvbox-text-bright"></span>!</span></div>
-            </header>
-            <div class="flex flex-grow min-h-0">
-                <div class="w-1/4 flex-shrink-0 p-4 border-r gruvbox-border overflow-y-auto"><h2 class="text-lg font-semibold mb-4 gruvbox-header">Active Users</h2><div id="user-list"></div></div>
-                <div class="w-3/4 flex flex-col p-4">
-                    <div id="chat-messages" class="flex-grow mb-4 p-4 gruvbox-bg-hard rounded-lg overflow-y-auto"></div>
-                    <div class="flex">
-                        <input id="chat-input" type="text" class="flex-grow px-3 py-2 rounded-l-md gruvbox-input" placeholder="Type a message...">
-                        <button id="send-chat-btn" class="px-4 py-2 rounded-r-md gruvbox-button">Send</button>
-                    </div>
-                </div>
-            </div>
+    if (!isAuthReady) {
+      return (
+        <div className={`flex flex-col items-center justify-center min-h-screen bg-${colors['bg-dark']} text-${colors['fg-dark']}`}>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+          <p className="mt-4">Initializing...</p>
         </div>
+      );
+    }
 
-        <!-- Video Call Room -->
-        <div id="video-call-page" class="hidden h-full w-full flex">
-            <div class="w-3/4 flex flex-col items-center justify-center p-4 relative">
-                <div class="relative w-full h-full flex items-center justify-center rounded-lg overflow-hidden gruvbox-bg-hard">
-                    <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
-                    <video id="local-video" autoplay playsinline muted class="absolute bottom-4 right-4 w-1/4 h-auto border-2 rounded-md shadow-lg gruvbox-border"></video>
+    switch (view) {
+      case 'login':
+        return (
+          <div className={`min-h-screen flex items-center justify-center p-4 bg-${colors['bg-dark']}`}>
+            <form onSubmit={handleLogin} className={`w-full max-w-sm p-8 rounded-xl shadow-lg bg-${colors['bg-light']} text-${colors['fg-dark']} border border-${colors['blue']}`}>
+              <div className="flex justify-center mb-6">
+                 <img src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Company Logo" className="w-24 h-24 rounded-full" />
+              </div>
+              <h1 className={`text-2xl font-bold text-center mb-6 text-${colors['orange']}`}>Join Conference</h1>
+              <div className="mb-4">
+                <label className="block mb-2 font-medium" htmlFor="username">Username</label>
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className={`w-full px-4 py-2 rounded-lg bg-gray-700 border border-${colors['bg-light']} text-${colors['fg-dark']} focus:outline-none focus:ring-2 focus:ring-${colors['yellow']}`}
+                  required
+                />
+              </div>
+              {username === 'admin' && (
+                <div className="mb-6">
+                  <label className="block mb-2 font-medium" htmlFor="password">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={`w-full px-4 py-2 rounded-lg bg-gray-700 border border-${colors['bg-light']} text-${colors['fg-dark']} focus:outline-none focus:ring-2 focus:ring-${colors['yellow']}`}
+                    required
+                  />
                 </div>
-                <div class="absolute top-4 left-4"><h2 class="text-2xl font-bold gruvbox-header">In Call With: <span id="call-partner-name"></span></h2></div>
+              )}
+              <button
+                type="submit"
+                className={`w-full py-2 px-4 rounded-lg bg-${colors['green']} hover:bg-${colors['aqua']} transition-colors text-${colors['bg-dark']} font-bold focus:outline-none focus:ring-2 focus:ring-${colors['green']}`}
+              >
+                Join Lobby
+              </button>
+            </form>
+          </div>
+        );
+      case 'lobby':
+        return (
+          <div className={`min-h-screen flex flex-col md:flex-row p-4 bg-${colors['bg-dark']} text-${colors['fg-dark']}`}>
+            <div className="flex-1 flex flex-col bg-gray-800 p-6 rounded-xl shadow-lg mb-4 md:mb-0 md:mr-4">
+              <h1 className={`text-3xl font-bold mb-4 text-${colors['orange']}`}>Lobby Chat</h1>
+              <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                {messages.map((msg, index) => (
+                  <div key={index} className="p-3 rounded-lg bg-gray-700 text-sm">
+                    <span className={`font-bold text-${colors['blue']}`}>{msg.sender}:</span> {msg.text}
+                  </div>
+                ))}
+              </div>
+              <form onSubmit={handleSendMessage} className="mt-4 flex space-x-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  className={`flex-1 px-4 py-2 rounded-lg bg-gray-700 border border-${colors['bg-light']} text-${colors['fg-dark']} focus:outline-none focus:ring-2 focus:ring-${colors['yellow']}`}
+                />
+                <button
+                  type="submit"
+                  className={`py-2 px-4 rounded-lg bg-${colors['green']} hover:bg-${colors['aqua']} transition-colors text-${colors['bg-dark']} font-bold`}
+                >
+                  Send
+                </button>
+              </form>
             </div>
-            <div class="w-1/4 flex flex-col border-l gruvbox-border">
-                <div class="flex-grow flex flex-col p-4">
-                    <h3 class="text-xl font-semibold mb-4 text-center gruvbox-header">Chat</h3>
-                    <div id="video-chat-messages" class="flex-grow mb-4 p-2 gruvbox-bg-hard rounded-lg overflow-y-auto"></div>
-                    <div class="flex">
-                        <input id="video-chat-input" type="text" class="flex-grow px-3 py-2 rounded-l-md gruvbox-input" placeholder="Type a message...">
-                        <button id="send-video-chat-btn" class="px-4 py-2 rounded-r-md gruvbox-button">Send</button>
-                    </div>
-                </div>
-                <div class="p-4 border-t gruvbox-border"><button id="end-call-btn" class="w-full py-3 px-4 rounded-md font-bold gruvbox-button-red text-white">End Call</button></div>
+            <div className="md:w-1/4 flex flex-col bg-gray-800 p-6 rounded-xl shadow-lg">
+              <h2 className={`text-2xl font-bold mb-4 text-${colors['orange']}`}>Active Users</h2>
+              <div className="flex flex-col space-y-2">
+                {users.map((u) => (
+                  <div key={u.uid} className={`p-3 rounded-lg flex items-center justify-between bg-gray-700`}>
+                    <span className="font-medium">{u.username}</span>
+                    <span className="text-xs text-gray-500">{u.uid}</span>
+                    {username === 'admin' && u.uid !== user.uid && (
+                      <button
+                        onClick={() => handleStartCall(u)}
+                        className={`py-1 px-3 rounded-lg bg-${colors['purple']} hover:bg-violet-700 transition-colors text-white font-bold`}
+                      >
+                        Call
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-        </div>
+          </div>
+        );
+      case 'call':
+        return (
+          <div className={`min-h-screen flex flex-col items-center justify-center p-4 bg-${colors['bg-dark']}`}>
+            <div className={`w-full max-w-4xl p-6 rounded-xl shadow-lg bg-${colors['bg-light']} mb-4`}>
+              <h1 className={`text-2xl font-bold text-center mb-4 text-${colors['orange']}`}>Video Call with {otherUser?.username || 'user'}</h1>
+              <div className="relative w-full h-auto" style={{ paddingBottom: '75%' }}>
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-cover rounded-lg border-4 border-gray-700"
+                ></video>
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="absolute bottom-4 right-4 w-1/4 h-auto object-cover rounded-lg border-2 border-white shadow-lg"
+                ></video>
+              </div>
+              <div className="flex justify-center space-x-4 mt-6">
+                <button
+                  onClick={toggleMute}
+                  className={`p-3 rounded-full shadow-lg transition-colors ${isMuted ? `bg-${colors['red']}` : `bg-${colors['green']}`} text-${colors['bg-dark']} font-bold`}
+                >
+                  {isMuted ? (
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm6 10a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zm-3-1a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM5 14a1 1 0 011-1v-2a1 1 0 112 0v2a1 1 0 011 1h4a1 1 0 011-1v-2a1 1 0 112 0v2a1 1 0 011 1v3.5A2.5 2.5 0 0116.5 20H3.5A2.5 2.5 0 011 17.5V14a1 1 0 011-1h4z" clipRule="evenodd"></path></svg>
+                  ) : (
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M11 5a1 1 0 00-2 0v6a1 1 0 102 0V5zM9 13a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM7 11a1 1 0 011-1v-1a1 1 0 112 0v1a1 1 0 011-1h2a1 1 0 011-1v-1a1 1 0 112 0v1a1 1 0 011 1h2a1 1 0 011-1v-2a1 1 0 112 0v2a1 1 0 011 1v3.5A2.5 2.5 0 0118.5 20H1.5A2.5 2.5 0 01-1 17.5V13a1 1 0 011-1h2a1 1 0 011 1z"></path></svg>
+                  )}
+                </button>
+                <button
+                  onClick={toggleCamera}
+                  className={`p-3 rounded-full shadow-lg transition-colors ${isCameraOff ? `bg-${colors['red']}` : `bg-${colors['green']}`} text-${colors['bg-dark']} font-bold`}
+                >
+                  {isCameraOff ? (
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M12.983 2.983a.5.5 0 00-.706 0L9.5 5.75l-2.777-2.763a.5.5 0 10-.706.706L8.794 6.5l-2.777 2.763a.5.5 0 10.706.706L9.5 7.25l2.777 2.763a.5.5 0 10.706-.706L10.206 6.5l2.777-2.763a.5.5 0 000-.706zM9.5 14a.5.5 0 00-.5.5v2.5a.5.5 0 001 0v-2.5a.5.5 0 00-.5-.5z"></path><path fillRule="evenodd" d="M16 1.5A1.5 1.5 0 0117.5 3v14a1.5 1.5 0 01-1.5 1.5H4A1.5 1.5 0 012.5 17V3A1.5 1.5 0 014 1.5h12zm-8.5 2a1 1 0 00-1 1V6a1 1 0 00-1 1v.5a1.5 1.5 0 011.5 1.5v3.5A1.5 1.5 0 019 14.5v.5a1 1 0 001 1v1.5a1 1 0 002 0v-1.5a1 1 0 001-1v-.5a1.5 1.5 0 011.5-1.5v-3.5a1.5 1.5 0 011.5-1.5V6a1 1 0 00-1-1h-2z" clipRule="evenodd"></path></svg>
+                  ) : (
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M15 5h.5a2 2 0 012 2v8a2 2 0 01-2 2H15a2 2 0 01-2-2V7a2 2 0 012-2zM4 5h.5a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2zM10.5 5a2 2 0 00-2 2v8a2 2 0 002 2h-1a2 2 0 002-2V7a2 2 0 00-2-2h-1z"></path></svg>
+                  )}
+                </button>
+                <button
+                  onClick={handleEndCall}
+                  className={`p-3 rounded-full shadow-lg bg-${colors['red']} hover:bg-${colors['orange']} transition-colors text-${colors['bg-dark']} font-bold`}
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3.293 3.293a1 1 0 011.414 0L10 8.586l5.293-5.293a1 1 0 111.414 1.414L11.414 10l5.293 5.293a1 1 0 01-1.414 1.414L10 11.414l-5.293 5.293a1 1 0 01-1.414-1.414L8.586 10 3.293 4.707a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className={`font-sans antialiased bg-${colors['bg-dark']}`}>
+      {renderView()}
     </div>
-    
-    <!-- Incoming Call Modal -->
-    <div id="incoming-call-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-        <div class="gruvbox-bg-soft p-8 rounded-lg shadow-xl text-center">
-            <h2 class="text-2xl font-bold gruvbox-header mb-4">Incoming Call</h2>
-            <p class="text-lg gruvbox-text-light mb-6">You have an incoming call from <span id="incoming-call-from" class="font-bold gruvbox-text-bright"></span>.</p>
-            <div class="flex justify-center space-x-4">
-                <button id="accept-call-btn" class="px-6 py-2 rounded-md font-semibold text-white gruvbox-button-green">Accept</button>
-                <button id="reject-call-btn" class="px-6 py-2 rounded-md font-semibold text-white gruvbox-button-red">Reject</button>
-            </div>
-        </div>
-    </div>
+  );
+};
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getDatabase, ref, set, onValue, onDisconnect, serverTimestamp, remove, push, onChildAdded, query, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBbTFLhxzXf08OVDGGsK54t3qDzPVvsJ3w", authDomain: "conferencedoral.firebaseapp.com", projectId: "conferencedoral", storageBucket: "conferencedoral.firebasestorage.app", messagingSenderId: "668062587354", appId: "1:668062587354:web:9b831842ada6ebf87148e3", measurementId: "G-HDJ9S9G2T2", databaseURL: "https://conferencedoral-default-rtdb.firebaseio.com/"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getDatabase(app);
-
-        // UI Elements
-        const loginPage = document.getElementById('login-page'), lobbyPage = document.getElementById('lobby-page'), videoCallPage = document.getElementById('video-call-page');
-        const usernameInput = document.getElementById('username'), passwordInput = document.getElementById('password'), passwordContainer = document.getElementById('password-container');
-        const joinBtn = document.getElementById('join-btn'), errorMessage = document.getElementById('error-message'), userListDiv = document.getElementById('user-list');
-        const lobbyUsername = document.getElementById('lobby-username'), chatMessagesDiv = document.getElementById('chat-messages'), chatInput = document.getElementById('chat-input'), sendChatBtn = document.getElementById('send-chat-btn');
-        const callPartnerName = document.getElementById('call-partner-name'), endCallBtn = document.getElementById('end-call-btn');
-        const localVideo = document.getElementById('local-video'), remoteVideo = document.getElementById('remote-video');
-        const incomingCallModal = document.getElementById('incoming-call-modal'), incomingCallFrom = document.getElementById('incoming-call-from'), acceptCallBtn = document.getElementById('accept-call-btn'), rejectCallBtn = document.getElementById('reject-call-btn');
-
-        let currentUser = null, currentUsername = '', isAdmin = false, localStream, remoteStream, peerConnection, callPartnerUid, callPartnerUsername, callRef, incomingCallListener;
-
-        const configuration = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] };
-
-        // --- Login ---
-        usernameInput.addEventListener('input', () => { passwordContainer.style.display = usernameInput.value.toLowerCase() === 'admin' ? 'block' : 'none'; });
-        joinBtn.addEventListener('click', async () => {
-            const username = usernameInput.value.trim(), password = passwordInput.value;
-            errorMessage.textContent = '';
-            if (!username) { errorMessage.textContent = 'Please enter a username.'; return; }
-            if (username.toLowerCase() === 'admin') {
-                if (password !== 'max') { errorMessage.textContent = 'Incorrect password for admin.'; return; }
-                isAdmin = true, currentUsername = 'admin';
-            } else { isAdmin = false, currentUsername = username; }
-            try {
-                const userCredential = await signInAnonymously(auth);
-                currentUser = userCredential.user;
-                showLobby();
-            } catch (error) { console.error("Error signing in:", error); errorMessage.textContent = 'Could not join the lobby.'; }
-        });
-
-        // --- Page Navigation ---
-        const showPage = (pageToShow) => { [loginPage, lobbyPage, videoCallPage].forEach(p => p.classList.add('hidden')); pageToShow.classList.remove('hidden'); };
-        function showLobby() { showPage(lobbyPage); lobbyUsername.textContent = currentUsername; setupPresence(); listenForUsers(); listenForLobbyMessages(); listenForIncomingCalls(); }
-        function showVideoCallPage(partnerName) { callPartnerName.textContent = partnerName; showPage(videoCallPage); }
-
-        // --- Presence ---
-        function setupPresence() { if (!currentUser) return; const myStatusRef = ref(db, 'status/' + currentUser.uid); set(myStatusRef, { username: currentUsername, isAdmin: isAdmin, online: true, last_changed: serverTimestamp() }); onDisconnect(myStatusRef).remove(); }
-        function listenForUsers() {
-            const statusRef = ref(db, 'status');
-            onValue(statusRef, (snapshot) => {
-                const users = snapshot.val(); userListDiv.innerHTML = '';
-                if (users) {
-                    Object.keys(users).forEach(uid => {
-                        const user = users[uid];
-                        if (user.online) {
-                            const userElement = document.createElement('div');
-                            userElement.className = `p-2 my-1 rounded-md flex justify-between items-center cursor-pointer hover:bg-opacity-20 ${uid === currentUser.uid ? 'bg-blue-500 bg-opacity-30' : 'gruvbox-bg-hard'}`;
-                            userElement.innerHTML = `<span class="font-medium ${user.isAdmin ? 'text-yellow-400' : 'gruvbox-text-light'}">${user.username}${user.isAdmin ? ' (Admin)' : ''}</span>`;
-                            if (isAdmin && uid !== currentUser.uid) {
-                                const callBtn = document.createElement('button');
-                                callBtn.textContent = 'Call'; callBtn.className = 'text-xs px-2 py-1 rounded gruvbox-button';
-                                callBtn.onclick = () => initiateCall(uid, user.username);
-                                userElement.appendChild(callBtn);
-                            }
-                            userListDiv.appendChild(userElement);
-                        }
-                    });
-                }
-            });
-        }
-        
-        // --- Lobby Chat ---
-        const sendLobbyMessage = () => { const text = chatInput.value.trim(); if (text && currentUser) { push(ref(db, 'lobby-chat'), { uid: currentUser.uid, username: currentUsername, isAdmin, text, timestamp: serverTimestamp() }); chatInput.value = ''; } };
-        function listenForLobbyMessages() {
-            const messagesQuery = query(ref(db, 'lobby-chat'), limitToLast(100));
-            onChildAdded(messagesQuery, (snapshot) => {
-                const msg = snapshot.val(), el = document.createElement('div'); el.classList.add('mb-2', 'break-words');
-                const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                el.innerHTML = `<div><span class="font-bold ${msg.isAdmin ? 'text-yellow-400' : 'gruvbox-text-bright'}">${msg.username}</span><span class="text-xs ml-2 gruvbox-text-faded">${time}</span></div><p class="gruvbox-text-light">${msg.text}</p>`;
-                chatMessagesDiv.appendChild(el); chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
-            });
-        }
-        sendChatBtn.addEventListener('click', sendLobbyMessage); chatInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendLobbyMessage());
-
-        // --- WebRTC Call Logic ---
-        async function createPeerConnection(partnerUid, isCaller) {
-            peerConnection = new RTCPeerConnection(configuration);
-            remoteStream = new MediaStream();
-            remoteVideo.srcObject = remoteStream;
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            localVideo.srcObject = localStream;
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-            peerConnection.ontrack = event => { event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track)); };
-            
-            const localCandidates = ref(db, `calls/${partnerUid}/${isCaller ? 'callerCandidates' : 'calleeCandidates'}`);
-            const remoteCandidates = ref(db, `calls/${partnerUid}/${isCaller ? 'calleeCandidates' : 'callerCandidates'}`);
-
-            peerConnection.onicecandidate = event => { event.candidate && push(localCandidates, event.candidate.toJSON()); };
-            onChildAdded(remoteCandidates, (snapshot) => { peerConnection.addIceCandidate(new RTCIceCandidate(snapshot.val())); });
-            
-            peerConnection.onconnectionstatechange = () => { if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'closed' || peerConnection.connectionState === 'failed') { endCall(); } };
-        }
-
-        async function initiateCall(calleeUid, calleeUsername) {
-            callPartnerUid = calleeUid; callPartnerUsername = calleeUsername; callRef = ref(db, `calls/${calleeUid}`);
-            await createPeerConnection(calleeUid, true);
-            showVideoCallPage(calleeUsername);
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-            await set(callRef, { callerUid: currentUser.uid, callerUsername: currentUsername, status: 'ringing', offer: { sdp: offer.sdp, type: offer.type } });
-
-            onValue(callRef, async (snapshot) => {
-                const data = snapshot.val();
-                if (data?.answer && !peerConnection.currentRemoteDescription) {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-                }
-                if (!data) endCall(); // Callee rejected or left
-            }, { onlyOnce: false });
-        }
-        
-        async function answerCall() {
-            callRef = ref(db, `calls/${currentUser.uid}`);
-            await createPeerConnection(callPartnerUid, false);
-            const callSnapshot = await get(callRef);
-            const callData = callSnapshot.val();
-            callPartnerUsername = callData.callerUsername;
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            await set(callRef, { ...callData, status: 'connected', answer: { sdp: answer.sdp, type: answer.type } });
-            showVideoCallPage(callPartnerUsername);
-            
-            onValue(callRef, (snapshot) => { if (!snapshot.exists()) endCall(); });
-        }
-        
-        const endCall = () => {
-            if (peerConnection) { peerConnection.close(); peerConnection = null; }
-            if (localStream) { localStream.getTracks().forEach(track => track.stop()); localStream = null; }
-            if (callRef) { remove(callRef); callRef = null; }
-            localVideo.srcObject = null; remoteVideo.srcObject = null;
-            callPartnerUid = null; callPartnerUsername = null;
-            showLobby();
-        };
-        endCallBtn.addEventListener('click', endCall);
-
-        function listenForIncomingCalls() {
-            if (!currentUser || isAdmin) return;
-            const myCallRef = ref(db, `calls/${currentUser.uid}`);
-            incomingCallListener = onValue(myCallRef, (snapshot) => {
-                const callData = snapshot.val();
-                if (callData?.status === 'ringing') {
-                    callPartnerUid = callData.callerUid;
-                    incomingCallFrom.textContent = callData.callerUsername;
-                    incomingCallModal.classList.remove('hidden');
-                } else {
-                    incomingCallModal.classList.add('hidden');
-                }
-            });
-        }
-
-        acceptCallBtn.addEventListener('click', () => { incomingCallModal.classList.add('hidden'); answerCall(); });
-        rejectCallBtn.addEventListener('click', () => { incomingCallModal.classList.add('hidden'); if(callPartnerUid) { const callToDeleteRef = ref(db, `calls/${currentUser.uid}`); remove(callToDeleteRef); } });
-        
-        window.addEventListener('beforeunload', () => { if (currentUser) { const myStatusRef = ref(db, 'status/' + currentUser.uid); remove(myStatusRef); endCall(); } });
-    </script>
-</body>
-</html>
-
+export default App;
