@@ -64,7 +64,7 @@
         <!-- Waiting Lobby (for regular users) -->
         <div id="lobby-page" class="hidden h-full w-full flex flex-col p-4">
             <header class="flex-shrink-0 flex justify-between items-center p-4 border-b gruvbox-border">
-                 <div class="flex items-center">
+                <div class="flex items-center">
                     <img class="h-12 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Doral Academy Logo">
                     <h1 class="text-xl ml-4 font-bold gruvbox-header">Doral Academy Lobby</h1>
                 </div>
@@ -89,7 +89,7 @@
         <!-- Admin Console -->
         <div id="admin-console-page" class="hidden h-full w-full flex flex-col p-4">
             <header class="flex-shrink-0 flex justify-between items-center p-4 border-b gruvbox-border">
-                 <div class="flex items-center">
+                <div class="flex items-center">
                     <img class="h-12 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Doral Academy Logo">
                     <h1 class="text-xl ml-4 font-bold gruvbox-header">Doral Academy Admin Console</h1>
                 </div>
@@ -287,7 +287,8 @@
                                     </div>
                                 </div>`;
                             
-                            if (isAdmin && !user.isAdmin && !isCurrentUser) {
+                            // MODIFIED: Admin can now see controls for all other users, including other admins.
+                            if (isAdmin && !isCurrentUser) {
                                 userHtml += `
                                     <div class="flex space-x-1">
                                         <button data-uid="${uid}" class="msg-btn text-xs px-2 py-1 rounded gruvbox-button-green">Msg</button>
@@ -480,4 +481,3 @@
     </script>
 </body>
 </html>
-
