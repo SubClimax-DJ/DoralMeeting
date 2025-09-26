@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Conferencing</title>
+    <title>Doral Academy - Video Conferencing</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
@@ -46,8 +46,8 @@
         <!-- Login Page -->
         <div id="login-page" class="w-full max-w-md p-8 space-y-8 gruvbox-bg-soft rounded-lg shadow-lg">
             <div>
-                <img class="mx-auto h-24 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Company Logo">
-                <h2 class="mt-6 text-center text-3xl font-extrabold gruvbox-header">Video Conferencing</h2>
+                <img class="mx-auto h-24 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Doral Academy Logo">
+                <h2 class="mt-6 text-center text-3xl font-extrabold gruvbox-header">Doral Academy Conferencing</h2>
             </div>
             <div class="space-y-6">
                 <div><input id="username" type="text" required class="relative block w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 gruvbox-input" placeholder="Username"></div>
@@ -55,14 +55,18 @@
                 <div><button id="join-btn" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 gruvbox-button">Join</button></div>
                 <p id="error-message" class="text-center text-sm text-red-400"></p>
             </div>
+             <div class="mt-4 text-center text-xs gruvbox-text-faded">
+                <p>Created by Coach Prebeg</p>
+                <p>Version v1.22</p>
+            </div>
         </div>
 
         <!-- Waiting Lobby (for regular users) -->
         <div id="lobby-page" class="hidden h-full w-full flex flex-col p-4">
             <header class="flex-shrink-0 flex justify-between items-center p-4 border-b gruvbox-border">
                  <div class="flex items-center">
-                    <img class="h-12 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Company Logo">
-                    <h1 class="text-xl ml-4 font-bold gruvbox-header">Waiting Lobby</h1>
+                    <img class="h-12 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Doral Academy Logo">
+                    <h1 class="text-xl ml-4 font-bold gruvbox-header">Doral Academy Lobby</h1>
                 </div>
                 <div class="flex items-center space-x-4">
                     <span class="gruvbox-text-light">Welcome, <span id="lobby-username" class="font-bold gruvbox-text-bright"></span>!</span>
@@ -86,8 +90,8 @@
         <div id="admin-console-page" class="hidden h-full w-full flex flex-col p-4">
             <header class="flex-shrink-0 flex justify-between items-center p-4 border-b gruvbox-border">
                  <div class="flex items-center">
-                    <img class="h-12 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Company Logo">
-                    <h1 class="text-xl ml-4 font-bold gruvbox-header">Admin Console</h1>
+                    <img class="h-12 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Doral Academy Logo">
+                    <h1 class="text-xl ml-4 font-bold gruvbox-header">Doral Academy Admin Console</h1>
                 </div>
                 <div class="flex items-center space-x-4">
                     <span class="gruvbox-text-light">Welcome, <span id="admin-username" class="font-bold text-yellow-400"></span>!</span>
@@ -265,7 +269,9 @@
                 if (users) {
                     Object.keys(users).forEach(uid => {
                         const user = users[uid];
-                        if (user.online && uid !== currentUser.uid) {
+                        const isCurrentUser = uid === currentUser.uid;
+
+                        if (user.online) {
                             const userElement = document.createElement('div');
                             userElement.className = `p-2 my-1 rounded-md flex justify-between items-center gruvbox-bg-hard`;
                             let statusIndicator = user.callStatus === 'in-call' ? 'in-call' : (user.callStatus === 'ringing' ? 'ringing' : 'available');
@@ -276,12 +282,12 @@
                                 <div class="flex items-center">
                                     <span class="status-dot status-${statusIndicator}"></span>
                                     <div>
-                                        <span class="font-medium ${user.isAdmin ? 'text-yellow-400' : 'gruvbox-text-light'}">${user.username}${user.isAdmin ? ' (Admin)' : ''}${handIcon}</span>
+                                        <span class="font-medium ${user.isAdmin ? 'text-yellow-400' : 'gruvbox-text-light'}">${user.username}${isCurrentUser ? ' (You)' : ''}${user.isAdmin && !isCurrentUser ? ' (Admin)' : ''}${handIcon}</span>
                                         <p class="text-xs gruvbox-text-faded">${statusText}</p>
                                     </div>
                                 </div>`;
                             
-                            if (isAdmin && !user.isAdmin) {
+                            if (isAdmin && !user.isAdmin && !isCurrentUser) {
                                 userHtml += `
                                     <div class="flex space-x-1">
                                         <button data-uid="${uid}" class="msg-btn text-xs px-2 py-1 rounded gruvbox-button-green">Msg</button>
@@ -474,5 +480,4 @@
     </script>
 </body>
 </html>
-
 
