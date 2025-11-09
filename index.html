@@ -200,6 +200,11 @@
             border-radius: 4px;
             margin-bottom: 0.25rem;
             font-weight: 500;
+            /* UPDATED: Changed to a flex row layout */
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
         }
         .queue-item.group-header {
             background-color: var(--bg-dark);
@@ -236,6 +241,65 @@
         .nav-btn.active {
             color: var(--fg);
             border-bottom-color: var(--blue);
+        }
+
+        /* Action buttons for queue list */
+        .queue-item-actions {
+            display: flex;
+            gap: 0.5rem;
+            /* REMOVED: margin-top: 0.5rem; */
+            flex-shrink: 0; /* Added to prevent buttons from shrinking/wrapping */
+        }
+        .queue-item-actions .btn {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+            width: auto; /* Not full width */
+            /* REMOVED: flex-grow: 1; */
+            margin-top: 0; /* Override base .btn margin */
+        }
+        .btn-red-outline {
+            background-color: transparent;
+            border: 1px solid var(--red);
+            color: var(--red);
+        }
+        .btn-blue-outline {
+            background-color: transparent;
+            border: 1px solid var(--blue);
+            color: var(--blue);
+        }
+
+        /* Lightweight confirmation modal */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.75);
+            z-index: 20;
+            display: none; /* hidden */
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .modal-box {
+            background-color: var(--bg-light);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 400px;
+        }
+        .modal-box h3 {
+            color: var(--fg);
+            margin-top: 0;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .modal-actions .btn {
+            width: auto; /* Don't stretch */
         }
 
     </style>
@@ -318,6 +382,23 @@
         <button id="nav-queues-btn" class="nav-btn">View Queues</button>
     </footer>
 
+    <!-- CONFIRMATION MODAL -->
+    <div id="confirmation-modal-backdrop" class="modal-backdrop">
+        <div id="confirmation-modal-box" class="modal-box">
+            <h3 id="confirmation-modal-title">Confirm Action</h3>
+            <p id="confirmation-modal-prompt" style="color: var(--fg-gray); margin-bottom: 1rem;">Are you sure?</p>
+            
+            <div class="modal-actions">
+                <button id="confirmation-modal-cancel-btn" class="btn btn-gray">
+                    Cancel
+                </button>
+                <button id="confirmation-modal-confirm-btn" class="btn btn-red">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase and App Logic -->
     <script type="module">
         // --- Firebase Imports ---
@@ -330,6 +411,9 @@
         import { 
             getFirestore, 
             doc, 
+            getDoc,
+            updateDoc,
+            deleteDoc, /* FIXED: Added missing import */
             addDoc, 
             onSnapshot, 
             collection, 
@@ -377,14 +461,22 @@
         const q2Count = document.getElementById('q2-count');
         const q3Count = document.getElementById('q3-count');
 
+        // Confirmation Modal
+        const confirmationModalBackdrop = document.getElementById('confirmation-modal-backdrop');
+        const confirmationModalTitle = document.getElementById('confirmation-modal-title');
+        const confirmationModalPrompt = document.getElementById('confirmation-modal-prompt');
+        const confirmationModalCancelBtn = document.getElementById('confirmation-modal-cancel-btn');
+        const confirmationModalConfirmBtn = document.getElementById('confirmation-modal-confirm-btn');
+
         // --- App State ---
         let stagedSiblingGroup = []; 
         let currentRoster = []; 
         let currentPermanentGroups = [];
+        let confirmationModalAction = null;
         
         // --- Firebase Globals ---
         let app, auth, db, userId;
-        let q1ColRef, q2ColRef, q3ColRef, rosterColRef, permanentGroupsColRef;
+        let q1ColRef, q2ColRef, q3ColRef, rosterColRef, permanentGroupsColRef, pickedupColRef;
         const appId = firebaseConfig.projectId || 'default-carline-app';
 
         // --- Collection Names ---
@@ -393,6 +485,7 @@
         const Q3_COLLECTION = 'queue_walkers';
         const ROSTER_COLLECTION = 'ROSTER';
         const PERMANENT_GROUPS_COLLECTION = 'permanent_groups';
+        const PICKEDUP_COLLECTION = 'queue_pickedup';
 
         // --- Utility Functions ---
         function sanitize(str) {
@@ -486,13 +579,38 @@
                 const highlightClass = student.isHighlighted ? 'highlighted' : ''; // Style not in use, but good to have
                 return `
                 <div class="queue-item ${highlightClass}">
-                    ${sanitize(student.name)} (${sanitize(student.grade)})
-                    ${student.note ? `<span style="font-size: 0.8rem; color: var(--blue); display: block;">Note: ${sanitize(student.note)}</span>` : ''}
+                   <div>
+                       ${sanitize(student.name)} (${sanitize(student.grade)})
+                       ${student.note ? `<span style="font-size: 0.8rem; color: var(--blue); display: block;">Note: ${sanitize(student.note)}</span>` : ''}
+                   </div>
+                   <!-- Action buttons -->
+                   <div class="queue-item-actions">
+                       <button class="btn btn-blue-outline" 
+                               data-action="add-note" 
+                               data-id="${student.id}"
+                               data-queue="${getQueueName(listEl)}">
+                           Note
+                       </button>
+                       <button class="btn btn-red-outline" 
+                               data-action="dismiss-queue" 
+                               data-id="${student.id}"
+                               data-queue="${getQueueName(listEl)}">
+                           Dismiss
+                       </button>
+                   </div>
                 </div>
                 `;
             }).join('');
         }
         
+       // Helper to determine queue name from element
+       function getQueueName(listEl) {
+           if (listEl === q1List) return Q1_COLLECTION;
+           if (listEl === q2List) return Q2_COLLECTION;
+           if (listEl === q3List) return Q3_COLLECTION;
+           return null;
+       }
+
         /**
          * Renders a simple list for the sibling queue
          */
@@ -517,16 +635,65 @@
                         const highlightClass = s.isHighlighted ? 'highlighted' : '';
                         return `
                         <div class="queue-item group-student ${highlightClass}">
-                            ${sanitize(s.name)} (${sanitize(s.grade)})
-                            ${s.note ? `<span style="font-size: 0.8rem; color: var(--blue); display: block;">Note: ${sanitize(s.note)}</span>` : ''}
+                           <div>
+                               ${sanitize(s.name)} (${sanitize(s.grade)})
+                               ${s.note ? `<span style="font-size: 0.8rem; color: var(--blue); display: block;">Note: ${sanitize(s.note)}</span>` : ''}
+                           </div>
+                           <!-- Action buttons for group students -->
+                           <div class="queue-item-actions">
+                               <button class="btn btn-blue-outline" 
+                                       data-action="add-note-group"
+                                       data-id="${student.id}"
+                                       data-queue="${Q2_COLLECTION}"
+                                       data-index="${index}">
+                                   Note
+                               </button>
+                               <button class="btn btn-red-outline" 
+                                       data-action="dismiss-group-student"
+                                       data-id="${student.id}"
+                                       data-queue="${Q2_COLLECTION}"
+                                       data-index="${index}">
+                                   Dismiss
+                               </button>
+                           </div>
                         </div>`;
                     }).join('');
+
+                   // Add a "Dismiss All" for the group
+                   html += `
+                   <div class="queue-item-actions" style="padding-left: 1.5rem;">
+                       <button class="btn btn-red-outline" 
+                               data-action="dismiss-queue" 
+                               data-id="${student.id}"
+                               data-queue="${Q2_COLLECTION}"
+                               title="Dismiss Entire Group">
+                           Dismiss Entire Group
+                       </button>
+                   </div>`;
+
                 } else {
                     const highlightClass = student.isHighlighted ? 'highlighted' : '';
                      html += `
                      <div class="queue-item ${highlightClass}">
-                        ${sanitize(student.name)} (${sanitize(student.grade)})
-                        ${student.note ? `<span style="font-size: 0.8rem; color: var(--blue); display: block;">Note: ${sanitize(student.note)}</span>` : ''}
+                       <div>
+                           ${sanitize(student.name)} (${sanitize(student.grade)})
+                           ${student.note ? `<span style="font-size: 0.8rem; color: var(--blue); display: block;">Note: ${sanitize(student.note)}</span>` : ''}
+                       </div>
+                       <!-- Action buttons for single students -->
+                       <div class="queue-item-actions">
+                           <button class="btn btn-blue-outline" 
+                                   data-action="add-note" 
+                                   data-id="${student.id}"
+                                   data-queue="${Q2_COLLECTION}">
+                               Note
+                           </button>
+                           <button class="btn btn-red-outline" 
+                                   data-action="dismiss-queue" 
+                                   data-id="${student.id}"
+                                   data-queue="${Q2_COLLECTION}">
+                               Dismiss
+                           </button>
+                       </div>
                     </div>`;
                 }
             });
@@ -604,6 +771,131 @@
             }
         }
 
+       // --- Modal and Queue Actions (adapted from index.html) ---
+
+       async function dismissStudent(queueName, docId) {
+           try {
+               const docRef = doc(db, `/artifacts/${appId}/public/data/${queueName}/${docId}`);
+               const studentDoc = await getDoc(docRef);
+               
+               if (studentDoc.exists()) {
+                   const studentData = studentDoc.data();
+                   
+                   if (studentData.isGroup) {
+                       const addPromises = studentData.students.map(student => {
+                           return addDoc(pickedupColRef, {
+                               name: student.name,
+                               grade: student.grade,
+                               pickedUpAt: serverTimestamp(),
+                               addedBy: userId
+                           });
+                       });
+                       await Promise.all(addPromises);
+                   } else {
+                       await addDoc(pickedupColRef, {
+                           name: studentData.name,
+                           grade: studentData.grade,
+                           pickedUpAt: serverTimestamp(),
+                           addedBy: userId
+                       });
+                   }
+                   await deleteDoc(docRef);
+               }
+           } catch (error) {
+               console.error("Error dismissing student: ", error);
+           }
+       }
+
+       async function dismissGroupStudent(queueName, docId, studentIndex) {
+           try {
+               const docRef = doc(db, `/artifacts/${appId}/public/data/${queueName}/${docId}`);
+               const studentDoc = await getDoc(docRef);
+
+               if (!studentDoc.exists()) return;
+
+               let students = studentDoc.data().students;
+               const studentToDismiss = students[studentIndex];
+
+               if (!studentToDismiss) return;
+
+               await addDoc(pickedupColRef, {
+                   name: studentToDismiss.name,
+                   grade: studentToDismiss.grade,
+                   pickedUpAt: serverTimestamp(),
+                   addedBy: userId
+               });
+
+               students.splice(studentIndex, 1);
+
+               if (students.length === 0) {
+                   await deleteDoc(docRef);
+               } else {
+                   await updateDoc(docRef, { students: students });
+               }
+           } catch (error) {
+               console.error("Error dismissing group student: ", error);
+           }
+       }
+
+       async function updateStudentNote(queueName, docId, studentIndex, currentNote) {
+           const newNote = prompt("Enter note (or leave blank to clear):", currentNote);
+           
+           if (newNote === null) {
+               return; // User cancelled prompt
+           }
+           
+           try {
+               const docRef = doc(db, `/artifacts/${appId}/public/data/${queueName}/${docId}`);
+               
+               if (studentIndex === null || studentIndex === undefined) {
+                   // This is a single student (not in a group)
+                   await updateDoc(docRef, { note: newNote.trim() });
+               } else {
+                   // This is a student inside a group
+                   const studentDoc = await getDoc(docRef);
+                   if (studentDoc.exists()) {
+                       const studentData = studentDoc.data();
+                       const students = studentData.students;
+                       
+                       if (students && students[studentIndex]) {
+                           students[studentIndex].note = newNote.trim();
+                       }
+                       
+                       await updateDoc(docRef, { students: students });
+                   }
+               }
+           } catch (error) {
+               console.error("Error updating note: ", error);
+           }
+       }
+
+       function openConfirmationModal(title, prompt, actionPayload) {
+           confirmationModalTitle.textContent = title;
+           confirmationModalPrompt.textContent = prompt;
+           confirmationModalAction = actionPayload;
+           confirmationModalBackdrop.style.display = 'flex';
+       }
+
+       function closeConfirmationModal() {
+           confirmationModalBackdrop.style.display = 'none';
+           confirmationModalAction = null;
+       }
+
+       async function handleConfirmationConfirm_Mobile() {
+           if (!confirmationModalAction) return;
+
+           const { action, docId, queue, studentIndex } = confirmationModalAction;
+
+           if (action === 'dismissQueue') {
+               await dismissStudent(queue, docId);
+           } else if (action === 'dismissGroupStudent') {
+               await dismissGroupStudent(queue, docId, studentIndex);
+           }
+           
+           closeConfirmationModal();
+       }
+
+
         // --- Firebase Setup ---
         async function setupFirebase() {
             try {
@@ -641,6 +933,7 @@
             q3ColRef = collection(db, `/artifacts/${appId}/public/data/${Q3_COLLECTION}`);
             rosterColRef = collection(db, `/artifacts/${appId}/public/data/${ROSTER_COLLECTION}`);
             permanentGroupsColRef = collection(db, `/artifacts/${appId}/public/data/${PERMANENT_GROUPS_COLLECTION}`);
+            pickedupColRef = collection(db, `/artifacts/${appId}/public/data/${PICKEDUP_COLLECTION}`);
 
             // Queue Listeners (call mobile renderers)
             onSnapshot(query(q1ColRef), (snapshot) => {
@@ -719,6 +1012,44 @@
                 navAddBtn.classList.remove('active');
                 navQueuesBtn.classList.add('active');
             });
+
+            // --- Queue Action Listeners ---
+           queuesView.addEventListener('click', async (e) => {
+               const target = e.target.closest('.btn');
+               if (!target) return;
+
+               const { action, id, queue, index } = target.dataset;
+               const studentIndex = index ? parseInt(index, 10) : null;
+
+               if (action === 'dismiss-queue') {
+                   openConfirmationModal(
+                       'Dismiss Entry?',
+                       `Are you sure you want to dismiss this entry?`,
+                       { action: 'dismissQueue', docId: id, queue: queue }
+                   );
+               } else if (action === 'dismiss-group-student') {
+                    openConfirmationModal(
+                       'Dismiss Student?',
+                       `Are you sure you want to dismiss this student from the group?`,
+                       { action: 'dismissGroupStudent', docId: id, queue: queue, studentIndex: studentIndex }
+                   );
+               } else if (action === 'add-note') {
+                   const docRef = doc(db, `/artifacts/${appId}/public/data/${queue}/${id}`);
+                   const studentDoc = await getDoc(docRef);
+                   const currentNote = studentDoc.data().note || "";
+                   updateStudentNote(queue, id, null, currentNote);
+
+               } else if (action === 'add-note-group') {
+                   const docRef = doc(db, `/artifacts/${appId}/public/data/${queue}/${id}`);
+                   const studentDoc = await getDoc(docRef);
+                   const currentNote = studentDoc.data().students[studentIndex].note || "";
+                   updateStudentNote(queue, id, studentIndex, currentNote);
+               }
+           });
+
+           // --- Modal Listeners ---
+           confirmationModalCancelBtn.addEventListener('click', closeConfirmationModal);
+           confirmationModalConfirmBtn.addEventListener('click', handleConfirmationConfirm_Mobile);
 
             // --- Add Student Section Listeners ---
             searchInput.addEventListener('input', (e) => {
