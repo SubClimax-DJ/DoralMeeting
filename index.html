@@ -1,483 +1,1956 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-[#282828]">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doral Academy - Video Conferencing</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <!-- 1. TITLE CHANGED -->
+    <title>IT Admin Panel</title>
+    
+    <!-- 2. Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;7.00&display=swap" rel="stylesheet">
+
+    <!-- 3. Gruvbox Dark Theme & Layout Styles -->
     <style>
-        /* Gruvbox dark theme colors */
+        /* Gruvbox Dark Colors */
         :root {
-            --dark0_hard: #1d2021; --dark0: #282828; --dark0_soft: #32302f; --dark1: #3c3836; --dark2: #504945; --dark3: #665c54; --dark4: #7c6f64; --gray_245: #928374; --gray_244: #928374; --light0_hard: #f9f5d7; --light0: #fbf1c7; --light0_soft: #f2e5bc; --light1: #ebdbb2; --light2: #d5c4a1; --light3: #bdae93; --light4: #a89984; --bright_red: #fb4934; --bright_green: #b8bb26; --bright_yellow: #fabd2f; --bright_blue: #83a598; --bright_purple: #d3869b; --bright_aqua: #8ec07c; --bright_orange: #fe8019; --neutral_red: #cc241d; --neutral_green: #98971a; --neutral_yellow: #d79921; --neutral_blue: #458588; --neutral_purple: #b16286; --neutral_aqua: #689d6a; --neutral_orange: #d65d0e;
+            --bg: #282828;
+            --bg-dark: #1d2021;
+            --bg-light: #3c3836;
+            --bg-med: #504945;
+            --fg: #ebdbb2;
+            --fg-gray: #a89984;
+            --red: #fb4934;
+            --green: #b8bb26;
+            --yellow: #fabd2f;
+            --blue: #83a598;
+            --purple: #d3869b;
+            --aqua: #8ec07c;
+            --orange: #fe8019;
+            --border-color: #504945;
         }
-        .gruvbox-dark { background-color: var(--dark0); color: var(--light1); }
-        .gruvbox-input { background-color: var(--dark1); border-color: var(--dark3); color: var(--light0); }
-        .gruvbox-input:focus { outline-color: var(--bright_yellow); border-color: var(--bright_yellow); box-shadow: 0 0 0 2px var(--dark0), 0 0 0 4px var(--bright_yellow); }
-        .gruvbox-button { background-color: var(--neutral_blue); color: var(--light0); }
-        .gruvbox-button:hover { background-color: var(--bright_blue); }
-        .gruvbox-button-green { background-color: var(--neutral_green); }
-        .gruvbox-button-green:hover { background-color: var(--bright_green); }
-        .gruvbox-button-red { background-color: var(--neutral_red); }
-        .gruvbox-button-red:hover { background-color: var(--bright_red); }
-        .gruvbox-button-orange { background-color: var(--neutral_orange); }
-        .gruvbox-button-orange:hover { background-color: var(--bright_orange); }
-        .gruvbox-header { color: var(--bright_yellow); }
-        .gruvbox-bg-soft { background-color: var(--dark0_soft); }
-        .gruvbox-bg-hard { background-color: var(--dark0_hard); }
-        .gruvbox-border { border-color: var(--dark2); }
-        .gruvbox-text-light { color: var(--light2); }
-        .gruvbox-text-bright { color: var(--bright_aqua); }
-        .gruvbox-text-faded { color: var(--gray_245); }
-        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-        .status-available { background-color: var(--bright_green); }
-        .status-in-call { background-color: var(--bright_red); }
-        .status-ringing { background-color: var(--bright_orange); }
-        .call-control-button { background: var(--dark2); border: none; color: var(--light0); width: 40px; height: 40px; border-radius: 50%; margin: 0 5px; cursor: pointer; transition: background-color 0.2s; }
-        .call-control-button:hover { background: var(--dark4); }
-        .call-control-button.active { background: var(--neutral_blue); }
-        #raise-hand-btn.active { background-color: var(--bright_yellow); color: var(--dark0); }
+
+        /* Base */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--fg);
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            /* UPDATED: Removed width and max-width constraints */
+            /* width: 95%; */
+            /* max-width: 1800px; */
+            margin: 0 auto;
+            /* UPDATED: Reduced padding */
+            padding: 0.75rem 1rem;
+        }
+        
+        /* Header */
+        header {
+            background-color: var(--bg-dark);
+            color: var(--fg);
+            /* UPDATED: Reduced padding */
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .header-content {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            /* UPDATED: Reduced gap */
+            gap: 1.5rem; 
+            /* UPDATED: Removed max-width */
+            /* max-width: 1800px; */
+            margin: 0 auto;
+        }
+        /* NEW: Header Tabs */
+        .header-tabs {
+            display: flex;
+            gap: 0.5rem;
+            background-color: var(--bg-med);
+            border-radius: 8px;
+            padding: 4px;
+        }
+        .tab-btn {
+            background-color: transparent;
+            border: none;
+            color: var(--fg-gray);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn.active, .tab-btn:hover {
+            background-color: var(--bg-light);
+            color: var(--fg);
+        }
+
+        #auth-status {
+            font-size: 0.9rem;
+            color: var(--fg-gray);
+            /* NEW: Push to the right */
+            margin-left: auto; 
+        }
+        .connected {
+            color: var(--green) !important;
+        }
+        .disconnected {
+            color: var(--red) !important;
+        }
+
+        /* Sections */
+        .section {
+            background-color: var(--bg-light);
+            /* UPDATED: Removed border */
+            border: none;
+            border-radius: 8px;
+            /* UPDATED: Reduced padding and margin */
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        h2 {
+            /* UPDATED: Reduced font size and margin */
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--aqua);
+            margin-top: 0;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+        h3 {
+            /* UPDATED: Reduced font size and margin */
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--blue);
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            /* UPDATED: Reduced gap */
+            gap: 1rem;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            /* UPDATED: Reduced gap */
+            gap: 1rem;
+        }
+        
+        /* Forms */
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            /* UPDATED: Reduced padding */
+            padding: 0.5rem 0.75rem;
+            background-color: var(--bg-med);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--fg);
+            font-size: 1rem;
+            box-sizing: border-box; /* Important */
+            margin-bottom: 0.5rem;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 2px var(--blue);
+        }
+        .btn {
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: opacity 0.2s;
+        }
+        .btn:hover {
+            opacity: 0.8;
+        }
+        .btn-blue { background-color: var(--blue); color: var(--bg-dark); }
+        .btn-green { background-color: var(--green); color: var(--bg-dark); }
+        .btn-gray { background-color: var(--bg-med); color: var(--fg); }
+        .btn-red { background-color: var(--red); color: var(--fg); }
+        .btn-purple { background-color: var(--purple); color: var(--bg-dark); }
+        .btn-orange { background-color: var(--orange); color: var(--bg-dark); }
+        
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .btn-group .btn {
+            flex: 1;
+        }
+        .btn-full {
+            width: 100%;
+        }
+
+        /* Search Results */
+        #search-results, #sibling-group-list {
+            background-color: var(--bg-med);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            /* UPDATED: Reduced height */
+            max-height: 120px;
+            overflow-y: auto;
+            padding: 0.25rem;
+        }
+        /* NEW: Added height for admin group builder */
+        #sibling-group-list, #admin-group-builder-list { min-height: 50px; }
+        .search-item, .sibling-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+        }
+        .search-item:hover {
+            background-color: var(--bg-light);
+        }
+        /* NEW: Style for group search results */
+        .search-item.group-result {
+            background-color: var(--bg-dark);
+            border-left: 3px solid var(--green);
+        }
+        .sibling-item {
+            background-color: var(--bg-dark);
+            margin: 0.25rem;
+        }
+        .search-item-actions { display: flex; gap: 4px; }
+        .search-item-actions .btn { padding: 4px 6px; font-size: 0.75rem; }
+        
+        /* Tables */
+        .table-container {
+            /* UPDATED: Increased height using viewport units */
+            max-height: 65vh;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid var(--border-color);
+            /* UPDATED: Reduced padding */
+            padding: 6px 8px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        th {
+            background-color: var(--bg-light);
+            font-weight: 600;
+            color: var(--aqua);
+            position: sticky; /* Sticky header for table */
+            top: 0;
+        }
+        tr:nth-child(even) {
+            background-color: #32302f;
+        }
+        /* Highlight style */
+        tr.highlighted, .highlighted {
+            background-color: var(--yellow) !important;
+            color: var(--bg-dark) !important;
+            font-weight: 600;
+        }
+        tr.highlighted code, .highlighted code {
+            color: var(--bg-dark);
+        }
+        td.actions-cell {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .action-btn {
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: var(--bg-dark);
+            font-size: 0.75rem;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-delete { background-color: var(--red); color: var(--fg); }
+        .btn-highlight { background-color: var(--yellow); }
+        .btn-note { background-color: var(--blue); }
+
+        /* Sibling Group List in Table */
+        .sibling-group-ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+        }
+        .sibling-group-ul li {
+            padding: 4px;
+            margin: 2px 0;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sibling-group-ul li.highlighted {
+            background-color: var(--yellow);
+            color: var(--bg-dark);
+        }
+        .sibling-group-ul li .actions-cell {
+            padding-left: 8px;
+            flex-shrink: 0; /* Prevent buttons from wrapping */
+        }
+        
+        /* Modals */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.75);
+            z-index: 20;
+            display: none; /* hidden */
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-box {
+            background-color: var(--bg-light);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 400px;
+        }
+        .modal-box h3 {
+            color: var(--fg);
+            margin-top: 0;
+        }
+        #modal-error {
+            color: var(--red);
+            font-size: 0.9rem;
+            display: none; /* hidden */
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        /* NEW: Admin Roster List */
+        #admin-roster-list-container {
+            background-color: var(--bg-med);
+        }
+        #admin-roster-list .roster-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            background-color: var(--bg-light);
+            margin: 0.25rem;
+        }
+        #admin-roster-list .roster-item:hover {
+            background-color: var(--bg-dark);
+        }
+        
+        /* Responsive - REMOVED */
+        /* @media (max-width: 900px) {
+            .grid-3 { grid-template-columns: 1fr; }
+        }
+        */
+        /* UPDATED: Roster list item actions */
+        .roster-item-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        /* NEW: Admin group builder search results */
+        #admin-group-search-results {
+            background-color: var(--bg-med);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            max-height: 100px;
+            overflow-y: auto;
+            padding: 0.25rem;
+        }
+        #admin-permanent-group-list {
+            background-color: var(--bg-med);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.25rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .permanent-group-item {
+             display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            background-color: var(--bg-light);
+            margin: 0.25rem;
+        }
+        .permanent-group-item ul {
+            font-size: 0.8rem;
+            color: var(--fg-gray);
+            padding-left: 1rem;
+            margin: 0.25rem 0 0 0;
+        }
+
     </style>
 </head>
-<body class="h-full font-sans gruvbox-dark">
+<body>
 
-    <div id="app" class="h-full flex items-center justify-center">
+    <!-- HEADER -->
+    <header>
+        <div class="header-content">
+            <h1>IT Admin Panel</h1>
+            <!-- NEW: Tabs -->
+            <div class="header-tabs">
+                <button id="queues-tab-btn" class="tab-btn active">Queues</button>
+                <button id="admin-tab-btn" class="tab-btn">Admin Panel</button>
+            </div>
+            <div id="auth-status">Connecting...</div>
+        </div>
+    </header>
 
-        <!-- Login Page -->
-        <div id="login-page" class="w-full max-w-md p-8 space-y-8 gruvbox-bg-soft rounded-lg shadow-lg">
-            <div>
-                <img class="mx-auto h-24 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Doral Academy Logo">
-                <h2 class="mt-6 text-center text-3xl font-extrabold gruvbox-header">Doral Academy Conferencing</h2>
-            </div>
-            <div class="space-y-6">
-                <div><input id="username" type="text" required class="relative block w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 gruvbox-input" placeholder="Username"></div>
-                <div id="password-container" class="hidden"><input id="password" type="password" class="relative block w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 gruvbox-input" placeholder="Password"></div>
-                <div><button id="join-btn" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 gruvbox-button">Join</button></div>
-                <p id="error-message" class="text-center text-sm text-red-400"></p>
-            </div>
-             <div class="mt-4 text-center text-xs gruvbox-text-faded">
-                <p>Created by Coach Prebeg</p>
-                <p>Version v1.22</p>
-            </div>
-        </div>
-
-        <!-- Waiting Lobby (for regular users) -->
-        <div id="lobby-page" class="hidden h-full w-full flex flex-col p-4">
-            <header class="flex-shrink-0 flex justify-between items-center p-4 border-b gruvbox-border">
-                <div class="flex items-center">
-                    <img class="h-12 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Doral Academy Logo">
-                    <h1 class="text-xl ml-4 font-bold gruvbox-header">Doral Academy Lobby</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <span class="gruvbox-text-light">Welcome, <span id="lobby-username" class="font-bold gruvbox-text-bright"></span>!</span>
-                    <button id="raise-hand-btn" class="text-xs px-3 py-1.5 rounded gruvbox-button-green text-white transition-colors"><i class="fas fa-hand-paper mr-1"></i> Raise Hand</button>
-                    <button id="logout-btn" class="text-xs px-3 py-1.5 rounded gruvbox-button-red text-white">Logout</button>
-                </div>
-            </header>
-            <div class="flex flex-grow min-h-0">
-                <div class="w-1/4 flex-shrink-0 p-4 border-r gruvbox-border overflow-y-auto"><h2 class="text-lg font-semibold mb-4 gruvbox-header">Active Users</h2><div id="user-list"></div></div>
-                <div class="w-3/4 flex flex-col p-4">
-                    <div id="chat-messages" class="flex-grow mb-4 p-4 gruvbox-bg-hard rounded-lg overflow-y-auto"></div>
-                    <div class="flex">
-                        <input id="chat-input" type="text" class="flex-grow px-3 py-2 rounded-l-md gruvbox-input" placeholder="Type a message...">
-                        <button id="send-chat-btn" class="px-4 py-2 rounded-r-md gruvbox-button">Send</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Admin Console -->
-        <div id="admin-console-page" class="hidden h-full w-full flex flex-col p-4">
-            <header class="flex-shrink-0 flex justify-between items-center p-4 border-b gruvbox-border">
-                <div class="flex items-center">
-                    <img class="h-12 w-auto" src="https://content.enrollmystudent.org/contact_school_logo/school_logo_1655490559.jpg" alt="Doral Academy Logo">
-                    <h1 class="text-xl ml-4 font-bold gruvbox-header">Doral Academy Admin Console</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <span class="gruvbox-text-light">Welcome, <span id="admin-username" class="font-bold text-yellow-400"></span>!</span>
-                    <button id="admin-logout-btn" class="text-xs px-3 py-1.5 rounded gruvbox-button-red text-white">Logout</button>
-                </div>
-            </header>
-            <div class="flex flex-grow min-h-0">
-                <div class="w-2/5 flex-shrink-0 p-4 border-r gruvbox-border overflow-y-auto"><h2 class="text-lg font-semibold mb-4 gruvbox-header">Users in Lobby</h2><div id="admin-user-list"></div></div>
-                <div class="w-3/5 flex flex-col p-4">
-                    <div class="flex-grow">
-                        <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-lg font-semibold gruvbox-header">Lobby Chat</h2>
-                            <button id="clear-chat-btn" class="text-xs px-3 py-1.5 rounded gruvbox-button-orange text-white">Clear Chat</button>
-                        </div>
-                        <div id="admin-chat-messages" class="h-1/2 mb-4 p-4 gruvbox-bg-hard rounded-lg overflow-y-auto"></div>
-                         <div class="flex">
-                            <input id="admin-chat-input" type="text" class="flex-grow px-3 py-2 rounded-l-md gruvbox-input" placeholder="Type a message...">
-                            <button id="admin-send-chat-btn" class="px-4 py-2 rounded-r-md gruvbox-button">Send</button>
-                        </div>
-                    </div>
-                    <div class="mt-4 pt-4 border-t gruvbox-border">
-                         <h2 class="text-lg font-semibold mb-4 gruvbox-header">Broadcast Message</h2>
-                         <p class="text-sm gruvbox-text-faded mb-2">Send an alert to all users in the lobby.</p>
-                         <div class="flex">
-                            <input id="broadcast-input" type="text" class="flex-grow px-3 py-2 rounded-l-md gruvbox-input" placeholder="Your announcement...">
-                            <button id="send-broadcast-btn" class="px-4 py-2 rounded-r-md gruvbox-button-green">Broadcast</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Video Call Room -->
-        <div id="video-call-page" class="hidden h-full w-full flex">
-            <div class="w-3/4 flex flex-col items-center justify-center p-4 relative">
-                <div class="relative w-full h-full flex items-center justify-center rounded-lg overflow-hidden gruvbox-bg-hard">
-                    <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
-                    <video id="local-video" autoplay playsinline muted class="absolute bottom-4 right-4 w-1/4 h-auto border-2 rounded-md shadow-lg gruvbox-border"></video>
-                </div>
-                 <div class="absolute top-4 left-4"><h2 class="text-2xl font-bold gruvbox-header">In Call With: <span id="call-partner-name"></span></h2></div>
-                <div id="call-timer" class="absolute top-4 right-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-md font-mono">00:00</div>
-                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center">
-                    <button id="toggle-mic-btn" class="call-control-button active"><i class="fas fa-microphone"></i></button>
-                    <button id="toggle-video-btn" class="call-control-button active"><i class="fas fa-video"></i></button>
-                    <button id="share-screen-btn" class="call-control-button"><i class="fas fa-desktop"></i></button>
-                    <button id="end-call-btn" class="w-auto py-3 px-6 rounded-md font-bold gruvbox-button-red text-white mx-2">End Call</button>
-                </div>
-            </div>
-            <div class="w-1/4 flex flex-col border-l gruvbox-border">
-                <div class="flex-grow flex flex-col p-4">
-                    <h3 class="text-xl font-semibold mb-4 text-center gruvbox-header">Chat</h3>
-                    <div id="video-chat-messages" class="flex-grow mb-4 p-2 gruvbox-bg-hard rounded-lg overflow-y-auto"></div>
-                    <div class="flex">
-                        <input id="video-chat-input" type="text" class="flex-grow px-3 py-2 rounded-l-md gruvbox-input" placeholder="Type a message...">
-                        <button id="send-video-chat-btn" class="px-4 py-2 rounded-r-md gruvbox-button">Send</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- MAIN CONTENT -->
+    <main class="container">
     
-    <!-- Modals -->
-    <div id="incoming-call-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-        <div class="gruvbox-bg-soft p-8 rounded-lg shadow-xl text-center">
-            <h2 class="text-2xl font-bold gruvbox-header mb-4">Incoming Call</h2>
-            <p class="text-lg gruvbox-text-light mb-6">You have an incoming call from <span id="incoming-call-from" class="font-bold gruvbox-text-bright"></span>.</p>
-            <div class="flex justify-center space-x-4">
-                <button id="accept-call-btn" class="px-6 py-2 rounded-md font-semibold text-white gruvbox-button-green">Accept</button>
-                <button id="reject-call-btn" class="px-6 py-2 rounded-md font-semibold text-white gruvbox-button-red">Reject</button>
+        <!-- 1. QUEUES VIEW (Original content) -->
+        <div id="queues-view">
+            <!-- 1. Add Student to Queue -->
+            <section class="section">
+                <h2>1. Add Student to Queue</h2>
+                <!-- UPDATED: Changed to grid-3 and restructured content -->
+                <div class="grid-3">
+                    <!-- Column 1: Search -->
+                    <div>
+                        <h3>Find Student</h3>
+                        <input type="text" id="search-input" placeholder="Type a student's name...">
+                        <div id="search-results">
+                            <p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">Start typing to see results...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Column 2: Manual Add -->
+                    <div>
+                        <h3>Manual Add</h3>
+                        <input type="text" id="manual-name-input" placeholder="Manual name (e.g., 'Visitor')">
+                        <div class="btn-group">
+                            <button id="manual-add-btn" class="btn btn-blue" data-queue="1">Pre-K-5</button>
+                            <button id="manual-add-btn-sib" class="btn btn-green" data-queue="2">6th-8th</button>
+                            <button id="manual-add-btn-walk" class="btn btn-gray" data-queue="3">Walk</button>
+                        </div>
+                    </div>
+
+                    <!-- Column 3: Group Add -->
+                    <div>
+                        <h3>Group Add</h3>
+                        <p style="font-size: 0.9rem; color: var(--fg-gray); margin-bottom: 0.5rem;">Click "Group" in search to build a group below.</p>
+                        <div id="sibling-group-list">
+                            <p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">No students staged.</p>
+                        </div>
+                        <button id="add-staged-group-btn" class="btn btn-green btn-full" style="margin-top: 1rem;">
+                            Add Group to Sibling Queue
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. Live Queues -->
+            <section class="section">
+                <h2>Live Queues</h2>
+                <div class="grid-3">
+                    <!-- K-5 Queue -->
+                    <div>
+                        <h3 style="color: var(--blue);">Pre-K thru Grade 5 <span id="q1-count">(0)</span></h3>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name (Grade)</th>
+                                        <th>Note</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="q1-table-body">
+                                    <tr><td colspan="3" style="text-align: center; color: var(--fg-gray);">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Siblings Queue -->
+                    <div>
+                        <h3 style="color: var(--green);">Siblings & 6th - 8th <span id="q2-count">(0)</span></h3>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Students</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="q2-table-body">
+                                    <tr><td colspan="2" style="text-align: center; color: var(--fg-gray);">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Walkers Queue -->
+                    <div>
+                        <h3 style="color: var(--fg-gray);">Walkers <span id="q3-count">(0)</span></h3>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name (Grade)</th>
+                                        <th>Note</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="q3-table-body">
+                                    <tr><td colspan="3" style="text-align: center; color: var(--fg-gray);">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 3. Picked Up List -->
+            <section class="section">
+                <!-- UPDATED: Removed the "Reset" button from here -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="color: var(--purple); margin: 0; border: none; padding: 0;">Picked Up <span id="pickedup-count">(0)</span></h2>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Grade</th>
+                                <th>Picked Up At</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pickedup-table-body">
+                            <tr><td colspan="4" style="text-align: center; color: var(--fg-gray);">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div> <!-- END of #queues-view -->
+
+        <!-- 2. NEW ADMIN VIEW -->
+        <div id="admin-view" style="display: none;">
+            <section class="section">
+                <h2>Admin Panel: Roster & Site Management</h2>
+                <!-- UPDATED: Changed to grid-3 -->
+                <div class="grid-3">
+                    <!-- Column 1: Add Student & Danger Zone -->
+                    <div>
+                        <h3>Add New Student to Roster</h3>
+                        <input type="text" id="admin-first-name" placeholder="First Name">
+                        <input type="text" id="admin-last-name" placeholder="Last Name">
+                        <input type="text" id="admin-grade" placeholder="Grade (e.g., 5, KG)">
+                        <button id="admin-add-student-btn" class="btn btn-blue btn-full">Add Student</button>
+                        
+                        <h3 style="margin-top: 2rem; color: var(--red);">Danger Zone</h3>
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            <button id="clear-all-btn" class="btn btn-red">Clear All 3 Queues</button>
+                            <button id="clear-pickedup-btn" class="btn btn-orange">Reset "Picked Up" List</button>
+                        </div>
+                    </div>
+                    <!-- Column 2: Roster List -->
+                    <div>
+                        <h3>Current Roster</h3>
+                        <div id="admin-roster-list-container" class="table-container" style="max-height: 480px;">
+                            <div id="admin-roster-list" style="padding: 0.25rem;">
+                                <p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">Loading roster...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- NEW: Column 3: Manage Groups -->
+                    <div>
+                        <h3>Manage Permanent Groups</h3>
+                        <input type="text" id="admin-group-name-input" placeholder="New Group Name (e.g., 'Smith Family')">
+                        
+                        <h4 style="font-size: 1rem; color: var(--fg-gray); margin-bottom: 0.5rem; margin-top: 1rem;">Build Group:</h4>
+                        <input type="text" id="admin-group-search-input" placeholder="Search roster to add student...">
+                        <div id="admin-group-search-results">
+                             <p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">Type above to find students...</p>
+                        </div>
+                        <div id="admin-group-builder-list" style="margin-top: 0.5rem;">
+                            <p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">No students staged for group.</p>
+                        </div>
+                        <button id="admin-save-group-btn" class="btn btn-green btn-full" style="margin-top: 0.5rem;">Save New Group</button>
+
+                        <h3 style="margin-top: 1.5rem;">Existing Groups</h3>
+                        <div id="admin-permanent-group-list-container" class="table-container" style="max-height: 230px;">
+                            <div id="admin-permanent-group-list">
+                                <p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">Loading groups...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div> <!-- END of #admin-view -->
+    
+    </main>
+    
+    <!-- PASSWORD MODAL -->
+    <div id="password-modal-backdrop" class="modal-backdrop">
+        <div id="password-modal-box" class="modal-box">
+            <h3>Enter Admin Password</h3>
+            <p id="password-modal-prompt" style="color: var(--fg-gray); margin-bottom: 1rem;">Please enter the admin password.</p>
+            
+            <input type="password" id="modal-password-input" placeholder="Password...">
+            <p id="modal-error">Incorrect password.</p>
+
+            <div class="modal-actions">
+                <button id="modal-cancel-btn" class="btn btn-gray">
+                    Cancel
+                </button>
+                <button id="modal-confirm-btn" class="btn btn-red">
+                    Confirm
+                </button>
             </div>
         </div>
     </div>
 
-    <div id="alert-modal" class="hidden fixed top-5 right-5 text-gray-900 px-6 py-4 rounded-lg shadow-lg z-50">
-        <strong id="alert-title" class="font-bold"></strong>
-        <span id="alert-message" class="block sm:inline ml-2"></span>
+    <!-- CONFIRMATION MODAL -->
+    <div id="confirmation-modal-backdrop" class="modal-backdrop">
+        <div id="confirmation-modal-box" class="modal-box">
+            <h3 id="confirmation-modal-title">Confirm Action</h3>
+            <p id="confirmation-modal-prompt" style="color: var(--fg-gray); margin-bottom: 1rem;">Are you sure?</p>
+            
+            <div class="modal-actions">
+                <button id="confirmation-modal-cancel-btn" class="btn btn-gray">
+                    Cancel
+                </button>
+                <button id="confirmation-modal-confirm-btn" class="btn btn-red">
+                    Confirm
+                </button>
+            </div>
+        </div>
     </div>
 
+    <!-- NEW: EDIT STUDENT MODAL -->
+    <div id="edit-student-modal-backdrop" class="modal-backdrop">
+        <div id="edit-student-modal-box" class="modal-box">
+            <h3>Edit Student</h3>
+            
+            <input type="hidden" id="modal-edit-student-id">
+            
+            <label for="modal-edit-first-name">First Name</label>
+            <input type="text" id="modal-edit-first-name" placeholder="First Name">
+            
+            <label for="modal-edit-last-name">Last Name</label>
+            <input type="text" id="modal-edit-last-name" placeholder="Last Name">
+            
+            <label for="modal-edit-grade">Grade</label>
+            <input type="text" id="modal-edit-grade" placeholder="Grade">
+            
+            <p id="modal-edit-error" style="color: var(--red); font-size: 0.9rem; display: none;">All fields are required.</p>
+
+            <div class="modal-actions">
+                <button id="modal-edit-cancel-btn" class="btn btn-gray">
+                    Cancel
+                </button>
+                <button id="modal-edit-save-btn" class="btn btn-blue">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase and App Logic -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getDatabase, ref, set, onValue, onDisconnect, serverTimestamp, remove, push, onChildAdded, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        // --- Firebase Imports ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            addDoc, 
+            deleteDoc, 
+            onSnapshot, 
+            collection, 
+            query, 
+            getDocs,
+            getDoc,
+            updateDoc,
+            serverTimestamp,
+            setLogLevel
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- Firebase Config (IDENTICAL to index.html) ---
         const firebaseConfig = {
-            apiKey: "AIzaSyBbTFLhxzXf08OVDGGsK54t3qDzPVvsJ3w", authDomain: "conferencedoral.firebaseapp.com", projectId: "conferencedoral", storageBucket: "conferencedoral.firebasestorage.app", messagingSenderId: "668062587354", appId: "1:668062587354:web:9b831842ada6ebf87148e3", measurementId: "G-HDJ-S9G2T2", databaseURL: "https://conferencedoral-default-rtdb.firebaseio.com/"
+          apiKey: "AIzaSyBbTFLhxzXf08OVDGGsK54t3qDzPVvsJ3w",
+          authDomain: "conferencedoral.firebaseapp.com",
+          databaseURL: "https://conferencedoral-default-rtdb.firebaseio.com",
+          projectId: "conferencedoral",
+          storageBucket: "conferencedoral.firebasestorage.app",
+          messagingSenderId: "668062587354",
+          appId: "1:668062587354:web:9b831842ada6ebf87148e3",
+          measurementId: "G-HDJ9S9G2T2"
         };
+        
+        // --- DOM Elements ---
+        const authStatus = document.getElementById('auth-status');
+        
+        // NEW: View Toggling
+        const queuesTabBtn = document.getElementById('queues-tab-btn');
+        const adminTabBtn = document.getElementById('admin-tab-btn');
+        const queuesView = document.getElementById('queues-view');
+        const adminView = document.getElementById('admin-view');
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getDatabase(app);
+        // Add Student Section
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
+        const manualNameInput = document.getElementById('manual-name-input');
+        const manualAddBtn = document.getElementById('manual-add-btn');
+        const manualAddBtnSib = document.getElementById('manual-add-btn-sib');
+        const manualAddBtnWalk = document.getElementById('manual-add-btn-walk');
+        const stagedList = document.getElementById('sibling-group-list');
+        const addStagedGroupBtn = document.getElementById('add-staged-group-btn');
 
-        // UI Elements
-        const loginPage = document.getElementById('login-page'), lobbyPage = document.getElementById('lobby-page'), videoCallPage = document.getElementById('video-call-page'), adminConsolePage = document.getElementById('admin-console-page');
-        const usernameInput = document.getElementById('username'), passwordInput = document.getElementById('password'), passwordContainer = document.getElementById('password-container');
-        const joinBtn = document.getElementById('join-btn'), errorMessage = document.getElementById('error-message');
-        const userListDiv = document.getElementById('user-list'), adminUserListDiv = document.getElementById('admin-user-list');
-        const lobbyUsername = document.getElementById('lobby-username'), adminUsername = document.getElementById('admin-username');
-        const chatMessagesDiv = document.getElementById('chat-messages'), chatInput = document.getElementById('chat-input'), sendChatBtn = document.getElementById('send-chat-btn');
-        const adminChatMessagesDiv = document.getElementById('admin-chat-messages'), adminChatInput = document.getElementById('admin-chat-input'), adminSendChatBtn = document.getElementById('admin-send-chat-btn');
-        const callPartnerName = document.getElementById('call-partner-name'), endCallBtn = document.getElementById('end-call-btn');
-        const localVideo = document.getElementById('local-video'), remoteVideo = document.getElementById('remote-video');
-        const incomingCallModal = document.getElementById('incoming-call-modal'), incomingCallFrom = document.getElementById('incoming-call-from'), acceptCallBtn = document.getElementById('accept-call-btn'), rejectCallBtn = document.getElementById('reject-call-btn');
-        const logoutBtn = document.getElementById('logout-btn'), adminLogoutBtn = document.getElementById('admin-logout-btn');
-        const toggleMicBtn = document.getElementById('toggle-mic-btn'), toggleVideoBtn = document.getElementById('toggle-video-btn'), shareScreenBtn = document.getElementById('share-screen-btn');
-        const broadcastInput = document.getElementById('broadcast-input'), sendBroadcastBtn = document.getElementById('send-broadcast-btn');
-        const alertModal = document.getElementById('alert-modal'), alertTitle = document.getElementById('alert-title'), alertMessage = document.getElementById('alert-message');
-        const clearChatBtn = document.getElementById('clear-chat-btn');
-        const callTimerDiv = document.getElementById('call-timer');
-        const raiseHandBtn = document.getElementById('raise-hand-btn');
+        // Queues
+        const q1TableBody = document.getElementById('q1-table-body');
+        const q2TableBody = document.getElementById('q2-table-body');
+        const q3TableBody = document.getElementById('q3-table-body');
+        const q1Count = document.getElementById('q1-count');
+        const q2Count = document.getElementById('q2-count');
+        const q3Count = document.getElementById('q3-count');
 
-        let currentUser = null, currentUsername = '', isAdmin = false, localStream, remoteStream, peerConnection, callPartnerUid, callPartnerUsername, callRef;
-        let unsubscribeMyStatusListener = null, screenTrack = null, callTimerInterval = null, handRaised = false, unsubscribeLobbyChatListener = null, unsubscribeLobbyChatClearListener = null;
+        // Picked Up DOM Elements
+        const pickedUpTableBody = document.getElementById('pickedup-table-body');
+        const pickedUpCount = document.getElementById('pickedup-count');
+        
+        // NEW: Admin Panel DOM
+        const adminRosterList = document.getElementById('admin-roster-list');
+        const adminAddStudentBtn = document.getElementById('admin-add-student-btn');
+        const adminFirstName = document.getElementById('admin-first-name');
+        const adminLastName = document.getElementById('admin-last-name');
+        const adminGrade = document.getElementById('admin-grade');
+        const clearAllBtn = document.getElementById('clear-all-btn'); // New button
+        const clearPickedUpBtn = document.getElementById('clear-pickedup-btn'); // Moved button
 
-        const configuration = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] };
+        // NEW: Admin Group Management DOM
+        const adminGroupNameInput = document.getElementById('admin-group-name-input');
+        const adminGroupSearchInput = document.getElementById('admin-group-search-input');
+        const adminGroupSearchResults = document.getElementById('admin-group-search-results');
+        const adminGroupBuilderList = document.getElementById('admin-group-builder-list');
+        const adminSaveGroupBtn = document.getElementById('admin-save-group-btn');
+        const adminPermanentGroupList = document.getElementById('admin-permanent-group-list');
 
-        // --- Login ---
-        usernameInput.addEventListener('input', () => {
-            const adminUsernames = ['max', 'kelly', 'doral'];
-            passwordContainer.style.display = adminUsernames.includes(usernameInput.value.toLowerCase()) ? 'block' : 'none';
-        });
+        // NEW: Edit Student Modal DOM
+        const editStudentModalBackdrop = document.getElementById('edit-student-modal-backdrop');
+        const modalEditStudentId = document.getElementById('modal-edit-student-id');
+        const modalEditFirstName = document.getElementById('modal-edit-first-name');
+        const modalEditLastName = document.getElementById('modal-edit-last-name');
+        const modalEditGrade = document.getElementById('modal-edit-grade');
+        const modalEditError = document.getElementById('modal-edit-error');
+        const modalEditCancelBtn = document.getElementById('modal-edit-cancel-btn');
+        const modalEditSaveBtn = document.getElementById('modal-edit-save-btn');
 
-        joinBtn.addEventListener('click', async () => {
-            const usernameRaw = usernameInput.value.trim(); const username = usernameRaw.toLowerCase(); const password = passwordInput.value; errorMessage.textContent = ''; if (!usernameRaw) { errorMessage.textContent = 'Please enter a username.'; return; }
-            const adminUsernames = ['max', 'kelly', 'doral'];
-            if (adminUsernames.includes(username)) {
-                if (password !== 'runfast') { errorMessage.textContent = 'Incorrect password for admin.'; return; }
-                isAdmin = true; currentUsername = username.charAt(0).toUpperCase() + username.slice(1);
-            } else { isAdmin = false; currentUsername = usernameRaw; }
+        // Modals
+        const passwordModalBackdrop = document.getElementById('password-modal-backdrop');
+        const passwordModalPrompt = document.getElementById('password-modal-prompt');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+        const modalPasswordInput = document.getElementById('modal-password-input');
+        const modalError = document.getElementById('modal-error');
+        
+        const confirmationModalBackdrop = document.getElementById('confirmation-modal-backdrop');
+        const confirmationModalTitle = document.getElementById('confirmation-modal-title');
+        const confirmationModalPrompt = document.getElementById('confirmation-modal-prompt');
+        const confirmationModalCancelBtn = document.getElementById('confirmation-modal-cancel-btn');
+        const confirmationModalConfirmBtn = document.getElementById('confirmation-modal-confirm-btn');
+
+        // --- App State ---
+        let passwordModalAction = null; 
+        let confirmationModalAction = null;
+        let stagedSiblingGroup = []; 
+        let currentRoster = []; 
+        let stagedForGroupBuilding = []; // NEW: For admin group builder
+        let currentPermanentGroups = []; // NEW: To hold permanent groups
+        
+        // --- Firebase Globals ---
+        let app, auth, db, userId;
+        let q1ColRef, q2ColRef, q3ColRef, rosterColRef, pickedupColRef;
+        let permanentGroupsColRef; // NEW
+        const appId = firebaseConfig.projectId || 'default-carline-app';
+
+        // --- Collection Names ---
+        const Q1_COLLECTION = 'queue_k5';
+        const Q2_COLLECTION = 'queue_siblings';
+        const Q3_COLLECTION = 'queue_walkers';
+        const PICKEDUP_COLLECTION = 'queue_pickedup';
+        const ROSTER_COLLECTION = 'ROSTER';
+        const PERMANENT_GROUPS_COLLECTION = 'permanent_groups'; // NEW
+
+        // --- Utility Functions ---
+        
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return '...';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        
+        function sanitize(str) {
+            if (!str) return "";
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        }
+
+        // --- Render Functions ---
+
+        function renderSearchResults(students, groups) {
+            let html = '';
+
+            // Render groups first
+            if (groups.length > 0) {
+                html += groups.map(group => {
+                    return `
+                    <div class="search-item group-result">
+                        <div>
+                            <span style="font-weight: 500;">${sanitize(group.groupName)}</span>
+                            <span style="color: var(--fg-gray); font-size: 0.8rem; margin-left: 4px;">(Permanent Group)</span>
+                        </div>
+                        <div class="search-item-actions">
+                            <button class="btn btn-green" data-action="add-permanent-group" data-group-id="${group.id}">Add to Sibling Queue</button>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+
+            // Render individual students
+            if (students.length > 0) {
+                html += students.map(student => {
+                    const fullName = `${student.firstName} ${student.lastName}`;
+                    return `
+                    <div class="search-item">
+                        <div>
+                            <span style="font-weight: 500;">${fullName}</span>
+                            <span style="color: var(--fg-gray); font-size: 0.8rem; margin-left: 4px;">(Gr: ${student.grade})</span>
+                        </div>
+                        <div class="search-item-actions">
+                            <button class="btn btn-blue" data-queue="1" data-name="${fullName}" data-grade="${student.grade}">K-5</button>
+                            <button class="btn btn-green" data-queue="2" data-name="${fullName}" data-grade="${student.grade}">6-8</button>
+                            <button class="btn btn-gray" data-queue="3" data-name="${fullName}" data-grade="${student.grade}">Walk</button>
+                            <button class="btn btn-purple" data-action="stage-group" data-name="${fullName}" data-grade="${student.grade}">Group</button>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+
+            if (html === '') {
+                searchResults.innerHTML = `<p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">No students or groups found.</p>`;
+                return;
+            }
+            
+            searchResults.innerHTML = html;
+        }
+
+        function renderStagedGroup() {
+            if (stagedSiblingGroup.length === 0) {
+                stagedList.innerHTML = `<p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">No students staged.</p>`;
+                return;
+            }
+            stagedList.innerHTML = stagedSiblingGroup.map((student, index) => {
+                return `
+                <div class="sibling-item">
+                    <span style="font-weight: 500;">${student.name} (Gr: ${student.grade})</span>
+                    <button class="remove-staged-btn" data-index="${index}" title="Remove" style="background: none; border: none; color: var(--red); cursor: pointer;">
+                        <svg class="w-4 h-4" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                `;
+            }).join('');
+        }
+        
+        // NEW: Render for admin group builder
+        function renderGroupBuilderList() {
+            if (stagedForGroupBuilding.length === 0) {
+                adminGroupBuilderList.innerHTML = `<p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">No students staged for group.</p>`;
+                return;
+            }
+            adminGroupBuilderList.innerHTML = stagedForGroupBuilding.map((student, index) => {
+                const fullName = `${student.firstName} ${student.lastName}`;
+                return `
+                <div class="sibling-item">
+                    <span style="font-weight: 500;">${fullName} (Gr: ${student.grade})</span>
+                    <button class="remove-staged-builder-btn" data-index="${index}" title="Remove" style="background: none; border: none; color: var(--red); cursor: pointer;">
+                        <svg class="w-4 h-4" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function renderQueueTable(tableBodyEl, countEl, queueName, docs) {
+            docs.sort((a, b) => (a.addedAt?.seconds || 0) - (b.addedAt?.seconds || 0));
+            countEl.textContent = `(${docs.length})`;
+            
+            if (docs.length === 0) {
+                tableBodyEl.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--fg-gray);">Queue is empty.</td></tr>`;
+                return;
+            }
+            
+            tableBodyEl.innerHTML = docs.map(student => {
+                const highlightClass = student.isHighlighted ? 'highlighted' : '';
+                return `
+                <tr class="${highlightClass}">
+                    <td>${sanitize(student.name)} (${sanitize(student.grade)})</td>
+                    <td>${sanitize(student.note)}</td>
+                    <td class="actions-cell">
+                        <button class="action-btn btn-highlight" 
+                                data-action="highlight" 
+                                data-id="${student.id}"
+                                data-queue="${queueName}">
+                            H
+                        </button>
+                        <button class="action-btn btn-note" 
+                                data-action="add-note" 
+                                data-id="${student.id}"
+                                data-queue="${queueName}">
+                            Note
+                        </button>
+                        <button class="action-btn btn-delete" 
+                                data-action="dismiss-queue" 
+                                data-id="${student.id}"
+                                data-queue="${queueName}">
+                            Dismiss
+                        </button>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+        }
+
+        function renderSiblingTable(docs) {
+            docs.sort((a, b) => (a.addedAt?.seconds || 0) - (b.addedAt?.seconds || 0));
+            
+            let studentCount = docs.reduce((count, doc) => {
+                return count + (doc.isGroup ? doc.students.length : 1);
+            }, 0);
+            q2Count.textContent = `(${studentCount})`;
+            
+            if (docs.length === 0) {
+                q2TableBody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: var(--fg-gray);">Queue is empty.</td></tr>`;
+                return;
+            }
+            
+            q2TableBody.innerHTML = docs.map(student => {
+                let studentHtml = '';
+                if (student.isGroup) {
+                    studentHtml = '<strong style="color: var(--green);">GROUP:</strong><ul class="sibling-group-ul">' + 
+                                  student.students.map((s, index) => {
+                                      const highlightClass = s.isHighlighted ? 'highlighted' : '';
+                                      const noteHtml = s.note ? ` <i style="color: var(--blue); font-size: 0.8rem;">(${sanitize(s.note)})</i>` : '';
+                                      return `<li class="${highlightClass}">
+                                          <span>${sanitize(s.name)} (${sanitize(s.grade)})${noteHtml}</span>
+                                          <span class="actions-cell">
+                                              <button class="action-btn btn-highlight" 
+                                                      data-action="highlight-group-student"
+                                                      data-id="${student.id}"
+                                                      data-queue="${Q2_COLLECTION}"
+                                                      data-index="${index}">
+                                                  H
+                                              </button>
+                                              <button class="action-btn btn-note" 
+                                                      data-action="add-note-group"
+                                                      data-id="${student.id}"
+                                                      data-queue="${Q2_COLLECTION}"
+                                                      data-index="${index}">
+                                                  Note
+                                              </button>
+                                              <button class="action-btn btn-delete" 
+                                                      data-action="dismiss-group-student"
+                                                      data-id="${student.id}"
+                                                      data-queue="${Q2_COLLECTION}"
+                                                      data-index="${index}">
+                                                  X
+                                              </button>
+                                          </span>
+                                        </li>`;
+                                    }
+                                  ).join('') + '</ul>';
+                } else {
+                    const highlightClass = student.isHighlighted ? 'highlighted' : '';
+                    const noteHtml = student.note ? ` <i style="color: var(--blue); font-size: 0.8rem;">(${sanitize(student.note)})</i>` : '';
+                    studentHtml = `<span class="${highlightClass}">${sanitize(student.name)} (${sanitize(student.grade)})${noteHtml}</span>`;
+                }
+                
+                return `
+                <tr>
+                    <td>${studentHtml}</td>
+                    <td class="actions-cell">
+                        ${!student.isGroup ? `
+                        <button class="action-btn btn-highlight" 
+                                data-action="highlight" 
+                                data-id="${student.id}"
+                                data-queue="${Q2_COLLECTION}">
+                            H
+                        </button>
+                        <button class="action-btn btn-note" 
+                                data-action="add-note" 
+                                data-id="${student.id}"
+                                data-queue="${Q2_COLLECTION}">
+                            Note
+                        </button>
+                        ` : ''}
+                        <button class="action-btn btn-delete" 
+                                data-action="dismiss-queue" 
+                                data-id="${student.id}"
+                                data-queue="${Q2_COLLECTION}"
+                                title="Dismiss Entire Group/Student">
+                            Dismiss All
+                        </button>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+        }
+
+        function renderPickedUpTable(docs) {
+            docs.sort((a, b) => (b.pickedUpAt?.seconds || 0) - (a.pickedUpAt?.seconds || 0));
+            pickedUpCount.textContent = `(${docs.length})`;
+            
+            if (docs.length === 0) {
+                pickedUpTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--fg-gray);">No students picked up.</td></tr>`;
+                return;
+            }
+            
+            pickedUpTableBody.innerHTML = docs.map(student => {
+                return `
+                <tr>
+                    <td>${sanitize(student.name)}</td>
+                    <td>${sanitize(student.grade)}</td>
+                    <td>${formatTimestamp(student.pickedUpAt)}</td>
+                    <td>
+                        <button class="action-btn btn-delete" 
+                                data-action="remove-pickedup" 
+                                data-id="${student.id}"
+                                data-name="${sanitize(student.name)}">
+                            Remove
+                        </button>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+        }
+        
+        /**
+         * NEW: Renders the Admin Roster Management list.
+         * @param {Array} roster - Array of student objects from the 'ROSTER' collection.
+         */
+        function renderAdminRoster(roster) {
+            if (roster.length === 0) {
+                adminRosterList.innerHTML = `<p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">Roster is empty.</p>`;
+                return;
+            }
+            adminRosterList.innerHTML = roster.map(student => {
+                return `
+                <div class="roster-item">
+                    <div>
+                        <span style="font-weight: 500;">${sanitize(student.firstName)} ${sanitize(student.lastName)}</span>
+                        <span style="color: var(--fg-gray); font-size: 0.8rem; margin-left: 4px;">(Gr: ${student.grade})</span>
+                    </div>
+                    <div class="roster-item-actions">
+                        <!-- NEW: Edit Button -->
+                        <button class="action-btn btn-blue" data-action="edit-roster-student" data-id="${student.id}">
+                            Edit
+                        </button>
+                        <button class="action-btn btn-delete" data-action="delete-roster-student" data-id="${student.id}">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // NEW: Render the list of permanent groups in admin panel
+        function renderPermanentGroups(groups) {
+            if (groups.length === 0) {
+                adminPermanentGroupList.innerHTML = `<p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">No permanent groups found.</p>`;
+                return;
+            }
+            adminPermanentGroupList.innerHTML = groups.map(group => {
+                // Find student names from currentRoster
+                const studentNames = group.students.map(studentId => {
+                    const student = currentRoster.find(s => s.id === studentId);
+                    return student ? `${student.firstName} ${student.lastName}` : 'Unknown Student';
+                });
+
+                return `
+                <div class="permanent-group-item">
+                    <div>
+                        <span style="font-weight: 500;">${sanitize(group.groupName)}</span>
+                        <ul>
+                            ${studentNames.map(name => `<li>${sanitize(name)}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <button class="action-btn btn-delete" data-action="delete-permanent-group" data-id="${group.id}">
+                        Delete
+                    </button>
+                </div>
+                `;
+            }).join('');
+        }
+
+
+        // --- Firebase Actions ---
+
+        async function addStudentToQueue(queueNum, name, grade) {
+            let collection;
+            if (queueNum == 1) collection = q1ColRef;
+            else if (queueNum == 2) collection = q2ColRef;
+            else if (queueNum == 3) collection = q3ColRef;
+            else return;
+
             try {
-                const userCredential = await signInAnonymously(auth); currentUser = userCredential.user; if(isAdmin) showAdminConsole(); else showLobby();
-            } catch (error) { console.error("Error signing in:", error); errorMessage.textContent = 'Could not join the lobby.'; }
-        });
+                await addDoc(collection, {
+                    name: name,
+                    grade: grade,
+                    addedAt: serverTimestamp(),
+                    addedBy: userId,
+                    isHighlighted: false,
+                    note: ""
+                });
+            } catch (error) {
+                console.error("Error adding student: ", error);
+            }
+        }
 
-        // --- Page Navigation & Utils ---
-        const showPage = (pageToShow) => { [loginPage, lobbyPage, videoCallPage, adminConsolePage].forEach(p => p.classList.add('hidden')); pageToShow.classList.remove('hidden'); };
-        function showLobby() { showPage(lobbyPage); lobbyUsername.textContent = currentUsername; setupPresence(); listenForLobbyMessages(); listenForIncomingCalls(); listenForAlerts(); }
-        function showAdminConsole() { showPage(adminConsolePage); adminUsername.textContent = currentUsername; setupPresence(); listenForLobbyMessages(); }
-        function showVideoCallPage(partnerName) { callPartnerName.textContent = partnerName; showPage(videoCallPage); }
+        async function addGroupToQueue(studentGroup) {
+            if (studentGroup.length === 0) return;
+
+            const studentsForFirestore = studentGroup.map(student => ({
+                name: student.name,
+                grade: student.grade,
+                isHighlighted: false,
+                note: ""
+            }));
+
+            try {
+                await addDoc(q2ColRef, {
+                    isGroup: true,
+                    students: studentsForFirestore,
+                    addedAt: serverTimestamp(),
+                    addedBy: userId
+                });
+                
+                stagedSiblingGroup = [];
+                renderStagedGroup();
+            } catch (error) {
+                console.error("Error adding group to queue: ", error);
+            }
+        }
+
+        // NEW: Add group from permanent group definition
+        async function addPermanentGroupToQueue(groupId) {
+            const group = currentPermanentGroups.find(g => g.id === groupId);
+            if (!group) return;
+
+            // Map student IDs to student objects from the roster
+            const studentGroup = group.students.map(studentId => {
+                const student = currentRoster.find(s => s.id === studentId);
+                if (!student) return null;
+                return {
+                    name: `${student.firstName} ${student.lastName}`,
+                    grade: student.grade
+                };
+            }).filter(s => s !== null); // Filter out any nulls if a student was deleted
+
+            if (studentGroup.length > 0) {
+                // Use the existing addGroupToQueue function, but pass the resolved student data
+                // This re-uses the logic for creating the group in queue_siblings
+                 await addDoc(q2ColRef, {
+                    isGroup: true,
+                    students: studentGroup.map(s => ({ ...s, isHighlighted: false, note: "" })),
+                    addedAt: serverTimestamp(),
+                    addedBy: userId
+                });
+            }
+        }
+
+        async function dismissStudent(queueName, docId) {
+            try {
+                const docRef = doc(db, `/artifacts/${appId}/public/data/${queueName}/${docId}`);
+                const studentDoc = await getDoc(docRef);
+                
+                if (studentDoc.exists()) {
+                    const studentData = studentDoc.data();
+                    
+                    if (studentData.isGroup) {
+                        const addPromises = studentData.students.map(student => {
+                            return addDoc(pickedupColRef, {
+                                name: student.name,
+                                grade: student.grade,
+                                pickedUpAt: serverTimestamp(),
+                                addedBy: userId
+                            });
+                        });
+                        await Promise.all(addPromises);
+                    } else {
+                        await addDoc(pickedupColRef, {
+                            name: studentData.name,
+                            grade: studentData.grade,
+                            pickedUpAt: serverTimestamp(),
+                            addedBy: userId
+                        });
+                    }
+                    await deleteDoc(docRef);
+                }
+            } catch (error) {
+                console.error("Error dismissing student: ", error);
+            }
+        }
+
+        async function dismissGroupStudent(queueName, docId, studentIndex) {
+            try {
+                const docRef = doc(db, `/artifacts/${appId}/public/data/${queueName}/${docId}`);
+                const studentDoc = await getDoc(docRef);
+
+                if (!studentDoc.exists()) return;
+
+                let students = studentDoc.data().students;
+                const studentToDismiss = students[studentIndex];
+
+                if (!studentToDismiss) return;
+
+                await addDoc(pickedupColRef, {
+                    name: studentToDismiss.name,
+                    grade: studentToDismiss.grade,
+                    pickedUpAt: serverTimestamp(),
+                    addedBy: userId
+                });
+
+                students.splice(studentIndex, 1);
+
+                if (students.length === 0) {
+                    await deleteDoc(docRef);
+                } else {
+                    await updateDoc(docRef, { students: students });
+                }
+            } catch (error) {
+                console.error("Error dismissing group student: ", error);
+            }
+        }
+
+        async function clearPickedUpList() {
+            try {
+                const snapshot = await getDocs(pickedupColRef);
+                const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+                await Promise.all(deletePromises);
+            } catch (error) {
+                console.error("Error clearing picked up list: ", error);
+            }
+        }
         
-        function showAlert(title, message, type = 'broadcast') {
-            alertTitle.textContent = title; alertMessage.textContent = message;
-            alertModal.className = 'hidden fixed top-5 right-5 text-gray-900 px-6 py-4 rounded-lg shadow-lg z-50'; // Reset classes
-            if (type === 'whisper') { alertModal.classList.add('bg-purple-400'); } else { alertModal.classList.add('bg-yellow-500', 'animate-pulse');}
-            alertModal.classList.remove('hidden'); setTimeout(() => alertModal.classList.add('hidden'), 5000);
-        }
-
-        function logout() {
-            endCall(false); 
-            if (unsubscribeMyStatusListener) { unsubscribeMyStatusListener(); unsubscribeMyStatusListener = null; }
-            if (unsubscribeLobbyChatListener) { unsubscribeLobbyChatListener(); unsubscribeLobbyChatListener = null; }
-            if (unsubscribeLobbyChatClearListener) { unsubscribeLobbyChatClearListener(); unsubscribeLobbyChatClearListener = null; }
-            if (currentUser) { remove(ref(db, 'status/' + currentUser.uid)); }
-            currentUser = null; currentUsername = ''; isAdmin = false;
-            usernameInput.value = ''; passwordInput.value = ''; passwordContainer.style.display = 'none'; errorMessage.textContent = '';
-            showPage(loginPage);
-        }
-        logoutBtn.addEventListener('click', logout);
-        adminLogoutBtn.addEventListener('click', logout);
-
-        // --- Presence & User List ---
-        function setupPresence() {
-            if (!currentUser) return;
-            listenForUsers(); 
-            const myStatusRef = ref(db, 'status/' + currentUser.uid); onDisconnect(myStatusRef).remove();
-            set(myStatusRef, { username: currentUsername, isAdmin, online: true, last_changed: serverTimestamp(), callStatus: 'available', handRaised: false }).catch(error => console.error("Failed to set initial presence:", error));
-            unsubscribeMyStatusListener = onValue(myStatusRef, (snapshot) => { if (!snapshot.exists() && currentUser) { logout(); } });
-        }
-        
-        function listenForUsers() {
-            const statusRef = ref(db, 'status');
-            onValue(statusRef, (snapshot) => {
-                const users = snapshot.val();
-                const targetList = isAdmin ? adminUserListDiv : userListDiv;
-                targetList.innerHTML = '';
-                if (users) {
-                    Object.keys(users).forEach(uid => {
-                        const user = users[uid];
-                        const isCurrentUser = uid === currentUser.uid;
-
-                        if (user.online) {
-                            const userElement = document.createElement('div');
-                            userElement.className = `p-2 my-1 rounded-md flex justify-between items-center gruvbox-bg-hard`;
-                            let statusIndicator = user.callStatus === 'in-call' ? 'in-call' : (user.callStatus === 'ringing' ? 'ringing' : 'available');
-                            let statusText = user.callStatus === 'in-call' ? 'In Call' : (user.callStatus === 'ringing' ? 'Ringing' : 'Available');
-                            let handIcon = user.handRaised ? '<i class="fas fa-hand-paper text-yellow-400 ml-2"></i>' : '';
-
-                            let userHtml = `
-                                <div class="flex items-center">
-                                    <span class="status-dot status-${statusIndicator}"></span>
-                                    <div>
-                                        <span class="font-medium ${user.isAdmin ? 'text-yellow-400' : 'gruvbox-text-light'}">${user.username}${isCurrentUser ? ' (You)' : ''}${user.isAdmin && !isCurrentUser ? ' (Admin)' : ''}${handIcon}</span>
-                                        <p class="text-xs gruvbox-text-faded">${statusText}</p>
-                                    </div>
-                                </div>`;
-                            
-                            // MODIFIED: Admin can now see controls for all other users, including other admins.
-                            if (isAdmin && !isCurrentUser) {
-                                userHtml += `
-                                    <div class="flex space-x-1">
-                                        <button data-uid="${uid}" class="msg-btn text-xs px-2 py-1 rounded gruvbox-button-green">Msg</button>
-                                        <button data-uid="${uid}" data-username="${user.username}" class="call-btn text-xs px-2 py-1 rounded gruvbox-button" ${user.callStatus !== 'available' ? 'disabled' : ''}>Call</button>
-                                        <button data-uid="${uid}" class="kick-btn text-xs px-2 py-1 rounded gruvbox-button-red">Kick</button>
-                                    </div>`;
-                            }
-                            userElement.innerHTML = userHtml; targetList.appendChild(userElement);
-                        }
+        /**
+         * NEW: Clears all documents from all three queues.
+         */
+        async function clearAllQueues() {
+            console.log("Clearing all queues...");
+            const collectionsToClear = [q1ColRef, q2ColRef, q3ColRef];
+            try {
+                const deletePromises = [];
+                for (const colRef of collectionsToClear) {
+                    const snapshot = await getDocs(colRef);
+                    snapshot.docs.forEach(doc => {
+                        deletePromises.push(deleteDoc(doc.ref));
                     });
-                    if (isAdmin) {
-                        document.querySelectorAll('.call-btn').forEach(btn => btn.onclick = () => initiateCall(btn.dataset.uid, btn.dataset.username));
-                        document.querySelectorAll('.kick-btn').forEach(btn => btn.onclick = () => kickUser(btn.dataset.uid));
-                        document.querySelectorAll('.msg-btn').forEach(btn => btn.onclick = () => sendWhisper(btn.dataset.uid));
+                }
+                await Promise.all(deletePromises);
+                console.log("All queues cleared.");
+            } catch (error) {
+                console.error("Error clearing all queues: ", error);
+            }
+        }
+
+        async function removePickedUpStudent(docId) {
+            try {
+                const docRef = doc(db, pickedupColRef.path, docId);
+                await deleteDoc(docRef);
+            } catch (error) {
+                console.error("Error removing picked up student: ", error);
+            }
+        }
+        
+        async function toggleHighlight(queueName, docId) {
+            try {
+                const docRef = doc(db, `/artifacts/${appId}/public/data/${queueName}/${docId}`);
+                const studentDoc = await getDoc(docRef);
+                if (studentDoc.exists()) {
+                    const currentHighlight = studentDoc.data().isHighlighted || false;
+                    await updateDoc(docRef, { isHighlighted: !currentHighlight });
+                }
+            } catch (error) {
+                console.error("Error toggling highlight: ", error);
+            }
+        }
+
+        async function toggleGroupStudentHighlight(queueName, docId, studentIndex) {
+            try {
+                const docRef = doc(db, `/artifacts/${appId}/public/data/${queueName}/${docId}`);
+                const studentDoc = await getDoc(docRef);
+
+                if (studentDoc.exists()) {
+                    const studentData = studentDoc.data();
+                    const students = studentData.students;
+                    
+                    if (students && students[studentIndex]) {
+                        students[studentIndex].isHighlighted = !students[studentIndex].isHighlighted;
+                    }
+                    
+                    await updateDoc(docRef, { students: students });
+                }
+            } catch (error) {
+                console.error("Error toggling group student highlight: ", error);
+            }
+        }
+        
+        async function updateStudentNote(queueName, docId, studentIndex, currentNote) {
+            const newNote = prompt("Enter note (or leave blank to clear):", currentNote);
+            
+            if (newNote === null) {
+                return;
+            }
+            
+            try {
+                const docRef = doc(db, `/artifacts/${appId}/public/data/${queueName}/${docId}`);
+                
+                if (studentIndex === null || studentIndex === undefined) {
+                    await updateDoc(docRef, { note: newNote.trim() });
+                } else {
+                    const studentDoc = await getDoc(docRef);
+                    if (studentDoc.exists()) {
+                        const studentData = studentDoc.data();
+                        const students = studentData.students;
+                        
+                        if (students && students[studentIndex]) {
+                            students[studentIndex].note = newNote.trim();
+                        }
+                        
+                        await updateDoc(docRef, { students: students });
                     }
                 }
-            });
+            } catch (error) {
+                console.error("Error updating note: ", error);
+            }
+        }
+
+        /**
+         * NEW: Adds a student to the main ROSTER.
+         */
+        async function addRosterStudent(firstName, lastName, grade) {
+            try {
+                await addDoc(rosterColRef, {
+                    firstName: firstName,
+                    lastName: lastName,
+                    grade: grade
+                });
+                // Clear fields
+                adminFirstName.value = '';
+                adminLastName.value = '';
+                adminGrade.value = '';
+            } catch (error) {
+                console.error("Error adding student to roster: ", error);
+            }
+        }
+
+        /**
+         * NEW: Updates a student in the main ROSTER.
+         */
+        async function updateRosterStudent(docId, firstName, lastName, grade) {
+            try {
+                const docRef = doc(db, rosterColRef.path, docId);
+                await updateDoc(docRef, {
+                    firstName: firstName,
+                    lastName: lastName,
+                    grade: grade
+                });
+            } catch (error) {
+                console.error("Error updating roster student: ", error);
+            }
+        }
+
+        /**
+         * NEW: Deletes a single student from the main ROSTER.
+         * @param {string} docId - The Firestore document ID.
+         */
+        async function deleteRosterStudent(docId) {
+             console.log(`Deleting roster student: ${docId}`);
+             try {
+                await deleteDoc(doc(db, rosterColRef.path, docId));
+                console.log("Student deleted from roster.");
+            } catch (error) {
+                console.error("Error deleting student: ", error);
+            }
+        }
+
+        /**
+         * NEW: Saves a new permanent group to Firestore.
+         */
+        async function savePermanentGroup(groupName, studentIds) {
+            if (!groupName || studentIds.length < 2) {
+                console.warn("Group must have a name and at least 2 students.");
+                return;
+            }
+            try {
+                await addDoc(permanentGroupsColRef, {
+                    groupName: groupName,
+                    students: studentIds // Array of roster doc IDs
+                });
+                // Clear builder
+                adminGroupNameInput.value = '';
+                stagedForGroupBuilding = [];
+                renderGroupBuilderList();
+            } catch (error) {
+                console.error("Error saving permanent group: ", error);
+            }
+        }
+
+        /**
+         * NEW: Deletes a permanent group from Firestore.
+         */
+        async function deletePermanentGroup(docId) {
+            console.log(`Deleting permanent group: ${docId}`);
+            try {
+                await deleteDoc(doc(db, permanentGroupsColRef.path, docId));
+                console.log("Permanent group deleted.");
+            } catch (error) {
+                console.error("Error deleting permanent group: ", error);
+            }
+        }
+
+
+        // --- Modal Functions ---
+        
+        function openPasswordModal(action, promptText, colorClass) {
+            passwordModalAction = action;
+            passwordModalPrompt.textContent = promptText;
+            
+            modalConfirmBtn.className = "btn"; // Reset
+            modalConfirmBtn.classList.add(colorClass);
+
+            modalPasswordInput.value = '';
+            modalError.style.display = 'none';
+            passwordModalBackdrop.style.display = 'flex';
+            modalPasswordInput.focus();
         }
         
-        // --- Chat, Admin Controls, & QoL ---
-        const sendLobbyMessage = () => { const text = isAdmin ? adminChatInput.value.trim() : chatInput.value.trim(); if (text && currentUser) { push(ref(db, 'lobby-chat'), { uid: currentUser.uid, username: currentUsername, isAdmin, text, timestamp: serverTimestamp() }); if(isAdmin) adminChatInput.value = ''; else chatInput.value = ''; } };
+        function closePasswordModal() {
+            passwordModalBackdrop.style.display = 'none';
+            passwordModalAction = null;
+        }
+
+        // NEW: Edit Student Modal Functions
+        function openEditStudentModal(docId) {
+            const student = currentRoster.find(s => s.id === docId);
+            if (!student) return;
+
+            modalEditStudentId.value = docId;
+            modalEditFirstName.value = student.firstName;
+            modalEditLastName.value = student.lastName;
+            modalEditGrade.value = student.grade;
+            
+            modalEditError.style.display = 'none';
+            editStudentModalBackdrop.style.display = 'flex';
+            modalEditFirstName.focus();
+        }
         
-        function listenForLobbyMessages() {
-            if (unsubscribeLobbyChatListener) unsubscribeLobbyChatListener();
-            if (unsubscribeLobbyChatClearListener) unsubscribeLobbyChatClearListener();
+        function closeEditStudentModal() {
+            editStudentModalBackdrop.style.display = 'none';
+        }
 
-            const messagesQuery = query(ref(db, 'lobby-chat'));
-            const targetChat = isAdmin ? adminChatMessagesDiv : chatMessagesDiv;
-            targetChat.innerHTML = '';
+        async function handleEditStudentSave() {
+            const docId = modalEditStudentId.value;
+            const fName = modalEditFirstName.value.trim();
+            const lName = modalEditLastName.value.trim();
+            const grade = modalEditGrade.value.trim().toUpperCase();
 
-            unsubscribeLobbyChatListener = onChildAdded(messagesQuery, (snapshot) => {
-                if (snapshot.exists()) {
-                    appendChatMessage(snapshot.val());
+            if (!docId || !fName || !lName || !grade) {
+                modalEditError.style.display = 'block';
+                return;
+            }
+
+            await updateRosterStudent(docId, fName, lName, grade);
+            closeEditStudentModal();
+        }
+
+        function openConfirmationModal(title, prompt, actionPayload) {
+            confirmationModalTitle.textContent = title;
+            confirmationModalPrompt.textContent = prompt;
+            confirmationModalAction = actionPayload;
+            confirmationModalBackdrop.style.display = 'flex';
+        }
+
+        function closeConfirmationModal() {
+            confirmationModalBackdrop.style.display = 'none';
+            confirmationModalAction = null;
+        }
+
+        async function handleConfirmationConfirm() {
+            if (!confirmationModalAction) return;
+
+            const { action, docId, queue, studentIndex } = confirmationModalAction;
+            
+            // Actions that DON'T require password
+            if (action === 'removePickedUp') {
+                await removePickedUpStudent(docId);
+                closeConfirmationModal();
+                return; 
+            }
+            if (action === 'dismissGroupStudent') {
+                await dismissGroupStudent(queue, docId, studentIndex);
+                closeConfirmationModal();
+                return; 
+            }
+            
+            // Actions that DO require password
+            openPasswordModal(
+                { ...confirmationModalAction, originalAction: confirmationModalAction.action }, 
+                `Enter password to confirm: ${confirmationModalTitle.textContent}`,
+                'btn-red'
+            );
+            
+            closeConfirmationModal(); 
+        }
+        
+        async function handlePasswordConfirm() {
+            const password = modalPasswordInput.value;
+            if (password !== 'doral') {
+                modalError.style.display = 'block';
+                modalError.textContent = "Incorrect password.";
+                return;
+            }
+            
+            if (!passwordModalAction) return;
+            
+            const { originalAction, docId, queue, action } = passwordModalAction;
+            
+            if (originalAction === 'dismissQueue') {
+                await dismissStudent(queue, docId);
+            } else if (action === 'clearPickedUp') {
+                await clearPickedUpList();
+            } else if (action === 'clearAllQueues') { // NEW
+                await clearAllQueues();
+            } else if (originalAction === 'deleteRosterStudent') { // NEW
+                await deleteRosterStudent(docId);
+            } else if (originalAction === 'deletePermanentGroup') { // NEW
+                await deletePermanentGroup(docId);
+            }
+            
+            closePasswordModal();
+        }
+
+        // --- Firebase Setup ---
+        async function setupFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                setLogLevel('Debug'); 
+
+                authStatus.textContent = "Authenticating...";
+                await signInAnonymously(auth);
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        authStatus.textContent = "Connected";
+                        authStatus.classList.add('connected');
+                        setupListeners();
+                    } else {
+                        authStatus.textContent = "Connection Failed. Not Authenticated.";
+                        authStatus.classList.add('disconnected');
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase Initialization Error: ", error);
+                authStatus.textContent = "Connection Failed. Check console.";
+                authStatus.classList.add('disconnected');
+            }
+        }
+        
+        function setupListeners() {
+            if (!db) return; 
+
+            q1ColRef = collection(db, `/artifacts/${appId}/public/data/${Q1_COLLECTION}`);
+            q2ColRef = collection(db, `/artifacts/${appId}/public/data/${Q2_COLLECTION}`);
+            q3ColRef = collection(db, `/artifacts/${appId}/public/data/${Q3_COLLECTION}`);
+            pickedupColRef = collection(db, `/artifacts/${appId}/public/data/${PICKEDUP_COLLECTION}`);
+            rosterColRef = collection(db, `/artifacts/${appId}/public/data/${ROSTER_COLLECTION}`);
+            permanentGroupsColRef = collection(db, `/artifacts/${appId}/public/data/${PERMANENT_GROUPS_COLLECTION}`); // NEW
+
+            // Listeners
+            onSnapshot(query(q1ColRef), (snapshot) => {
+                const students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderQueueTable(q1TableBody, q1Count, Q1_COLLECTION, students);
+            }, (error) => console.error("Q1 Snapshot Error:", error));
+
+            onSnapshot(query(q2ColRef), (snapshot) => {
+                const students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderSiblingTable(students);
+            }, (error) => console.error("Q2 Snapshot Error:", error));
+
+            onSnapshot(query(q3ColRef), (snapshot) => {
+                const students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderQueueTable(q3TableBody, q3Count, Q3_COLLECTION, students);
+            }, (error) => console.error("Q3 Snapshot Error:", error));
+            
+            onSnapshot(query(pickedupColRef), (snapshot) => {
+                const students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderPickedUpTable(students);
+            }, (error) => console.error("PickedUp Snapshot Error:", error));
+
+            onSnapshot(query(rosterColRef), (snapshot) => {
+                const students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                students.sort((a, b) => {
+                    const lastCompare = (a.lastName || '').localeCompare(b.lastName || '');
+                    if (lastCompare !== 0) return lastCompare;
+                    return (a.firstName || '').localeCompare(b.firstName || '');
+                });
+                
+                currentRoster = students; 
+                
+                if (searchInput.value.trim().length > 0) {
+                    filterStudents(searchInput.value.trim());
+                }
+                
+                // NEW: Always re-render the admin roster list
+                if (adminView.style.display !== 'none') {
+                    renderAdminRoster(currentRoster);
+                    // Re-render permanent groups too, as they rely on roster names
+                    renderPermanentGroups(currentPermanentGroups);
+                }
+            }, (error) => console.error("Roster Snapshot Error:", error));
+            
+            // NEW: Listener for Permanent Groups
+            onSnapshot(query(permanentGroupsColRef), (snapshot) => {
+                currentPermanentGroups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Sort by name
+                currentPermanentGroups.sort((a, b) => a.groupName.localeCompare(b.groupName));
+                
+                if (adminView.style.display !== 'none') {
+                    renderPermanentGroups(currentPermanentGroups);
+                }
+            }, (error) => console.error("Permanent Groups Snapshot Error:", error));
+        }
+
+        function filterStudents(searchText) {
+            const lowerCaseSearch = searchText.toLowerCase();
+            
+            if (searchText.length === 0) {
+                searchResults.innerHTML = `<p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">Start typing to see results...</p>`;
+                return;
+            }
+            
+            // Filter Students
+            const filteredStudents = currentRoster.filter(student => {
+                const fullName = `${student.firstName} ${student.lastName}`;
+                return fullName.toLowerCase().includes(lowerCaseSearch);
+            });
+
+            // NEW: Filter Groups
+            const filteredGroups = currentPermanentGroups.filter(group => {
+                return group.groupName.toLowerCase().includes(lowerCaseSearch);
+            });
+
+            renderSearchResults(filteredStudents, filteredGroups);
+        }
+
+        // NEW: Filter for admin group builder
+        function filterAdminGroupSearch(searchText) {
+            const lowerCaseSearch = searchText.toLowerCase();
+            
+            if (searchText.length === 0) {
+                adminGroupSearchResults.innerHTML = `<p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">Type above to find students...</p>`;
+                return;
+            }
+            
+            const filtered = currentRoster.filter(student => {
+                const fullName = `${student.firstName} ${student.lastName}`;
+                return fullName.toLowerCase().includes(lowerCaseSearch);
+            });
+            
+            // Render results for group builder
+            if (filtered.length === 0) {
+                adminGroupSearchResults.innerHTML = `<p style="padding: 0.5rem 0.75rem; color: var(--fg-gray);">No students found.</p>`;
+                return;
+            }
+            adminGroupSearchResults.innerHTML = filtered.map(student => {
+                const fullName = `${student.firstName} ${student.lastName}`;
+                const isStaged = stagedForGroupBuilding.find(s => s.id === student.id);
+                return `
+                <div class="search-item">
+                    <div>
+                        <span style="font-weight: 500;">${fullName}</span>
+                        <span style="color: var(--fg-gray); font-size: 0.8rem; margin-left: 4px;">(Gr: ${student.grade})</span>
+                    </div>
+                    <button class="btn btn-green" data-action="stage-for-builder" data-id="${student.id}" ${isStaged ? 'disabled' : ''} style="padding: 4px 6px; font-size: 0.75rem;">
+                        ${isStaged ? 'Added' : 'Add'}
+                    </button>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+
+            setupFirebase();
+            
+            // --- NEW: Tab Toggling Listeners ---
+            queuesTabBtn.addEventListener('click', () => {
+                queuesView.style.display = 'block';
+                adminView.style.display = 'none';
+                queuesTabBtn.classList.add('active');
+                adminTabBtn.classList.remove('active');
+            });
+            
+            adminTabBtn.addEventListener('click', () => {
+                queuesView.style.display = 'none';
+                adminView.style.display = 'block';
+                queuesTabBtn.classList.remove('active');
+                adminTabBtn.classList.add('active');
+                // Render roster when tab is clicked
+                renderAdminRoster(currentRoster); 
+            });
+
+            // --- Add Student Section Listeners ---
+            searchInput.addEventListener('input', (e) => {
+                filterStudents(e.target.value);
+            });
+
+            searchResults.addEventListener('click', (e) => {
+                const target = e.target;
+                const { queue, name, grade, action, groupId } = target.dataset;
+
+                if (action === 'stage-group') { // Renamed from btn-purple
+                    stagedSiblingGroup.push({ name, grade });
+                    renderStagedGroup();
+                } else if (action === 'add-permanent-group') { // NEW
+                    addPermanentGroupToQueue(groupId);
+                    searchInput.value = '';
+                    filterStudents('');
+                } else if (name && grade && queue) {
+                    addStudentToQueue(queue, name, grade);
+                    searchInput.value = '';
+                    filterStudents('');
+                }
+            });
+
+            stagedList.addEventListener('click', (e) => {
+                const removeBtn = e.target.closest('.remove-staged-btn');
+                if (removeBtn) {
+                    const indexToRemove = parseInt(removeBtn.dataset.index, 10);
+                    stagedSiblingGroup.splice(indexToRemove, 1);
+                    renderStagedGroup();
                 }
             });
             
-            const messagesRef = ref(db, 'lobby-chat');
-            unsubscribeLobbyChatClearListener = onValue(messagesRef, (snapshot) => {
-                if (!snapshot.exists()) {
-                    targetChat.innerHTML = '';
+            addStagedGroupBtn.addEventListener('click', () => {
+                addGroupToQueue(stagedSiblingGroup);
+            });
+
+            manualAddBtn.addEventListener('click', () => {
+                const name = manualNameInput.value.trim();
+                if (name) { addStudentToQueue(1, name, 'N/A'); manualNameInput.value = ''; }
+            });
+            manualAddBtnSib.addEventListener('click', () => {
+                const name = manualNameInput.value.trim();
+                if (name) { addStudentToQueue(2, name, 'N/A'); manualNameInput.value = ''; }
+            });
+            manualAddBtnWalk.addEventListener('click', () => {
+                const name = manualNameInput.value.trim();
+                if (name) { addStudentToQueue(3, name, 'N/A'); manualNameInput.value = ''; }
+            });
+            
+            // --- NEW: Admin Panel Listeners ---
+            clearPickedUpBtn.addEventListener('click', () => {
+                openPasswordModal(
+                    { action: 'clearPickedUp' },
+                    "To reset the 'Picked Up' list, enter admin password.",
+                    'btn-orange'
+                );
+            });
+
+            clearAllBtn.addEventListener('click', () => {
+                openPasswordModal(
+                    { action: 'clearAllQueues' },
+                    "To clear all 3 LIVE queues, enter admin password.",
+                    'btn-red'
+                );
+            });
+
+            adminAddStudentBtn.addEventListener('click', () => {
+                const fName = adminFirstName.value.trim();
+                const lName = adminLastName.value.trim();
+                const grade = adminGrade.value.trim().toUpperCase();
+                
+                if (fName && lName && grade) {
+                    addRosterStudent(fName, lName, grade);
+                } else {
+                    console.warn("All fields required.");
+                    if (!fName) adminFirstName.style.borderColor = 'var(--red)';
+                    if (!lName) adminLastName.style.borderColor = 'var(--red)';
+                    if (!grade) adminGrade.style.borderColor = 'var(--red)';
                 }
             });
-        }
+            // Clear error rings on input
+            adminFirstName.addEventListener('input', () => adminFirstName.style.borderColor = 'var(--border-color)');
+            adminLastName.addEventListener('input', () => adminLastName.style.borderColor = 'var(--border-color)');
+            adminGrade.addEventListener('input', () => adminGrade.style.borderColor = 'var(--border-color)');
 
-        function appendChatMessage(msg) {
-             const el = document.createElement('div'); el.classList.add('mb-2', 'break-words');
-             const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-             el.innerHTML = `<div><span class="font-bold ${msg.isAdmin ? 'text-yellow-400' : 'gruvbox-text-bright'}">${msg.username}</span><span class="text-xs ml-2 gruvbox-text-faded">${time}</span></div><p class="gruvbox-text-light">${msg.text}</p>`;
-             const targetChat = isAdmin ? adminChatMessagesDiv : chatMessagesDiv;
-             targetChat.appendChild(el); targetChat.scrollTop = targetChat.scrollHeight;
-        }
+            
+            adminRosterList.addEventListener('click', (e) => {
+                const btn = e.target.closest('.action-btn');
+                if (!btn) return;
 
-        sendChatBtn.addEventListener('click', sendLobbyMessage); chatInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendLobbyMessage());
-        adminSendChatBtn.addEventListener('click', sendLobbyMessage); adminChatInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendLobbyMessage());
-
-        function kickUser(uid) { remove(ref(db, `status/${uid}`)); }
-        clearChatBtn.addEventListener('click', () => { if (confirm("Are you sure you want to clear the entire lobby chat?")) { remove(ref(db, 'lobby-chat')); }});
-        function sendWhisper(uid) { const message = prompt("Enter your private message:"); if (message) { set(ref(db, `whispers/${uid}`), { from: currentUsername, message, timestamp: serverTimestamp() }); } }
-        sendBroadcastBtn.addEventListener('click', () => { const message = broadcastInput.value.trim(); if (message) { set(ref(db, 'broadcasts'), { message, timestamp: serverTimestamp() }); broadcastInput.value = ''; } });
-        
-        raiseHandBtn.addEventListener('click', () => { handRaised = !handRaised; raiseHandBtn.classList.toggle('active', handRaised); set(ref(db, `status/${currentUser.uid}/handRaised`), handRaised); });
-
-        function listenForAlerts() {
-            const broadcastRef = ref(db, 'broadcasts');
-            onValue(broadcastRef, (snapshot) => { const data = snapshot.val(); if (data && (Date.now() - data.timestamp < 10000)) showAlert('Admin Broadcast:', data.message, 'broadcast'); });
-            const whisperRef = ref(db, `whispers/${currentUser?.uid}`);
-            onValue(whisperRef, (snapshot) => { const data = snapshot.val(); if (data && (Date.now() - data.timestamp < 10000)) { showAlert(`Whisper from ${data.from}:`, data.message, 'whisper'); remove(whisperRef); } });
-        }
-
-        // --- Call Timer Logic ---
-        function startCallTimer() {
-            stopCallTimer(); let seconds = 0;
-            callTimerInterval = setInterval(() => {
-                seconds++;
-                const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
-                const secs = (seconds % 60).toString().padStart(2, '0');
-                callTimerDiv.textContent = `${mins}:${secs}`;
-            }, 1000);
-        }
-        function stopCallTimer() { clearInterval(callTimerInterval); callTimerDiv.textContent = "00:00"; }
-
-
-        // --- WebRTC Call Logic ---
-        async function createPeerConnection(isCaller) {
-            peerConnection = new RTCPeerConnection(configuration); remoteStream = new MediaStream(); remoteVideo.srcObject = remoteStream;
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); localVideo.srcObject = localStream;
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-            } catch (err) { console.error("Failed to get local stream", err); endCall(); return; }
-            peerConnection.ontrack = event => { event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track)); };
-            const localCandidates = ref(db, `calls/${callRef.key}/${isCaller ? 'callerCandidates' : 'calleeCandidates'}`);
-            const remoteCandidates = ref(db, `calls/${callRef.key}/${isCaller ? 'calleeCandidates' : 'callerCandidates'}`);
-            peerConnection.onicecandidate = event => { event.candidate && push(localCandidates, event.candidate.toJSON()); };
-            onChildAdded(remoteCandidates, (snapshot) => { try { peerConnection.addIceCandidate(new RTCIceCandidate(snapshot.val())); } catch(e){ console.error('Error adding received ice candidate', e); } });
-            peerConnection.onconnectionstatechange = () => { 
-                if (peerConnection.connectionState === 'connected') startCallTimer();
-                if (['disconnected', 'closed', 'failed'].includes(peerConnection.connectionState)) { endCall(); }
-            };
-        }
-
-        async function initiateCall(calleeUid, calleeUsername) {
-            set(ref(db, `status/${calleeUid}/handRaised`), false);
-            callRef = push(ref(db, 'calls')); callPartnerUid = calleeUid; callPartnerUsername = calleeUsername; updateUserStatus('ringing');
-            await createPeerConnection(true); showVideoCallPage(calleeUsername);
-            const offer = await peerConnection.createOffer(); await peerConnection.setLocalDescription(offer);
-            set(callRef, { callerUid: currentUser.uid, callerUsername: currentUsername, calleeUid: calleeUid, status: 'ringing', offer: { sdp: offer.sdp, type: offer.type } });
-            onValue(callRef, async (snapshot) => {
-                const data = snapshot.val();
-                if (data?.answer && peerConnection.signalingState !== 'stable') { await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer)); updateUserStatus('in-call'); }
-                if (!data) endCall(); 
-            });
-        }
-        
-        async function answerCall(callId, callData) {
-            callRef = ref(db, `calls/${callId}`); callPartnerUid = callData.callerUid; callPartnerUsername = callData.callerUsername;
-            await createPeerConnection(false); await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
-            const answer = await peerConnection.createAnswer(); await peerConnection.setLocalDescription(answer);
-            await set(callRef, { ...callData, status: 'connected', answer: { sdp: answer.sdp, type: answer.type } });
-            showVideoCallPage(callPartnerUsername); updateUserStatus('in-call');
-            onValue(callRef, (snapshot) => { if (!snapshot.exists()) endCall(); });
-        }
-        
-        const endCall = (returnToLobby = true) => {
-            stopScreenShare(false); stopCallTimer();
-            if (peerConnection) { peerConnection.close(); peerConnection = null; }
-            if (localStream) { localStream.getTracks().forEach(track => track.stop()); localStream = null; }
-            if (callRef) { remove(callRef); callRef = null; }
-            localVideo.srcObject = null; remoteVideo.srcObject = null;
-            callPartnerUid = null; callPartnerUsername = null; updateUserStatus('available');
-            if (returnToLobby) { if (isAdmin) showAdminConsole(); else showLobby(); }
-        };
-        endCallBtn.addEventListener('click', () => endCall());
-
-        function updateUserStatus(callStatus) {
-            if (currentUser) {
-                const myStatusRef = ref(db, 'status/' + currentUser.uid);
-                set(myStatusRef, { username: currentUsername, isAdmin: isAdmin, online: true, last_changed: serverTimestamp(), callStatus: callStatus, handRaised: handRaised }).catch(error => console.error("Failed to update status:", error));
-            }
-        }
-
-        function listenForIncomingCalls() {
-            if (!currentUser || isAdmin) return;
-            const callsQuery = query(ref(db, 'calls'));
-            onChildAdded(callsQuery, (snapshot) => {
-                const callData = snapshot.val();
-                if (callData.calleeUid === currentUser.uid && callData.status === 'ringing') {
-                    incomingCallFrom.textContent = callData.callerUsername; incomingCallModal.classList.remove('hidden'); updateUserStatus('ringing');
-                    acceptCallBtn.onclick = () => { incomingCallModal.classList.add('hidden'); answerCall(snapshot.key, callData); };
-                    rejectCallBtn.onclick = () => { incomingCallModal.classList.add('hidden'); remove(ref(db, `calls/${snapshot.key}`)); updateUserStatus('available'); };
+                const { action, id } = btn.dataset;
+                
+                if (action === 'delete-roster-student') {
+                    openConfirmationModal(
+                        'Delete Roster Student?',
+                        'Permanently delete this student from the roster? This cannot be undone.',
+                        { action: 'deleteRosterStudent', docId: id }
+                    );
+                } else if (action === 'edit-roster-student') {
+                    openEditStudentModal(id);
                 }
             });
-        }
 
-        toggleMicBtn.addEventListener('click', () => { const audioTrack = localStream.getAudioTracks()[0]; audioTrack.enabled = !audioTrack.enabled; toggleMicBtn.classList.toggle('active'); toggleMicBtn.innerHTML = audioTrack.enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>'; });
-        toggleVideoBtn.addEventListener('click', () => { const videoTrack = localStream.getVideoTracks()[0]; videoTrack.enabled = !videoTrack.enabled; toggleVideoBtn.classList.toggle('active'); toggleVideoBtn.innerHTML = videoTrack.enabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>'; });
-        
-        // --- Screen Sharing Logic ---
-        shareScreenBtn.addEventListener('click', () => { if (screenTrack) { stopScreenShare(); } else { startScreenShare(); } });
+            // NEW: Listeners for Admin Group Builder
+            adminGroupSearchInput.addEventListener('input', (e) => {
+                filterAdminGroupSearch(e.target.value);
+            });
 
-        async function startScreenShare() {
-            try {
-                const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                if (displayStream) {
-                    screenTrack = displayStream.getVideoTracks()[0];
-                    const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
-                    if (videoSender) {
-                        videoSender.replaceTrack(screenTrack);
-                        shareScreenBtn.classList.add('active');
-                        // When user clicks the browser's "Stop sharing" button
-                        screenTrack.onended = () => { stopScreenShare(); };
+            adminGroupSearchResults.addEventListener('click', (e) => {
+                const addBtn = e.target.closest('[data-action="stage-for-builder"]');
+                if (addBtn && !addBtn.disabled) {
+                    const student = currentRoster.find(s => s.id === addBtn.dataset.id);
+                    if (student) {
+                        stagedForGroupBuilding.push(student);
+                        renderGroupBuilderList();
+                        addBtn.disabled = true; // Disable button after adding
+                        addBtn.textContent = 'Added';
                     }
                 }
-            } catch(err) { console.error("Screen share error: ", err); }
-        }
+            });
 
-        function stopScreenShare(replace = true) {
-            if (screenTrack) {
-                screenTrack.stop();
-                if (replace) {
-                    const webcamTrack = localStream.getVideoTracks()[0];
-                    const videoSender = peerConnection.getSenders().find(sender => sender.track.kind === 'video');
-                    if (videoSender) { videoSender.replaceTrack(webcamTrack); }
+            adminGroupBuilderList.addEventListener('click', (e) => {
+                const removeBtn = e.target.closest('.remove-staged-builder-btn');
+                if (removeBtn) {
+                    const indexToRemove = parseInt(removeBtn.dataset.index, 10);
+                    stagedForGroupBuilding.splice(indexToRemove, 1);
+                    renderGroupBuilderList();
+                    // We need to re-render the search results to re-enable any 'Add' buttons
+                    filterAdminGroupSearch(adminGroupSearchInput.value);
                 }
-                screenTrack = null;
-                shareScreenBtn.classList.remove('active');
-            }
-        }
-        
-        window.addEventListener('beforeunload', () => { if (currentUser) { endCall(false); remove(ref(db, 'status/' + currentUser.uid)); } });
+            });
+            
+            adminSaveGroupBtn.addEventListener('click', () => {
+                const groupName = adminGroupNameInput.value.trim();
+                const studentIds = stagedForGroupBuilding.map(s => s.id);
+                savePermanentGroup(groupName, studentIds);
+            });
+
+            adminPermanentGroupList.addEventListener('click', (e) => {
+                const deleteBtn = e.target.closest('[data-action="delete-permanent-group"]');
+                if (deleteBtn) {
+                    openConfirmationModal(
+                        'Delete Permanent Group?',
+                        'This will delete the group. It will not delete the students from the roster.',
+                        { action: 'deletePermanentGroup', docId: deleteBtn.dataset.id }
+                    );
+                }
+            });
+
+
+            // --- Delegated clicks for all TABLE actions ---
+            document.body.addEventListener('click', async (e) => {
+                const target = e.target.closest('.action-btn');
+                if (!target) return;
+                
+                // Check if the click is inside the admin panel; if so, ignore it
+                // (it's handled by the adminRosterList listener)
+                if (target.closest('#admin-roster-list')) return;
+
+                const { action, id, name, queue } = target.dataset;
+                const studentIndex = target.dataset.index ? parseInt(target.dataset.index, 10) : null;
+                
+                if (action === 'dismiss-queue') {
+                    openConfirmationModal(
+                        'Dismiss Student/Group?',
+                        `Are you sure you want to dismiss this entry? (ID: ${id})`,
+                        { action: 'dismissQueue', docId: id, queue: queue }
+                    );
+                
+                } else if (action === 'remove-pickedup') {
+                    openConfirmationModal(
+                        'Remove from Picked Up?',
+                        `Are you sure you want to remove ${name} (ID: ${id})?`,
+                        { action: 'removePickedUp', docId: id }
+                    );
+                
+                } else if (action === 'dismiss-group-student') {
+                    openConfirmationModal(
+                        'Dismiss Student?',
+                        `Are you sure you want to dismiss this student from the group?`,
+                        { action: 'dismissGroupStudent', docId: id, queue: queue, studentIndex: studentIndex }
+                    );
+
+                } else if (action === 'highlight') {
+                    toggleHighlight(queue, id);
+                
+                } else if (action === 'highlight-group-student') {
+                    toggleGroupStudentHighlight(queue, id, studentIndex);
+                
+                } else if (action === 'add-note') {
+                    const docRef = doc(db, `/artifacts/${appId}/public/data/${queue}/${id}`);
+                    const studentDoc = await getDoc(docRef);
+                    const currentNote = studentDoc.data().note || "";
+                    updateStudentNote(queue, id, null, currentNote);
+
+                } else if (action === 'add-note-group') {
+                    const docRef = doc(db, `/artifacts/${appId}/public/data/${queue}/${id}`);
+                    const studentDoc = await getDoc(docRef);
+                    const currentNote = studentDoc.data().students[studentIndex].note || "";
+                    updateStudentNote(queue, id, studentIndex, currentNote);
+                }
+            });
+            
+            // --- Modal Listeners ---
+            modalCancelBtn.addEventListener('click', closePasswordModal);
+            modalConfirmBtn.addEventListener('click', handlePasswordConfirm);
+            confirmationModalCancelBtn.addEventListener('click', closeConfirmationModal);
+            confirmationModalConfirmBtn.addEventListener('click', handleConfirmationConfirm);
+            
+            // NEW: Edit Student Modal Listeners
+            modalEditCancelBtn.addEventListener('click', closeEditStudentModal);
+            modalEditSaveBtn.addEventListener('click', handleEditStudentSave);
+            
+        });
     </script>
+
 </body>
 </html>
