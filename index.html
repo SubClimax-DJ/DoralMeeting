@@ -629,6 +629,63 @@
         }
 
 
+        /* --- NEW: Classroom View --- */
+        #classroom-view .section {
+            min-height: 85vh;
+        }
+        #classroom-list-container {
+            /* Use CSS columns for a dense list */
+            column-count: 5; /* Start with 5, can be adjusted */
+            column-gap: 1.5rem;
+            background-color: var(--bg-dark);
+            padding: 1rem;
+            border-radius: 8px;
+            min-height: 75vh; /* Ensure it fills space */
+        }
+        .classroom-list-item {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--fg);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            /* Prevent item from breaking across columns */
+            break-inside: avoid-column;
+        }
+        .classroom-list-item.highlighted {
+            background-color: var(--yellow);
+            color: var(--bg-dark);
+            font-weight: 600;
+        }
+        .classroom-list-item span.grade {
+            color: var(--fg-gray);
+            font-size: 0.9rem;
+            margin-left: 4px;
+        }
+        .classroom-list-item.highlighted span.grade {
+            color: var(--bg-dark);
+        }
+        
+        /* Responsive columns for classroom view */
+        @media (max-width: 1200px) {
+            #classroom-list-container { column-count: 4; }
+        }
+        @media (max-width: 900px) {
+            #classroom-list-container { column-count: 3; }
+        }
+        
+        /* Phone Mode: Stack classroom view into 2 columns and hide tab */
+        body.phone-mode #classroom-list-container {
+            column-count: 2;
+        }
+        body.phone-mode .classroom-list-item {
+            font-size: 1.2rem;
+        }
+        body.phone-mode #classroom-tab-btn {
+            display: none;
+        }
+
+
         /* --- End Phone Mode --- */
     </style>
 </head>
@@ -654,6 +711,8 @@
             <div class="header-tabs">
                 <button id="queues-tab-btn" class="tab-btn active">Queues</button>
                 <button id="admin-tab-btn" class="tab-btn">Admin Panel</button>
+                <!-- NEW: Classroom Tab Button -->
+                <button id="classroom-tab-btn" class="tab-btn">Classroom View</button>
                 <!-- NEW: Analytics Tab Button (REMOVED) -->
                 <!-- <button id="analytics-tab-btn" class="tab-btn">Analytics</button> -->
             </div>
@@ -865,7 +924,20 @@
             </section>
         </div> <!-- END of #admin-view -->
         
-        <!-- 3. NEW ANALYTICS VIEW (REMOVED) -->
+        <!-- 3. CLASSROOM VIEW (NEW) -->
+        <div id="classroom-view" style="display: none;">
+            <section class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="color: var(--yellow); margin: 0; border: none; padding: 0;">Student Pickup Queue (All Students)</h2>
+                    <span id="classroom-total-count" style="font-size: 1.5rem; font-weight: 700; color: var(--fg);">(0)</span>
+                </div>
+                <div id="classroom-list-container">
+                    <p style="text-align: center; color: var(--fg-gray); font-size: 1.2rem; padding: 2rem 0;">Loading students...</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- 4. ANALYTICS VIEW (REMOVED) -->
         <!--
         <div id="analytics-view" style="display: none;">
             <section class="section">
@@ -1054,6 +1126,11 @@
         const queuesView = document.getElementById('queues-view');
         const adminView = document.getElementById('admin-view');
         // const analyticsView = document.getElementById('analytics-view'); // REMOVED
+        // NEW: Classroom View
+        const classroomTabBtn = document.getElementById('classroom-tab-btn');
+        const classroomView = document.getElementById('classroom-view');
+        const classroomListContainer = document.getElementById('classroom-list-container');
+        const classroomTotalCount = document.getElementById('classroom-total-count');
 
         // Add Student Section
         const searchInput = document.getElementById('search-input');
@@ -1654,6 +1731,78 @@
         }
         */
 
+        /**
+         * NEW: Renders the classroom view (a single, dense list of all queued students).
+         */
+        function renderClassroomView() {
+            let allStudents = [];
+
+            // 1. Get Q1 students
+            currentQ1.forEach(student => {
+                allStudents.push({
+                    name: student.name,
+                    grade: student.grade,
+                    isHighlighted: student.isHighlighted || false,
+                    flags: student.flags || {} // Pass flags
+                });
+            });
+
+            // 2. Get Q3 students
+            currentQ3.forEach(student => {
+                allStudents.push({
+                    name: student.name,
+                    grade: student.grade,
+                    isHighlighted: student.isHighlighted || false,
+                    flags: student.flags || {} // Pass flags
+                });
+            });
+
+            // 3. Get Q2 students (flatten groups)
+            currentQ2.forEach(doc => {
+                if (doc.isGroup) {
+                    doc.students.forEach(student => {
+                        allStudents.push({
+                            name: student.name,
+                            grade: student.grade,
+                            isHighlighted: student.isHighlighted || false,
+                            flags: student.flags || {} // Pass flags
+                        });
+                    });
+                } else {
+                    // Single student in Q2
+                    allStudents.push({
+                        name: doc.name,
+                        grade: doc.grade,
+                        isHighlighted: doc.isHighlighted || false,
+                        flags: doc.flags || {} // Pass flags
+                    });
+                }
+            });
+
+            // 4. Update total count
+            classroomTotalCount.textContent = `(${allStudents.length})`;
+
+            // 5. Sort alphabetically
+            allStudents.sort((a, b) => a.name.localeCompare(b.name));
+
+            // 6. Render HTML
+            if (allStudents.length === 0) {
+                classroomListContainer.innerHTML = `<p style="text-align: center; color: var(--fg-gray); font-size: 1.2rem; padding: 2rem 0;">No students in queue.</p>`;
+                return;
+            }
+
+            classroomListContainer.innerHTML = allStudents.map(student => {
+                const highlightClass = student.isHighlighted ? 'highlighted' : '';
+                return `
+                <div class="classroom-list-item ${highlightClass}">
+                    ${sanitize(student.name)}
+                    <span class="grade">(${sanitize(student.grade)})</span>
+                    ${renderFlagIcons(student.flags)}
+                </div>
+                `;
+            }).join('');
+        }
+
 
         // --- Firebase Actions ---
 
@@ -2227,18 +2376,21 @@
             onSnapshot(query(q1ColRef), (snapshot) => {
                 currentQ1 = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderQueueTable(q1TableBody, q1Count, Q1_COLLECTION, currentQ1);
+                if (classroomView.style.display !== 'none') renderClassroomView(); // NEW
                 // if (analyticsView.style.display !== 'none') renderAnalytics(); // REMOVED
             }, (error) => console.error("Q1 Snapshot Error:", error));
 
             onSnapshot(query(q2ColRef), (snapshot) => {
                 currentQ2 = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderSiblingTable(currentQ2);
+                if (classroomView.style.display !== 'none') renderClassroomView(); // NEW
                 // if (analyticsView.style.display !== 'none') renderAnalytics(); // REMOVED
             }, (error) => console.error("Q2 Snapshot Error:", error));
 
             onSnapshot(query(q3ColRef), (snapshot) => {
                 currentQ3 = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderQueueTable(q3TableBody, q3Count, Q3_COLLECTION, currentQ3); // Assumes renderQueueTable for Q3
+                if (classroomView.style.display !== 'none') renderClassroomView(); // NEW
                 // if (analyticsView.style.display !== 'none') renderAnalytics(); // REMOVED
             }, (error) => console.error("Q3 Snapshot Error:", error));
             
@@ -2361,24 +2513,44 @@
             queuesTabBtn.addEventListener('click', () => {
                 queuesView.style.display = 'block';
                 adminView.style.display = 'none';
+                classroomView.style.display = 'none'; // HIDE
                 // analyticsView.style.display = 'none'; // REMOVED
                 queuesTabBtn.classList.add('active');
                 adminTabBtn.classList.remove('active');
+                classroomTabBtn.classList.remove('active'); // DEACTIVATE
                 // analyticsTabBtn.classList.remove('active'); // REMOVED
             });
             
             adminTabBtn.addEventListener('click', () => {
                 queuesView.style.display = 'none';
                 adminView.style.display = 'block';
+                classroomView.style.display = 'none'; // HIDE
                 // analyticsView.style.display = 'none'; // REMOVED
                 queuesTabBtn.classList.remove('active');
                 adminTabBtn.classList.add('active');
+                classroomTabBtn.classList.remove('active'); // DEACTIVATE
                 // analyticsTabBtn.classList.remove('active'); // REMOVED
                 // Render admin lists when tab is clicked
                 renderAdminRoster(currentRoster); 
                 renderPermanentGroups(currentPermanentGroups);
             });
             
+            // NEW: Classroom Tab Listener
+            classroomTabBtn.addEventListener('click', () => {
+                queuesView.style.display = 'none';
+                adminView.style.display = 'none';
+                classroomView.style.display = 'block'; // SHOW
+                // analyticsView.style.display = 'none'; 
+                
+                queuesTabBtn.classList.remove('active');
+                adminTabBtn.classList.remove('active');
+                classroomTabBtn.classList.add('active'); // ACTIVATE
+                // analyticsTabBtn.classList.remove('active');
+                
+                // Render the view when tab is clicked
+                renderClassroomView(); 
+            });
+
             /* (REMOVED)
             analyticsTabBtn.addEventListener('click', () => {
                 queuesView.style.display = 'none';
