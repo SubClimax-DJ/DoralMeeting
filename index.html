@@ -87,7 +87,7 @@
         #auth-status {
             font-size: 0.9rem;
             color: var(--fg-gray);
-            margin-left: 1rem; /* Changed from auto */
+            margin-left: auto; /* Changed from 1rem to auto to push to right */
         }
         .connected { color: var(--green) !important; }
         .disconnected { color: var(--red) !important; }
@@ -640,6 +640,12 @@
     <!-- HEADER -->
     <header>
         <div class="header-content">
+            <!-- NEW: Phone Mode Toggle Button (Moved to left) -->
+            <button id="phone-mode-toggle" class="btn btn-orange" style="padding: 0.5rem 0.75rem;">
+                <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                <span class="phone-mode-text" style="margin-left: 4px;">Phone Mode</span>
+            </button>
+            
             <div>
                 <h1 style="font-size: 1.25rem; margin: 0;">Doral Academy Car-Line Admin Panel</h1>
                 <p style="font-size: 0.8rem; color: var(--fg-gray); margin: 0.25rem 0 0 0;">Created and coded by Max Prebeg V4.0</p>
@@ -651,11 +657,8 @@
                 <!-- NEW: Analytics Tab Button (REMOVED) -->
                 <!-- <button id="analytics-tab-btn" class="tab-btn">Analytics</button> -->
             </div>
-            <!-- NEW: Phone Mode Toggle Button -->
-            <button id="phone-mode-toggle" class="btn btn-orange" style="margin-left: auto; padding: 0.5rem 0.75rem;">
-                <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                <span class="phone-mode-text" style="margin-left: 4px;">Phone Mode</span>
-            </button>
+            <!-- NEW: Phone Mode Toggle Button (Removed from here) -->
+            
             <div id="auth-status">Connecting...</div>
         </div>
     </header>
