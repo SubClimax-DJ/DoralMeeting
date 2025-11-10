@@ -603,6 +603,32 @@
             margin-top: 1.5rem;
         }
 
+        /* --- NEW: Fix for Phone Mode Search Bar --- */
+        body.phone-mode #search-results {
+            /* Give the results list more vertical space on phones */
+            max-height: 30vh; 
+        }
+        body.phone-mode .search-item {
+            /* Stack the student name and their buttons vertically */
+            flex-direction: column;
+            align-items: flex-start; /* Align name to the left */
+            gap: 0.75rem; /* Add space between name and button group */
+            padding: 0.75rem; /* Add a bit more padding */
+        }
+        body.phone-mode .search-item-actions {
+            /* Make the button group full width and stack the buttons */
+            flex-direction: column;
+            width: 100%;
+            gap: 0.5rem; /* Space between stacked buttons */
+        }
+        body.phone-mode .search-item-actions .btn {
+            /* Override existing phone rule to be full-width */
+            width: 100%;
+            padding: 0.75rem 1rem; /* Make buttons nice and tall for tapping */
+            font-size: 1rem;
+        }
+
+
         /* --- End Phone Mode --- */
     </style>
 </head>
